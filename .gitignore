@@ -2,3 +2,4 @@ out/
 *.o
 res/*.rs.h
 tools/shots/
+tools/script.h

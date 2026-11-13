@@ -1,0 +1,51 @@
+#ifndef GAME_PLAYER_H
+#define GAME_PLAYER_H
+
+#include "game_room.h"
+
+#ifdef PC_TEST
+typedef int32_t s32;
+#define PAD_UP    0x0001
+#define PAD_DOWN  0x0002
+#define PAD_LEFT  0x0004
+#define PAD_RIGHT 0x0008
+#define PAD_A     0x0040
+#define PAD_B     0x0010
+#define PAD_C     0x0020
+#else
+#include <joy.h>
+#define PAD_UP    BUTTON_UP
+#define PAD_DOWN  BUTTON_DOWN
+#define PAD_LEFT  BUTTON_LEFT
+#define PAD_RIGHT BUTTON_RIGHT
+#define PAD_A     BUTTON_A
+#define PAD_B     BUTTON_B
+#define PAD_C     BUTTON_C
+#endif
+
+// Controls: C jump (release early = shorter jump), B slash, DOWN crouch, DOWN + C drop through a platform.
+#define PAD_JUMP   PAD_C
+#define PAD_ATTACK PAD_B
+
+#define PLAYER_W 12
+#define PLAYER_H 28
+#define PLAYER_CROUCH_H 18
+
+// Positions in 1/256 pixel, speeds in 1/256 pixel per frame (no FPU on the 68000).
+typedef struct
+{
+    s32 x, y;            // x = centre of the hitbox, y = just below the feet
+    s16 vx, vy;
+    u8 onGround, facingLeft, crouching, jumpHeld;
+    u8 coyote, jumpBuffer, dropTimer, attackTimer;
+    u16 prevPad;
+} Player;
+
+// Per-frame constants: NTSC values, scaled for 50 Hz so a jump has the same height and duration.
+void player_setRegion(u8 pal);
+void player_init(Player *p, s16 px, s16 py);
+void player_update(Player *p, const Room *r, u16 pad);
+u8 player_attackActive(const Player *p);
+u8 player_attackTimer(const Player *p);
+
+#endif
