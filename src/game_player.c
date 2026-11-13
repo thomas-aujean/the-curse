@@ -367,8 +367,9 @@ void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
     }
     else
     {
+        // Standing, the blade sweeps from the chest down to the knees: low enemies (jellies) get hit.
         *y0 = py - (p->crouching ? 16 : 24);
-        *y1 = *y0 + 11;
+        *y1 = p->crouching ? *y0 + 11 : py - 4;
         *x0 = p->facingLeft ? px - 20 - p->reachBonus : px + 4;
         *x1 = *x0 + 15 + p->reachBonus;
     }

@@ -32,6 +32,13 @@
 #define GFX_TILE_MAP_FILLED    (TILE_USER_INDEX + 93)   // minimap, colour 15 of the palette
 #define GFX_TILE_MAP_OUTLINE   (TILE_USER_INDEX + 94)
 #define GFX_TILE_RELIC         (TILE_USER_INDEX + 95)   // 2 x 2 tiles (PAL2)
+#define GFX_TILE_ARCHER        (TILE_USER_INDEX + 99)   // 2 x 3, feet on row GFX_WALKER_FEET
+#define GFX_TILE_GUARD         (TILE_USER_INDEX + 105)  // 2 x 3, idem
+#define GFX_TILE_ENINJA        (TILE_USER_INDEX + 111)  // 2 x 4, ninja art in enemy colours
+#define GFX_TILE_JELLY         (TILE_USER_INDEX + 119)  // 2 x 2, bottom on row 15
+#define GFX_TILE_JELLY_SMALL   (TILE_USER_INDEX + 123)  // 1 x 1, bottom on row 6
+#define GFX_TILE_ARROW         (TILE_USER_INDEX + 124)
+#define GFX_TILE_SHURIKEN      (TILE_USER_INDEX + 125)
 
 #define GFX_WALKER_FEET 22   // last pixel row of the feet in the 24-row walker art
 #define GFX_FLYER_BOTTOM 13

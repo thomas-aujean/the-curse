@@ -114,6 +114,10 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
                 if (c == 'w') enemies_add(&lv->enemies, ENEMY_WALKER, bx * 16 + 8, (by + 1) * 16, 0);
                 if (c == 'f') enemies_add(&lv->enemies, ENEMY_FLYER, bx * 16 + 8, by * 16 + 14, 0);
                 if (c == 'B') enemies_add(&lv->enemies, ENEMY_BOSS, bx * 16 + 8, (by + 1) * 16, 0);
+                if (c == 'a') enemies_add(&lv->enemies, ENEMY_ARCHER, bx * 16 + 8, (by + 1) * 16, 0);
+                if (c == 'n') enemies_add(&lv->enemies, ENEMY_NINJA, bx * 16 + 8, (by + 1) * 16, 0);
+                if (c == 'g') enemies_add(&lv->enemies, ENEMY_GUARD, bx * 16 + 8, (by + 1) * 16, 0);
+                if (c == 'j') enemies_add(&lv->enemies, ENEMY_JELLY, bx * 16 + 8, (by + 1) * 16, 0);
             }
 
     // Item on its altar, in the middle of the small room, until taken.

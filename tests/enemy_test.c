@@ -135,6 +135,95 @@ int main(void)
     }
     CHECK(hits >= 16 && hits < 40, "boss dies after %d slashes (some miss while it leaps)", hits);
 
+    // Archer: shoots an arrow at a player level with it; the Void bulb's spore homes in.
+    for (int form = 0; form < 2; form++)
+    {
+        enemies_clear(&set);
+        enemies_add(&set, ENEMY_ARCHER, 250, 200, form);
+        player_init(&p, 120, form ? 140 : 200);
+        int fired = 0, steered = 0;
+        for (int f = 0; f < 200; f++)
+        {
+            p.invulnerable = 255;
+            enemies_update(&set, &room, &p);
+            for (int i = 0; i < MAX_SHOTS; i++)
+                if (set.shots[i].active)
+                {
+                    fired = 1;
+                    CHECK(set.shots[i].kind == (form ? SHOT_SPORE : SHOT_ARROW), "archer shot kind");
+                    if (set.shots[i].vy < 0) steered = 1;   // the player is above: the spore climbs
+                }
+        }
+        CHECK(fired && steered == form, "archer form %d: fired %d steered %d", form, fired, steered);
+    }
+
+    // Guard: the shield blocks a side slash from the front, the back is open. The Void colossus
+    // also blocks a downward slash from the front.
+    for (int form = 0; form < 2; form++)
+    {
+        enemies_clear(&set);
+        Enemy *g = enemies_add(&set, ENEMY_GUARD, 200, 200, form);
+        player_init(&p, 180, 200);
+        p.facingLeft = 0;
+        g->facingLeft = 1;                          // facing the player
+        s8 hp = g->hp;
+        step(&p, 0, 1);
+        p.x = g->x - (16 << 8); p.facingLeft = 0; p.invulnerable = 255;
+        step(&p, PAD_ATTACK, 4);
+        CHECK(g->hp == hp, "guard form %d: front slash blocked (hp %d)", form, g->hp);
+        p.attackTimer = 0;
+        p.x = g->x - (14 << 8);
+        p.y = g->y - (40 << 8);                     // above, slightly in front
+        p.vx = p.vy = 0; p.onGround = 0; p.invulnerable = 255;   // the shield pushed the player back
+        g->facingLeft = 1;
+        step(&p, PAD_DOWN, 1);                      // releases B: the next press is a new slash
+        step(&p, PAD_DOWN | PAD_ATTACK, 6);
+        CHECK(form ? g->hp == hp : g->hp < hp, "guard form %d: downward slash (hp %d)", form, g->hp);
+        hp = g->hp;
+        p.attackTimer = 0;
+        p.x = g->x + (16 << 8); p.y = g->y; p.vy = 0; p.facingLeft = 1; p.invulnerable = 255;
+        g->facingLeft = 1;                          // back turned to the player
+        g->vx = 0;
+        p.prevPad = 0;                              // B released
+        step(&p, PAD_ATTACK, 4);
+        CHECK(g->hp < hp, "guard form %d: hit in the back (hp %d -> %d)", form, hp, g->hp);
+    }
+
+    // Jelly: splits in two (three in the Void); each small one dies in one hit.
+    for (int form = 0; form < 2; form++)
+    {
+        enemies_clear(&set);
+        enemies_add(&set, ENEMY_JELLY, 200, 200, form);
+        set.e[0].stateTimer = 999;
+        player_init(&p, 184, 200);
+        p.facingLeft = 0;
+        p.invulnerable = 255;
+        step(&p, PAD_ATTACK, 4);
+        int smalls = 0;
+        for (int i = 0; i < MAX_ENEMIES; i++) smalls += set.e[i].type == ENEMY_JELLY_SMALL;
+        CHECK(smalls == (form ? 3 : 2), "jelly form %d split into %d", form, smalls);
+        for (int i = 0; i < MAX_ENEMIES; i++)
+            if (set.e[i].type == ENEMY_JELLY_SMALL) CHECK(set.e[i].hp == 1, "small jelly hp %d", set.e[i].hp);
+    }
+
+    // Ninja: leaps at the player; the normal one throws a shuriken, the Void hunter does not.
+    for (int form = 0; form < 2; form++)
+    {
+        enemies_clear(&set);
+        enemies_add(&set, ENEMY_NINJA, 250, 200, form);
+        player_init(&p, 150, 200);
+        int leapt = 0, shuriken = 0;
+        for (int f = 0; f < 240; f++)
+        {
+            p.invulnerable = 255;
+            p.x = 150 << 8;
+            enemies_update(&set, &room, &p);
+            if (set.e[0].vy < 0) leapt = 1;
+            for (int i = 0; i < MAX_SHOTS; i++) shuriken |= set.shots[i].active && set.shots[i].kind == SHOT_SHURIKEN;
+        }
+        CHECK(leapt && shuriken == !form, "ninja form %d: leapt %d shuriken %d", form, leapt, shuriken);
+    }
+
     // Light protection: 20 s inside the Void, then the pact (double slash damage, +1 damage taken).
     player_init(&p, 250, 200);
     for (int f = 0; f < 20 * 60 - 1; f++) player_updateLight(&p, 1);

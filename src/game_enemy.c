@@ -9,16 +9,25 @@ typedef struct
 } EnemyStats;
 
 // [type][voidForm], NTSC values.
-static const EnemyStats STATS[4][2] =
+static const EnemyStats STATS[ENEMY_TYPES][2] =
 {
     { { 0 }, { 0 } },
     { { 154, 0, 0, 2, 1 }, { 256, 640, 128, 4, 2 } },        // walker: patrols; Void form charges
     { { 192, 0, 112, 1, 1 }, { 384, 0, 160, 2, 2 } },        // flyer: homes in on the player
     { { 192, 1024, 0, 16, 2 }, { 256, 1280, 0, 24, 3 } },    // boss: dash, leap, fan of shots
+    { { 0, 768, 200, 2, 1 }, { 0, 384, 240, 3, 2 } },        // archer: chase = arrow / spore speed
+    { { 384, 640, 160, 2, 1 }, { 512, 1024, 200, 3, 2 } },   // ninja: chase = shuriken / lunge speed
+    { { 128, 0, 160, 3, 1 }, { 256, 0, 200, 6, 2 } },        // guard
+    { { 256, 0, 160, 2, 1 }, { 448, 0, 200, 2, 2 } },        // jelly
+    { { 320, 0, 160, 1, 1 }, { 512, 0, 200, 1, 1 } },        // small jelly
 };
 
 static s16 speedScale6, gravity, maxFall, knockback, leapVel, shotSpeed, shotSpread;
 static u8 hurtFrames, deathFrames, bossIdle, bossWarn;
+static u8 archerDelay, archerVoidDelay, ninjaDelay, ninjaVoidDelay, jellyDelay;
+static s16 ninjaJump, jellyJump, homingAccel;
+static u8 guardTurn;
+static u16 sporeLife;
 
 void enemies_setRegion(u8 isPal)
 {
@@ -34,6 +43,16 @@ void enemies_setRegion(u8 isPal)
     bossIdle = isPal ? 50 * 5 / 6 : 50;
     bossWarn = isPal ? 36 * 5 / 6 : 36;
     speedScale6 = isPal ? 6 : 5;
+    archerDelay = isPal ? 90 * 5 / 6 : 90;
+    archerVoidDelay = isPal ? 120 * 5 / 6 : 120;
+    ninjaDelay = isPal ? 70 * 5 / 6 : 70;
+    ninjaVoidDelay = isPal ? 45 * 5 / 6 : 45;
+    jellyDelay = isPal ? 50 * 5 / 6 : 50;
+    ninjaJump = isPal ? 1500 * 6 / 5 : 1500;
+    jellyJump = isPal ? 900 * 6 / 5 : 900;
+    homingAccel = isPal ? 24 * 36 / 25 : 24;
+    sporeLife = isPal ? 240 * 5 / 6 : 240;
+    guardTurn = isPal ? 40 * 5 / 6 : 40;
 }
 
 static s16 speedOf(s16 v)
@@ -43,8 +62,12 @@ static s16 speedOf(s16 v)
 
 void enemy_size(u8 type, s16 *w, s16 *h)
 {
-    *w = type == ENEMY_BOSS ? 28 : 14;
-    *h = type == ENEMY_BOSS ? 44 : type == ENEMY_WALKER ? 22 : 12;
+    static const u8 SIZE[ENEMY_TYPES][2] =
+    {
+        { 0, 0 }, { 14, 22 }, { 14, 12 }, { 28, 44 }, { 14, 22 }, { 12, 28 }, { 16, 22 }, { 14, 10 }, { 8, 7 },
+    };
+    *w = SIZE[type][0];
+    *h = SIZE[type][1];
 }
 
 void enemies_clear(EnemySet *s)
@@ -53,7 +76,7 @@ void enemies_clear(EnemySet *s)
     for (u8 i = 0; i < MAX_SHOTS; i++) s->shots[i].active = 0;
 }
 
-void enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
+Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
 {
     for (u8 i = 0; i < MAX_ENEMIES; i++)
     {
@@ -69,12 +92,13 @@ void enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
         e->timer = i * 37;   // desynchronise the bobbing
         e->state = BOSS_IDLE;
         e->step = 0;
-        e->stateTimer = bossIdle;
+        e->stateTimer = type == ENEMY_BOSS ? bossIdle : 30 + i * 11;   // staggered first actions
         e->voidForm = 0;
         e->hp = STATS[type][0].hp;
         if (voidForm) enemy_setVoidForm(e, 1);
-        return;
+        return e;
     }
+    return 0;
 }
 
 void enemies_setVoid(EnemySet *s, u8 voidForm)
@@ -235,6 +259,8 @@ static void fireShots(EnemySet *s, const Enemy *e, u8 count, u8 damage)
         sh->vx = dir * shotSpeed;
         sh->vy = ((s16) fired * 2 - (count - 1)) * shotSpread / 2;   // fan, centred on the horizon
         sh->damage = damage;
+        sh->kind = SHOT_ORB;
+        sh->life = 0xFFFF;
         fired++;
     }
 }
@@ -309,6 +335,137 @@ static void updateBoss(EnemySet *s, Enemy *e, const EnemyStats *st, const Room *
     }
 }
 
+static Shot *newShot(EnemySet *s)
+{
+    for (u8 i = 0; i < MAX_SHOTS; i++)
+        if (!s->shots[i].active) return &s->shots[i];
+    return 0;
+}
+
+static void faceAndStand(Enemy *e, const Room *r, const Player *p)
+{
+    s16 w, h;
+    enemy_size(e->type, &w, &h);
+    e->facingLeft = p->x < e->x;
+    e->vx = approach(e->vx, 0, 32);
+    moveBody(e, r, w, h);
+}
+
+// Archer: stands still and shoots when the player is roughly level with it.
+// Void bulb: spits a slow spore that steers towards the player for a few seconds.
+static void updateArcher(EnemySet *s, Enemy *e, const EnemyStats *st, const Room *r, const Player *p)
+{
+    faceAndStand(e, r, p);
+    if (e->hurtTimer || --e->stateTimer) return;
+    e->stateTimer = e->voidForm ? archerVoidDelay : archerDelay;
+    s32 dx = (p->x - e->x) >> 8, dy = (p->y - e->y) >> 8;
+    if (absS32(dx) > st->range || (!e->voidForm && absS32(dy) > 40)) return;
+    Shot *sh = newShot(s);
+    if (!sh) return;
+    s16 dir = e->facingLeft ? -1 : 1;
+    sh->active = 1;
+    sh->x = e->x + ((s32) (dir * 8) << 8);
+    sh->y = e->y - (14 << 8);
+    sh->vx = dir * speedOf(st->chase);
+    sh->vy = 0;
+    sh->damage = st->damage;
+    sh->kind = e->voidForm ? SHOT_SPORE : SHOT_ARROW;
+    sh->life = e->voidForm ? sporeLife : 0xFFFF;
+}
+
+// Ninja: closes in, then every so often leaps at the player; the normal one throws a shuriken
+// as it leaps, the Void hunter lunges twice as fast instead.
+static void updateNinja(EnemySet *s, Enemy *e, const EnemyStats *st, const Room *r, const Player *p)
+{
+    s16 w, h;
+    enemy_size(e->type, &w, &h);
+    s32 dx = (p->x - e->x) >> 8, dy = (p->y - e->y) >> 8;
+    u8 grounded = e->vy == 0;
+    if (!e->hurtTimer && grounded)
+    {
+        e->facingLeft = dx < 0;
+        s16 dir = e->facingLeft ? -1 : 1;
+        // Keep a fighting distance of about 48 px.
+        s16 target = absS32(dx) > st->range ? 0 : absS32(dx) > 48 ? dir * speedOf(st->speed) : -dir * speedOf(st->speed) / 2;
+        e->vx = approach(e->vx, target, 48);
+        if (--e->stateTimer == 0 && absS32(dx) < st->range)
+        {
+            e->stateTimer = e->voidForm ? ninjaVoidDelay : ninjaDelay;
+            e->vy = -ninjaJump;
+            e->vx = dir * (e->voidForm ? speedOf(st->chase) : speedOf(st->speed));
+            Shot *sh = e->voidForm ? 0 : newShot(s);
+            if (sh)
+            {
+                s32 vy = dy * 3;
+                sh->active = 1;
+                sh->x = e->x;
+                sh->y = e->y - (18 << 8);
+                sh->vx = dir * speedOf(st->chase);
+                sh->vy = vy > 512 ? 512 : vy < -512 ? -512 : vy;
+                sh->damage = st->damage;
+                sh->kind = SHOT_SHURIKEN;
+                sh->life = 0xFFFF;
+            }
+        }
+        else if (!e->stateTimer) e->stateTimer = 20;
+    }
+    else if (e->hurtTimer) e->vx = approach(e->vx, 0, 32);
+    moveBody(e, r, w, h);
+}
+
+// Guard: walks slowly towards the player, turning back at ledges. Blocking is in enemies_update.
+static void updateGuard(Enemy *e, const EnemyStats *st, const Room *r, const Player *p)
+{
+    s16 w, h;
+    enemy_size(e->type, &w, &h);
+    s16 px = e->x >> 8, py = e->y >> 8;
+    if (!e->hurtTimer)
+    {
+        // Turning around takes a moment: that is the window to strike its back.
+        s32 dx = (p->x - e->x) >> 8;
+        u8 behind = absS32(dx) < st->range && (dx < 0) != e->facingLeft;
+        if (!behind) e->stateTimer = guardTurn;
+        else if (--e->stateTimer == 0)
+        {
+            e->facingLeft = !e->facingLeft;
+            e->stateTimer = guardTurn;
+        }
+        s16 dir = e->facingLeft ? -1 : 1;
+        s16 ahead = px + dir * (w / 2 + 1);
+        if (isSolid(r, ahead, py - 4) || room_tileAt(r, ahead, py) == TILE_EMPTY) e->vx = 0;
+        else e->vx = dir * speedOf(st->speed);
+    }
+    else e->vx = approach(e->vx, 0, 32);
+    moveBody(e, r, w, h);
+}
+
+// Jelly: hops towards the player.
+static void updateJelly(Enemy *e, const EnemyStats *st, const Room *r, const Player *p)
+{
+    s16 w, h;
+    enemy_size(e->type, &w, &h);
+    u8 grounded = e->vy == 0;
+    if (grounded && !e->hurtTimer)
+    {
+        e->vx = approach(e->vx, 0, 64);
+        if (--e->stateTimer == 0)
+        {
+            e->stateTimer = jellyDelay;
+            e->facingLeft = p->x < e->x;
+            e->vy = e->type == ENEMY_JELLY_SMALL ? -jellyJump * 3 / 4 : -jellyJump;
+            e->vx = (e->facingLeft ? -1 : 1) * speedOf(st->speed);
+        }
+    }
+    moveBody(e, r, w, h);
+}
+
+static void steerSpore(Shot *sh, const Player *p)
+{
+    s32 dx = (p->x - sh->x) >> 8, dy = ((p->y - (14 << 8)) - sh->y) >> 8;
+    sh->vx = approach(sh->vx, dx > 0 ? 384 : -384, homingAccel);
+    sh->vy = approach(sh->vy, dy > 0 ? 384 : -384, homingAccel);
+}
+
 static u8 overlap(s16 ax0, s16 ay0, s16 ax1, s16 ay1, s16 bx0, s16 by0, s16 bx1, s16 by1)
 {
     return ax0 <= bx1 && bx0 <= ax1 && ay0 <= by1 && by0 <= ay1;
@@ -320,6 +477,12 @@ static void updateShots(EnemySet *s, const Room *r, Player *p, s16 px0, s16 py0,
     {
         Shot *sh = &s->shots[i];
         if (!sh->active) continue;
+        if (sh->kind == SHOT_SPORE) steerSpore(sh, p);
+        if (sh->life != 0xFFFF && --sh->life == 0)
+        {
+            sh->active = 0;
+            continue;
+        }
         sh->x += sh->vx;
         sh->y += sh->vy;
         s16 x = sh->x >> 8, y = sh->y >> 8;
@@ -338,6 +501,7 @@ static void updateShots(EnemySet *s, const Room *r, Player *p, s16 px0, s16 py0,
 
 void enemies_update(EnemySet *s, const Room *r, Player *p)
 {
+    s->blocked = 0;
     s16 ax0 = 0, ay0 = 0, ax1 = 0, ay1 = 0;
     u8 slashing = player_attackActive(p);
     if (slashing) player_attackBox(p, &ax0, &ay0, &ax1, &ay1);
@@ -360,7 +524,11 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
         if (e->hurtTimer) e->hurtTimer--;
         if (e->type == ENEMY_WALKER) updateWalker(e, st, r, p);
         else if (e->type == ENEMY_FLYER) updateFlyer(e, st, p);
-        else updateBoss(s, e, st, r, p);
+        else if (e->type == ENEMY_BOSS) updateBoss(s, e, st, r, p);
+        else if (e->type == ENEMY_ARCHER) updateArcher(s, e, st, r, p);
+        else if (e->type == ENEMY_NINJA) updateNinja(s, e, st, r, p);
+        else if (e->type == ENEMY_GUARD) updateGuard(e, st, r, p);
+        else updateJelly(e, st, r, p);
 
         s16 w, h;
         enemy_size(e->type, &w, &h);
@@ -370,6 +538,18 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
         if (slashing && e->lastHitId != p->attackId && overlap(ax0, ay0, ax1, ay1, x0, y0, x1, y1))
         {
             e->lastHitId = p->attackId;
+            if (e->type == ENEMY_GUARD)
+            {
+                // The shield covers the front against side slashes; the Void colossus also shrugs
+                // off blows from above or below: only its back is vulnerable.
+                u8 playerInFront = (p->x < e->x) == e->facingLeft;
+                if (playerInFront && (p->attackDir == ATTACK_SIDE || e->voidForm))
+                {
+                    s->blocked = 1;
+                    p->vx = p->x < e->x ? -knockback : knockback;   // pushed back by the shield
+                    continue;
+                }
+            }
             e->hurtTimer = hurtFrames;
             if (e->type != ENEMY_BOSS)   // the boss is too heavy to be pushed around
             {
@@ -380,6 +560,21 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             if (p->attackDir == ATTACK_DOWN) player_bounce(p);
             e->hp -= player_slashDamage(p);
             if (e->hp <= 0) e->deathTimer = e->type == ENEMY_BOSS ? deathFrames * 4 : deathFrames;
+            else if (e->type == ENEMY_JELLY)
+            {
+                // Splits into small jellies (three in the Void) that jump apart.
+                e->deathTimer = 1;
+                u8 parts = e->voidForm ? 3 : 2;
+                for (u8 k = 0; k < parts; k++)
+                {
+                    Enemy *n = enemies_add(s, ENEMY_JELLY_SMALL, ex - 8 + k * 8, ey, e->voidForm);
+                    if (!n) break;
+                    n->vy = -jellyJump / 2;
+                    n->vx = (k * 2 - (parts - 1)) * 256;
+                    n->stateTimer = jellyDelay;
+                    n->lastHitId = p->attackId;   // not hit again by the same slash
+                }
+            }
             continue;
         }
         if (overlap(px0, py0, px1, py1, x0, y0, x1, y1))
@@ -401,4 +596,9 @@ s8 enemies_bossSlot(const EnemySet *s)
     for (u8 i = 0; i < MAX_ENEMIES; i++)
         if (s->e[i].type == ENEMY_BOSS && !s->e[i].deathTimer) return i;
     return -1;
+}
+
+u8 enemies_blocked(EnemySet *s)
+{
+    return s->blocked;
 }

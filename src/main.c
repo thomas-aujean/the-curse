@@ -290,6 +290,30 @@ static void drawSprites(void)
                 u16 wing = (e->timer >> 3) & 1 ? 4 : 0;
                 attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_FLYER + wing);
             }
+            else if (e->type == ENEMY_ARCHER || e->type == ENEMY_GUARD)
+            {
+                ey = (e->y >> 8) - camY - GFX_WALKER_FEET - 1;
+                esize = SPRITE_SIZE(2, 3);
+                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, e->type == ENEMY_ARCHER ? GFX_TILE_ARCHER : GFX_TILE_GUARD);
+            }
+            else if (e->type == ENEMY_NINJA)
+            {
+                ey = (e->y >> 8) - camY - GFX_FEET_ROW - 1;
+                esize = SPRITE_SIZE(2, 4);
+                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_ENINJA);
+            }
+            else if (e->type == ENEMY_JELLY)
+            {
+                ey = (e->y >> 8) - camY - 16;
+                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_JELLY);
+            }
+            else if (e->type == ENEMY_JELLY_SMALL)
+            {
+                ex = (e->x >> 8) - camX - 4;
+                ey = (e->y >> 8) - camY - 7;
+                esize = SPRITE_SIZE(1, 1);
+                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_JELLY_SMALL);
+            }
             else
             {
                 // 32 x 48 in two sprites: feet on pixel row 45 of the doubled walker art.
@@ -309,8 +333,11 @@ static void drawSprites(void)
     {
         const Shot *sh = &lv.enemies.shots[i];
         s16 y = sh->active ? (sh->y >> 8) - camY - 4 : -64;
+        u16 tile = sh->kind == SHOT_ARROW ? GFX_TILE_ARROW : sh->kind == SHOT_SHURIKEN ? GFX_TILE_SHURIKEN : GFX_TILE_SHOT;
+        u16 spal = sh->kind == SHOT_SPORE ? PAL3 : PAL2;
+        u16 hflip = sh->vx < 0, vflip = sh->kind == SHOT_SHURIKEN && (vtimer & 4);   // shurikens spin
         VDP_setSpriteFull(SPRITE_SHOTS + i, (sh->x >> 8) - camX - 4, y, SPRITE_SIZE(1, 1),
-                          TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_SHOT), SPRITE_SHOTS + i + 1);
+                          TILE_ATTR_FULL(spal, 1, vflip, hflip, tile), SPRITE_SHOTS + i + 1);
     }
     s16 gy = lv.gemActive ? (lv.gemY >> 8) - camY - 8 : -64;
     VDP_setSpriteFull(SPRITE_GEM, (lv.gemX >> 8) - camX - 4, gy, SPRITE_SIZE(1, 1),

@@ -186,6 +186,89 @@ static const char *const RELIC[16] =   // PAL2: a mysterious chalice (good or ba
     "................",
 };
 
+static const char *const ARCHER[24] =
+{
+    "......1111......",
+    ".....122221.....",
+    "....12222221....",
+    "....12442441....",
+    "....12222221....",
+    ".....122221....1",
+    "......1221....1.",
+    "....11222211.1..",
+    "...12222222221..",
+    "...12.1221..1.1.",
+    "...12.1331...11.",
+    "...11.1221....1.",
+    "......1331.....1",
+    "......1221......",
+    ".....122221.....",
+    ".....12..21.....",
+    ".....12..21.....",
+    ".....12..21.....",
+    ".....13..31.....",
+    ".....12..21.....",
+    ".....12..21.....",
+    "....122..221....",
+    "....111..111....",
+    "................",
+};
+
+static const char *const GUARD[24] =   // shield held in front (right side)
+{
+    "......1111......",
+    ".....133331.....",
+    "....13333331....",
+    "....13144131....",
+    "....13333331....",
+    ".....133331.....",
+    "....112222111111",
+    "...1222222213331",
+    "..12222222213431",
+    "..12.12222113431",
+    "..12.12222113431",
+    "..11.12222113331",
+    ".....12222113431",
+    ".....12222113431",
+    ".....12222113331",
+    ".....12..2113431",
+    ".....12..2113331",
+    ".....12..21.111.",
+    ".....13..31.....",
+    ".....12..21.....",
+    ".....12..21.....",
+    "....122..221....",
+    "....111..111....",
+    "................",
+};
+
+static const char *const JELLY[16] =
+{
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "......1111......",
+    "....11222211....",
+    "...1222222221...",
+    "..122442442221..",
+    "..122442442221..",
+    ".12222222222221.",
+    ".12222222222221.",
+    ".13222222222231.",
+    "..133333333331..",
+    "...1111111111...",
+};
+
+static const u32 SMALL_TILES[3][8] =   // PAL2/PAL3: small jelly, arrow, shuriken
+{
+    { 0x00000000, 0x00111100, 0x01222210, 0x12422421, 0x12222221, 0x13222231, 0x01333310, 0x00000000 },
+    { 0x00000000, 0x00000000, 0x10000040, 0x22222224, 0x10000040, 0x00000000, 0x00000000, 0x00000000 },
+    { 0x00010000, 0x00121000, 0x01222100, 0x12242210, 0x01222100, 0x00121000, 0x00010000, 0x00000000 },
+};
+
 // Empty space outside the circle: near-black violet with sparse specks (PAL3 colours 10 and 11).
 static const u32 VOID_TILE[8] =
 {
@@ -229,6 +312,14 @@ static u8 plainPixel(const char *const *rows, u8 x, u8 y)
 static u8 rotatedPixel(const char *const *rows, u8 x, u8 y)
 {
     return artPixel(rows[x], 23 - y);
+}
+
+// The player's ninja art in enemy colours (4 colours of PAL2 / PAL3).
+static u8 enemyNinjaPixel(const char *const *rows, u8 x, u8 y)
+{
+    static const u8 MAP[7] = { 0, 1, 3, 2, 2, 4, 2 };
+    u8 v = artPixel(rows[y], x);
+    return v < 7 ? MAP[v] : v;
 }
 
 // Art drawn at double size (placeholder boss).
@@ -326,6 +417,15 @@ void gfx_load(void)
     VDP_loadTileData(GEM_TILE, GFX_TILE_GEM, 1, CPU);
     artToTiles(RELIC, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_RELIC, 4, CPU);
+    artToTiles(ARCHER, plainPixel, 2, 3, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_ARCHER, 6, CPU);
+    artToTiles(GUARD, plainPixel, 2, 3, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_GUARD, 6, CPU);
+    artToTiles(NINJA, enemyNinjaPixel, 2, 4, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_ENINJA, 8, CPU);
+    artToTiles(JELLY, plainPixel, 2, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_JELLY, 4, CPU);
+    VDP_loadTileData(SMALL_TILES[0], GFX_TILE_JELLY_SMALL, 3, CPU);
 
     // Enemies: PAL2 normal form (bone and red eyes), PAL3 Void form (violet and cyan eyes).
     PAL_setColor(32 + 1, RGB24_TO_VDPCOLOR(0x000000));

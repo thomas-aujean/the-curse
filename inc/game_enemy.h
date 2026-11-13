@@ -9,7 +9,21 @@
 
 #define MAX_ENEMIES 8
 
-enum { ENEMY_NONE, ENEMY_WALKER, ENEMY_FLYER, ENEMY_BOSS };
+enum
+{
+    ENEMY_NONE,
+    ENEMY_WALKER,       // patrols; Void: charges
+    ENEMY_FLYER,        // homes in; Void: faster
+    ENEMY_BOSS,         // guardian of the gem
+    ENEMY_ARCHER,       // shoots arrows; Void: bulb spitting homing spores
+    ENEMY_NINJA,        // leaps and throws shurikens; Void: lunging hunter
+    ENEMY_GUARD,        // shield blocks frontal slashes; Void: only the back is vulnerable
+    ENEMY_JELLY,        // splits in two when hit; Void: in three
+    ENEMY_JELLY_SMALL,
+    ENEMY_TYPES
+};
+
+enum { SHOT_ORB, SHOT_ARROW, SHOT_SHURIKEN, SHOT_SPORE };
 
 #define MAX_SHOTS 8
 
@@ -39,17 +53,20 @@ typedef struct
     s32 x, y;            // centre, 1/256 px
     s16 vx, vy;
     u8 damage;
+    u8 kind;             // SHOT_*
+    u16 life;            // frames left (spores fade out)
 } Shot;
 
 typedef struct
 {
     Enemy e[MAX_ENEMIES];
     Shot shots[MAX_SHOTS];
+    u8 blocked;
 } EnemySet;
 
 void enemies_setRegion(u8 pal);
 void enemies_clear(EnemySet *s);
-void enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm);
+Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm);   // 0 when full
 void enemies_setVoid(EnemySet *s, u8 voidForm);   // everyone transforms
 void enemy_setVoidForm(Enemy *e, u8 voidForm);    // keeps the damage already taken
 
@@ -57,6 +74,7 @@ void enemy_setVoidForm(Enemy *e, u8 voidForm);    // keeps the damage already ta
 void enemies_update(EnemySet *s, const Room *r, Player *p);
 
 u8 enemies_alive(const EnemySet *s);   // still fighting (death puffs excluded)
+u8 enemies_blocked(EnemySet *s);       // a shield blocked a slash this frame (sound later)
 void enemy_size(u8 type, s16 *w, s16 *h);
 
 // Slot of the boss if one is still fighting, -1 otherwise.
