@@ -1,0 +1,4 @@
+out/
+*.o
+res/*.rs.h
+tools/shots/
