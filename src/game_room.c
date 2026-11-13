@@ -64,8 +64,13 @@ void room_buildTest(Room *r)
 
 u8 room_tileAt(const Room *r, s16 px, s16 py)
 {
-    if (px < 0 || py < 0) return TILE_SOLID;
     s16 tx = px >> 3, ty = py >> 3;
-    if (tx >= r->w || ty >= r->h) return TILE_SOLID;
-    return r->tiles[ty][tx];
+    if (tx >= 0 && ty >= 0 && tx < r->w && ty < r->h) return r->tiles[ty][tx];
+
+    // Outside: solid, except beyond an open door (empty border tile) so the player can walk out.
+    if (tx < 0) tx = 0;
+    if (ty < 0) ty = 0;
+    if (tx >= r->w) tx = r->w - 1;
+    if (ty >= r->h) ty = r->h - 1;
+    return r->tiles[ty][tx] == TILE_EMPTY ? TILE_EMPTY : TILE_SOLID;
 }

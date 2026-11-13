@@ -82,6 +82,14 @@ Piste de réponse à « que faire si jeu fini rapidement ». Principe : on peut 
   - arriver chaque fois au boss avant le Néant débloque un boss rush ;
   - boss battu → courte cinématique : une main tient la gemme, la zone sûre explose vers l'extérieur,
     le monde redevient normal → étage suivant.
+- **Ambition visuelle (Thomas, 2026-11-13)** : « un très beau jeu », pousser la Mega Drive au maximum de sa
+  beauté (références : Shinobi III, Castlevania Bloodlines, Gunstar Heroes).
+- **Histoire (Thomas, 2026-11-13, piste)** : le grand méchant a dérobé les 7 gemmes de la vie et les a
+  cachées dans son château. Il faut les récupérer et les libérer avant que le Néant ne les engloutisse
+  toutes. Chaque étage = une zone du château, chaque boss garde une gemme. La malédiction qui
+  réarrange le château justifie les étages générés.
+- **Univers (Thomas, 2026-11-13)** : un univers par niveau (proposition : 3 univers × 2 variantes de palette,
+  façon Isaac). Priorité : finir complètement un premier niveau avant de voir la suite.
 - **Coop (Thomas, 2026-11-13)** : 2 joueurs maximum sur Mega Drive, à condition que ça apporte vraiment
   quelque chose. Un portage Steam pourra aller jusqu'à 4.
 - **Règles fixes des secrets (apprenables par le joueur)** :

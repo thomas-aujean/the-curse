@@ -259,3 +259,9 @@ void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
         *x1 = *x0 + 15;
     }
 }
+void player_boostUp(Player *p)
+{
+    p->vy = -t.jumpVel;
+    p->jumpHeld = 0;
+    p->onGround = 0;
+}

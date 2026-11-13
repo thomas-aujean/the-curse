@@ -1,0 +1,85 @@
+// PC test of the room templates and of moving between rooms.
+//   wsl gcc -std=c99 -Wall -Wextra -DPC_TEST -Iinc tests/level_test.c src/game_level.c src/rooms.c src/game_floor.c src/game_player.c src/game_room.c -o out/level_test && out/level_test
+#include <stdio.h>
+#include <string.h>
+#include "game_level.h"
+
+static int failures = 0;
+#define CHECK(cond, ...) do { if (!(cond)) { failures++; printf("FAIL: " __VA_ARGS__); printf("\n"); } } while (0)
+
+static int bodyFree(const Room *r, const Player *p)
+{
+    int px = p->x >> 8, py = p->y >> 8;
+    for (int y = py - PLAYER_H; y < py; y += 4)
+        for (int x = px - PLAYER_W / 2; x < px + PLAYER_W / 2; x += 4)
+            if (room_tileAt(r, x, y) == TILE_SOLID) return 0;
+    return 1;
+}
+
+int main(void)
+{
+    // Template shapes: every row the right length, every door marker present.
+    for (int i = 0; i < ROOM_TEMPLATE_COUNT; i++)
+    {
+        const RoomTemplate *t = &ROOM_TEMPLATES[i];
+        CHECK(t->wBlocks * 2 <= ROOM_MAX_W && t->hBlocks * 2 <= ROOM_MAX_H, "template %d too big", i);
+        int doors[4] = { 0 };
+        for (int y = 0; y < t->hBlocks; y++)
+        {
+            CHECK((int) strlen(t->rows[y]) == t->wBlocks, "template %d row %d: %d chars", i, y, (int) strlen(t->rows[y]));
+            for (int x = 0; x < t->wBlocks; x++)
+            {
+                const char *m = strchr("LRUD", t->rows[y][x]);
+                if (m && t->rows[y][x]) doors[m - "LRUD"]++;
+            }
+        }
+        CHECK(doors[0] && doors[1] && doors[2] && doors[3], "template %d misses a door marker", i);
+    }
+
+    // Walk through every door of many floors: the player must arrive inside the new room, free of
+    // walls, settle on the ground within two seconds and not bounce straight back.
+    player_setRegion(0);
+    static Level lv;
+    Player p;
+    int moves = 0;
+    for (unsigned seed = 1; seed < 2000; seed += 13)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        CHECK(bodyFree(&lv.room, &p), "seed %u: start inside a wall", seed);
+        for (int y = 0; y < FLOOR_H; y++)
+            for (int x = 0; x < FLOOR_W; x++)
+            {
+                u8 doors = lv.floor.doors[y][x];
+                if (!doors) continue;
+                static const u8 BIT[4] = { DOOR_LEFT, DOOR_RIGHT, DOOR_UP, DOOR_DOWN };
+                static const int DX[4] = { -1, 1, 0, 0 }, DY[4] = { 0, 0, -1, 1 };
+                for (int d = 0; d < 4; d++)
+                {
+                    if (!(doors & BIT[d])) continue;
+                    // Stand in room (x, y), then push the player just past the door.
+                    lv.cellX = x;
+                    lv.cellY = y;
+                    level_buildRoom(&lv.room, level_templateFor(&lv, x, y), doors);
+                    s16 w = lv.room.w * 8, h = lv.room.h * 8;
+                    s16 px = d == 0 ? -1 : d == 1 ? w : w / 2;
+                    s16 py = d == 2 ? 0 : d == 3 ? h + PLAYER_H : h - 32;
+                    player_init(&p, px, py);
+                    p.vy = d == 3 ? 256 : 0;
+                    CHECK(level_update(&lv, &p), "seed %u (%d,%d) dir %d: no move", seed, x, y, d);
+                    CHECK(lv.cellX == x + DX[d] && lv.cellY == y + DY[d], "seed %u: wrong room", seed);
+                    CHECK(bodyFree(&lv.room, &p), "seed %u (%d,%d) dir %d: arrived in a wall", seed, x, y, d);
+                    int settled = 0;
+                    for (int f = 0; f < 120 && !settled; f++)
+                    {
+                        player_update(&p, &lv.room, 0);
+                        CHECK(!level_update(&lv, &p), "seed %u (%d,%d) dir %d: bounced back", seed, x, y, d);
+                        settled = p.onGround;
+                    }
+                    CHECK(settled, "seed %u (%d,%d) dir %d: never landed", seed, x, y, d);
+                    moves++;
+                }
+            }
+    }
+    printf("%d door crossings, %d failures\n", moves, failures);
+    return failures != 0;
+}

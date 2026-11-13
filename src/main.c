@@ -2,6 +2,7 @@
 #include "game_floor.h"
 #include "game_room.h"
 #include "game_player.h"
+#include "game_level.h"
 #include "gfx.h"
 
 #ifdef DEBUG_SCRIPT
@@ -9,15 +10,14 @@
 #endif
 
 // Room: D-pad run, C jump, B slash (UP + B upward), DOWN crouch, DOWN + C drop, START = floor map.
-// Map:  START back, A run/stop the Void, B show secrets, C new floor.
+// Map:  START back, A run/stop the Void, B show everything (debug), C new floor.
 
 enum { MODE_ROOM, MODE_MAP };
 
 #define MAP_X 2
 #define MAP_Y 4
 
-static Floor floor;
-static Room room;
+static Level lv;
 static Player player;
 static u8 mode = MODE_ROOM;
 static u8 depth = 1;
@@ -35,9 +35,9 @@ static u16 startRadius(void)
     u16 maxD2 = 0;
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++)
-            if (floor.type[y][x] != ROOM_NONE)
+            if (lv.floor.type[y][x] != ROOM_NONE)
             {
-                u16 d2 = floor_voidDist2(&floor, x, y);
+                u16 d2 = floor_voidDist2(&lv.floor, x, y);
                 if (d2 > maxD2) maxD2 = d2;
             }
     u16 r = 0;
@@ -47,22 +47,36 @@ static u16 startRadius(void)
 
 static void drawCell(u8 x, u8 y)
 {
-    u8 t = floor.type[y][x];
+    u8 t = lv.floor.type[y][x];
     u8 secret = t == ROOM_SECRET || t == ROOM_SUPER_SECRET;
     if (t == ROOM_NONE || (secret && !showSecrets)) return;
+
+    // Like Isaac: visited rooms are known, rooms behind a visible door of a visited room are guessed.
+    u8 known = showSecrets || lv.visited[y][x];
+    u8 guessed = (x > 0 && lv.visited[y][x - 1] && (lv.floor.doors[y][x - 1] & DOOR_RIGHT))
+        || (x < FLOOR_W - 1 && lv.visited[y][x + 1] && (lv.floor.doors[y][x + 1] & DOOR_LEFT))
+        || (y > 0 && lv.visited[y - 1][x] && (lv.floor.doors[y - 1][x] & DOOR_DOWN))
+        || (y < FLOOR_H - 1 && lv.visited[y + 1][x] && (lv.floor.doors[y + 1][x] & DOOR_UP));
+    if (!known && !guessed) return;
 
     u16 px = MAP_X + x * 4, py = MAP_Y + y * 3;
     u16 pal = PAL0;
     if (t == ROOM_BOSS) pal = PAL1;
     else if (t >= ROOM_UPGRADE) pal = PAL2;
-    if (!secret && floor_voidDist2(&floor, x, y) > radius * radius) pal = PAL3;
+    if (!secret && floor_voidDist2(&lv.floor, x, y) > radius * radius) pal = PAL3;
 
-    char cell[4] = { '[', LETTER[t], ']', 0 };
+    char cell[4] = { '[', known ? LETTER[t] : ' ', ']', 0 };
+    if (x == lv.cellX && y == lv.cellY) cell[1] = '@';
     VDP_setTextPalette(pal);
     VDP_drawText(cell, px, py);
 
     // Doors are drawn by the room on their left/top side only.
-    u8 doors = floor.doors[y][x], hidden = showSecrets ? floor.hidden[y][x] : 0;
+    u8 doors = lv.floor.doors[y][x], hidden = showSecrets ? lv.floor.hidden[y][x] : 0;
+    if (!known)   // only the doors leading back to visited rooms
+    {
+        if (!(x < FLOOR_W - 1 && lv.visited[y][x + 1])) doors &= ~DOOR_RIGHT;
+        if (!(y < FLOOR_H - 1 && lv.visited[y + 1][x])) doors &= ~DOOR_DOWN;
+    }
     VDP_setTextPalette(PAL0);
     if (doors & DOOR_RIGHT) VDP_drawText("-", px + 3, py);
     if (doors & DOOR_DOWN) VDP_drawText("|", px + 1, py + 1);
@@ -75,7 +89,7 @@ static void drawMapStatus(void)
 {
     char line[41];
     VDP_setTextPalette(PAL0);
-    sprintf(line, "GRAINE %04X  ETAGE %u  SALLES %u   ", floor.seed, depth, floor.roomCount);
+    sprintf(line, "GRAINE %04X  ETAGE %u  SALLES %u   ", lv.floor.seed, depth, lv.floor.roomCount);
     VDP_drawText(line, 2, 2);
     sprintf(line, "NEANT R=%3u %s   ", radius, voidRunning ? "AVANCE" : "ARRET ");
     VDP_drawText(line, 2, 27);
@@ -87,7 +101,7 @@ static void drawMap(void)
     VDP_clearPlane(BG_B, TRUE);
     VDP_setTextPalette(PAL0);
     VDP_drawText("CARTE  START retour", 2, 0);
-    VDP_drawText("A neant  B secrets  C nouvel etage", 2, 1);
+    VDP_drawText("A neant  B tout voir  C nouvel etage", 2, 1);
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++) drawCell(x, y);
     drawMapStatus();
@@ -95,7 +109,7 @@ static void drawMap(void)
 
 static void newFloor(u16 seed)
 {
-    floor_generate(&floor, seed, depth);
+    level_start(&lv, &player, seed, depth);
     radius = startRadius();
     voidRunning = FALSE;
 }
@@ -138,7 +152,7 @@ static s16 drawnTX, drawnTY;    // camera tile the plane currently matches
 
 static void drawTile(s16 tx, s16 ty)
 {
-    u8 t = (tx < room.w && ty < room.h) ? room.tiles[ty][tx] : TILE_EMPTY;
+    u8 t = (tx < lv.room.w && ty < lv.room.h) ? lv.room.tiles[ty][tx] : TILE_EMPTY;
     u16 tile = t == TILE_SOLID ? GFX_TILE_SOLID : t == TILE_PLATFORM ? GFX_TILE_PLATFORM : 0;
     VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(PAL0, 0, 0, 0, tile), tx & 63, ty & 31);
 }
@@ -162,8 +176,8 @@ static void updateCamera(void)
     if (py < camY + 96) camY = py - 96;
     if (py > camY + 160) camY = py - 160;
 
-    s16 maxX = room.w * ROOM_TILE - SCREEN_W_TILES * ROOM_TILE;
-    s16 maxY = room.h * ROOM_TILE - SCREEN_H_TILES * ROOM_TILE;
+    s16 maxX = lv.room.w * ROOM_TILE - SCREEN_W_TILES * ROOM_TILE;
+    s16 maxY = lv.room.h * ROOM_TILE - SCREEN_H_TILES * ROOM_TILE;
     if (camX > maxX) camX = maxX;
     if (camY > maxY) camY = maxY;
     if (camX < 0) camX = 0;
@@ -287,8 +301,6 @@ int main(bool hardReset)
     player_setRegion(IS_PAL_SYSTEM);
 
     newFloor(0x1234);
-    room_buildTest(&room);
-    player_init(&player, 6 * 8, 53 * 8);
     enterRoom();
 
     u16 prevPad = 0;
@@ -303,7 +315,8 @@ int main(bool hardReset)
             if (pressed & BUTTON_START) enterMap();
             else
             {
-                player_update(&player, &room, pad);
+                player_update(&player, &lv.room, pad);
+                if (level_update(&lv, &player)) drawRoom();
                 updateCamera();
                 scrollCamera();
                 drawPlayer();

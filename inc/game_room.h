@@ -27,7 +27,7 @@ void room_clear(Room *r, u8 w, u8 h);
 void room_fill(Room *r, u8 x0, u8 y0, u8 x1, u8 y1, u8 tile);   // inclusive tile rectangle
 void room_buildTest(Room *r);
 
-// Outside the room counts as solid, so the player can never leave the grid.
+// Outside the room counts as solid, except beyond an open door.
 u8 room_tileAt(const Room *r, s16 px, s16 py);
 
 #endif

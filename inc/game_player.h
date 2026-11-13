@@ -46,6 +46,7 @@ typedef struct
 void player_setRegion(u8 pal);
 void player_init(Player *p, s16 px, s16 py);
 void player_update(Player *p, const Room *r, u16 pad);
+void player_boostUp(Player *p);   // full-jump speed upwards, e.g. when entering a room from below
 u8 player_attackActive(const Player *p);
 u8 player_attackTimer(const Player *p);
 
