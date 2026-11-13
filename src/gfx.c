@@ -422,6 +422,8 @@ void gfx_load(void)
         }
     }
     VDP_loadTileSet(img_far.tileset, GFX_FAR, CPU);
+    VDP_loadTileSet(&ts_ninja, GFX_NINJA, CPU);
+    PAL_setColors(16, pal_ninja.data, 16, CPU);
     // The Void's colours (PAL3 5..14): the castle's, drained and frozen.
     static const u32 VOID_ROOM[10] =
     {

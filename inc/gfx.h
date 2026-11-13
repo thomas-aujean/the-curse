@@ -56,6 +56,17 @@
 #define CASTLE_CRACKED     33    // + parity
 #define CASTLE_PLANK       35    // alone; 36 left end, 37 middle, 38 right end
 
+// Ninja frames (res/ninja.png, tools/art/ninja.py): 2 x 4 tiles each, feet on row GFX_FEET_ROW.
+#define GFX_NINJA          (TILE_USER_INDEX + 400)
+enum
+{
+    NINJA_IDLE0, NINJA_IDLE1,
+    NINJA_RUN0, NINJA_RUN7 = NINJA_RUN0 + 7,
+    NINJA_RISE, NINJA_PEAK, NINJA_FALL,
+    NINJA_SLASH0, NINJA_SLASH1, NINJA_SLASH2,
+    NINJA_CROUCH, NINJA_HURT,
+};
+
 void gfx_load(void);
 void gfx_drawFar(void);   // the parallax sky on plane B
 void gfx_setRoomPalette(u8 inVoid);

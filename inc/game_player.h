@@ -92,6 +92,7 @@ void player_updateLight(Player *p, u8 inVoid);
 u8 player_slashDamage(const Player *p);   // full-jump speed upwards, e.g. when entering a room from below
 u8 player_attackActive(const Player *p);
 u8 player_attackTimer(const Player *p);
+u8 player_attackPhase(const Player *p);   // 0 wind-up, 1 strike, 2 recovery (animation)
 
 // Slash hitbox in room pixels (inclusive), valid while player_attackActive().
 void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1);

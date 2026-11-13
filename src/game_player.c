@@ -427,3 +427,8 @@ u8 player_slashDamage(const Player *p)
     s8 d = (p->corrupted ? 2 : 1) + p->damageBonus;
     return d < 1 ? 1 : d;
 }
+u8 player_attackPhase(const Player *p)
+{
+    u8 elapsed = t.attackFrames - p->attackTimer;
+    return elapsed < t.attackFrom ? 0 : elapsed < t.attackTo ? 1 : 2;
+}

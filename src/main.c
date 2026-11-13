@@ -280,12 +280,36 @@ static void drawRoom(void)
 #define SPRITE_PICKUPS (SPRITE_PROPS + MAX_PROPS)
 #define SPRITE_COUNT (SPRITE_PICKUPS + MAX_PICKUPS)
 
+// Animation frame from the player's state. Running advances one frame every 6 px travelled,
+// so the legs match the ground speed (and the upgrades that change it).
+static u8 ninjaFrame(void)
+{
+    static u16 runDistance;
+    static u8 runFrame;
+    if (player.hurtTimer) return NINJA_HURT;
+    if (player.attackTimer) return NINJA_SLASH0 + player_attackPhase(&player);
+    if (player.crouching) return NINJA_CROUCH;
+    if (!player.onGround) return player.vy < -320 ? NINJA_RISE : player.vy > 320 ? NINJA_FALL : NINJA_PEAK;
+    s16 speed = player.vx < 0 ? -player.vx : player.vx;
+    if (speed < 96)
+    {
+        runDistance = 0;
+        return (vtimer >> 5) & 1 ? NINJA_IDLE1 : NINJA_IDLE0;
+    }
+    runDistance += speed;   // no division in the frame loop: step the frame every 6 px
+    while (runDistance >= 6 * 256)
+    {
+        runDistance -= 6 * 256;
+        runFrame = (runFrame + 1) & 7;
+    }
+    return NINJA_RUN0 + runFrame;
+}
+
 static void drawSprites(void)
 {
     s16 px = (player.x >> 8) - camX, py = (player.y >> 8) - camY;
     u16 flip = player.facingLeft;
-    u16 frame = player.crouching ? GFX_TILE_CROUCH : GFX_TILE_STAND;
-
+    u16 frame = GFX_NINJA + ninjaFrame() * 8;
     // Sprite 0: ninja (16 x 32, feet on row GFX_FEET_ROW of the art); blinks while invulnerable.
     s16 ny = (player.invulnerable & 4) ? -64 : py - GFX_FEET_ROW - 1;
     VDP_setSpriteFull(0, px - 8, ny, SPRITE_SIZE(2, 4), TILE_ATTR_FULL(PAL1, 1, 0, flip, frame), 1);

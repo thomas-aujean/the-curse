@@ -11,6 +11,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from png import write_indexed  # noqa: E402
+import ninja  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 RES = os.path.join(ROOT, "res")
@@ -243,7 +244,8 @@ def main():
     tiles, count = castle_tileset()
     write_indexed(os.path.join(RES, "castle.png"), tiles, PAL0)
     write_indexed(os.path.join(RES, "far.png"), far_background(), PAL0)
-    print("castle.png: %d tiles, far.png: 512x256" % count)
+    write_indexed(os.path.join(RES, "ninja.png"), ninja.sheet(), ninja.PAL1)
+    print("castle.png: %d tiles, far.png: 512x256, ninja.png: %d frames" % (count, len(ninja.ORDER)))
 
 
 if __name__ == "__main__":
