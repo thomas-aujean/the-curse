@@ -9,6 +9,7 @@
 #define GFX_TILE_STAND    (TILE_USER_INDEX + 2)    // 2 x 4 tiles
 #define GFX_TILE_CROUCH   (TILE_USER_INDEX + 10)   // 2 x 4 tiles
 #define GFX_TILE_SLASH    (TILE_USER_INDEX + 18)   // 3 x 2 tiles
+#define GFX_TILE_SLASH_UP (TILE_USER_INDEX + 24)   // 2 x 3 tiles
 
 #define GFX_FEET_ROW 29   // last pixel row of the feet in the 32-row ninja art
 

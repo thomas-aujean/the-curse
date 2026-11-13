@@ -3,10 +3,12 @@
 
 #include "game_floor.h"   // integer types (SGDK or PC)
 
-// One room = one screen in H40 mode: 40 x 28 tiles of 8 x 8 pixels.
-#define ROOM_W 40
-#define ROOM_H 28
+// A room can be larger than the screen (40 x 28 tiles in H40): the camera scrolls inside it.
+#define ROOM_MAX_W 80
+#define ROOM_MAX_H 56
 #define ROOM_TILE 8
+#define SCREEN_W_TILES 40
+#define SCREEN_H_TILES 28
 
 enum
 {
@@ -17,9 +19,12 @@ enum
 
 typedef struct
 {
-    u8 tiles[ROOM_H][ROOM_W];
+    u8 w, h;   // in tiles
+    u8 tiles[ROOM_MAX_H][ROOM_MAX_W];
 } Room;
 
+void room_clear(Room *r, u8 w, u8 h);
+void room_fill(Room *r, u8 x0, u8 y0, u8 x1, u8 y1, u8 tile);   // inclusive tile rectangle
 void room_buildTest(Room *r);
 
 // Outside the room counts as solid, so the player can never leave the grid.

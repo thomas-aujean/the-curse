@@ -23,7 +23,8 @@ typedef int32_t s32;
 #define PAD_C     BUTTON_C
 #endif
 
-// Controls: C jump (release early = shorter jump), B slash, DOWN crouch, DOWN + C drop through a platform.
+// Controls: C jump (release early = shorter jump), B slash (UP + B: upward slash), DOWN crouch,
+// DOWN + C drop through a platform.
 #define PAD_JUMP   PAD_C
 #define PAD_ATTACK PAD_B
 
@@ -37,7 +38,7 @@ typedef struct
     s32 x, y;            // x = centre of the hitbox, y = just below the feet
     s16 vx, vy;
     u8 onGround, facingLeft, crouching, jumpHeld;
-    u8 coyote, jumpBuffer, dropTimer, attackTimer;
+    u8 coyote, jumpBuffer, dropTimer, attackTimer, attackUp;
     u16 prevPad;
 } Player;
 
@@ -47,5 +48,8 @@ void player_init(Player *p, s16 px, s16 py);
 void player_update(Player *p, const Room *r, u16 pad);
 u8 player_attackActive(const Player *p);
 u8 player_attackTimer(const Player *p);
+
+// Slash hitbox in room pixels (inclusive), valid while player_attackActive().
+void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1);
 
 #endif

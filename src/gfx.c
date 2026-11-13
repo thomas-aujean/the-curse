@@ -82,15 +82,28 @@ static u8 artPixel(const char *row, u8 x)
     return 0;
 }
 
+typedef u8 PixelFn(const char *const *rows, u8 x, u8 y);
+
+static u8 plainPixel(const char *const *rows, u8 x, u8 y)
+{
+    return artPixel(rows[y], x);
+}
+
+// Horizontal art turned a quarter: its right side (the edge of the arc) ends up on top.
+static u8 rotatedPixel(const char *const *rows, u8 x, u8 y)
+{
+    return artPixel(rows[x], 23 - y);
+}
+
 // Sprite tiles are stored column by column (all rows of column 0, then column 1...).
-static void artToTiles(const char *const *rows, u8 wTiles, u8 hTiles, u32 *out)
+static void artToTiles(const char *const *rows, PixelFn *pixel, u8 wTiles, u8 hTiles, u32 *out)
 {
     for (u8 tx = 0; tx < wTiles; tx++)
         for (u8 ty = 0; ty < hTiles; ty++)
             for (u8 y = 0; y < 8; y++)
             {
                 u32 line = 0;
-                for (u8 x = 0; x < 8; x++) line = (line << 4) | artPixel(rows[ty * 8 + y], tx * 8 + x);
+                for (u8 x = 0; x < 8; x++) line = (line << 4) | pixel(rows, tx * 8 + x, ty * 8 + y);
                 *out++ = line;
             }
 }
@@ -121,14 +134,16 @@ void gfx_load(void)
     VDP_loadTileData(SOLID_TILE, GFX_TILE_SOLID, 1, CPU);
     VDP_loadTileData(PLATFORM_TILE, GFX_TILE_PLATFORM, 1, CPU);
 
-    artToTiles(NINJA, 2, 4, buffer);
+    artToTiles(NINJA, plainPixel, 2, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_STAND, 8, CPU);
 
     // Crouch: upper body lowered by 10 rows over the bottom of the legs, feet stay on the same row.
     for (u8 y = 0; y < 32; y++) crouch[y] = y < 10 ? "" : y < 24 ? NINJA[y - 10] : NINJA[y];
-    artToTiles(crouch, 2, 4, buffer);
+    artToTiles(crouch, plainPixel, 2, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_CROUCH, 8, CPU);
 
-    artToTiles(SLASH, 3, 2, buffer);
+    artToTiles(SLASH, plainPixel, 3, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_SLASH, 6, CPU);
+    artToTiles(SLASH, rotatedPixel, 2, 3, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_SLASH_UP, 6, CPU);
 }

@@ -8,6 +8,22 @@ static int failures = 0;
 
 static Room room;
 
+// The original one-screen test room: the checks below rely on its exact coordinates.
+static void buildRoom(void)
+{
+    room_clear(&room, 40, 28);
+    room_fill(&room, 0, 0, 39, 1, TILE_SOLID);
+    room_fill(&room, 0, 0, 1, 27, TILE_SOLID);
+    room_fill(&room, 38, 0, 39, 27, TILE_SOLID);
+    room_fill(&room, 0, 25, 39, 27, TILE_SOLID);
+    room_fill(&room, 15, 18, 21, 19, TILE_SOLID);
+    room_fill(&room, 27, 22, 32, 24, TILE_SOLID);
+    room_fill(&room, 30, 14, 37, 15, TILE_SOLID);
+    room_fill(&room, 4, 20, 11, 20, TILE_PLATFORM);
+    room_fill(&room, 12, 14, 22, 14, TILE_PLATFORM);
+    room_fill(&room, 3, 9, 10, 9, TILE_PLATFORM);
+}
+
 static int px(const Player *p) { return p->x >> 8; }
 static int py(const Player *p) { return p->y >> 8; }
 
@@ -88,11 +104,20 @@ static void region(int pal)
     run(&p, 0, 2);
     run(&p, PAD_DOWN, 5);
     CHECK(p.crouching, "%s crouch", name);
+
+    // UP + B: upward slash, hitbox above the head.
+    player_init(&p, 100, 200);
+    run(&p, 0, 2);
+    run(&p, PAD_UP | PAD_ATTACK, 3);
+    s16 bx0, by0, bx1, by1;
+    player_attackBox(&p, &bx0, &by0, &bx1, &by1);
+    CHECK(p.attackUp && player_attackActive(&p) && by1 < 200 - PLAYER_H + 8 && bx0 < 100 && bx1 > 100,
+          "%s upward slash box %d,%d-%d,%d", name, bx0, by0, bx1, by1);
 }
 
 int main(void)
 {
-    room_buildTest(&room);
+    buildRoom();
     region(0);
     region(1);
     printf("%d failures\n", failures);

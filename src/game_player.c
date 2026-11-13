@@ -59,7 +59,7 @@ void player_init(Player *p, s16 px, s16 py)
     p->y = (s32) py << 8;
     p->vx = p->vy = 0;
     p->onGround = p->facingLeft = p->crouching = p->jumpHeld = 0;
-    p->coyote = p->jumpBuffer = p->dropTimer = p->attackTimer = 0;
+    p->coyote = p->jumpBuffer = p->dropTimer = p->attackTimer = p->attackUp = 0;
     p->prevPad = 0;
 }
 
@@ -161,7 +161,11 @@ void player_update(Player *p, const Room *r, u16 pad)
     if (p->coyote) p->coyote--;
     if (p->onGround) p->coyote = t.coyote;
 
-    if (pressed & PAD_ATTACK && !p->attackTimer) p->attackTimer = t.attackFrames;
+    if (pressed & PAD_ATTACK && !p->attackTimer)
+    {
+        p->attackTimer = t.attackFrames;
+        p->attackUp = (pad & PAD_UP) != 0;   // direction is locked for the whole slash
+    }
 
     // Crouch; standing back up needs headroom.
     u8 wantCrouch = p->onGround && (pad & PAD_DOWN);
@@ -234,4 +238,24 @@ u8 player_attackActive(const Player *p)
 u8 player_attackTimer(const Player *p)
 {
     return p->attackTimer;
+}
+
+void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
+{
+    s16 px = p->x >> 8, py = p->y >> 8;
+    s16 top = py - (p->crouching ? PLAYER_CROUCH_H : PLAYER_H);
+    if (p->attackUp)
+    {
+        *x0 = px - 8;
+        *x1 = px + 7;
+        *y0 = top - 20;
+        *y1 = top + 4;
+    }
+    else
+    {
+        *y0 = py - (p->crouching ? 16 : 24);
+        *y1 = *y0 + 11;
+        *x0 = p->facingLeft ? px - 20 : px + 4;
+        *x1 = *x0 + 15;
+    }
 }
