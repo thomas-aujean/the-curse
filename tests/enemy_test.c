@@ -103,6 +103,38 @@ int main(void)
     enemies_setVoid(&set, 1);
     CHECK(set.e[0].voidForm && set.e[0].hp == 3, "Void form hp %d", set.e[0].hp);
 
+    // Boss: goes through dash, leap and shots, stays inside the room, dies after 16 hits.
+    enemies_clear(&set);
+    enemies_add(&set, ENEMY_BOSS, 160, 200, 0);
+    player_init(&p, 60, 200);
+    int seen[5] = { 0 }, shots = 0, outside = 0;
+    for (int f = 0; f < 900; f++)
+    {
+        p.invulnerable = 255;
+        p.hp = 6;
+        step(&p, 0, 1);
+        seen[set.e[0].state] = 1;
+        for (int i = 0; i < MAX_SHOTS; i++) shots += set.shots[i].active;
+        int bx = set.e[0].x >> 8, by = set.e[0].y >> 8;
+        if (bx < 16 || bx > 304 || by > 200) outside = 1;
+    }
+    CHECK(seen[BOSS_DASH] && seen[BOSS_LEAP] && shots && !outside,
+          "boss cycle: dash %d leap %d shots %d outside %d", seen[BOSS_DASH], seen[BOSS_LEAP], shots, outside);
+    CHECK(set.e[0].hp == 16, "boss starts with 16 hp (%d)", set.e[0].hp);
+    int hits = 0;
+    while (set.e[0].type == ENEMY_BOSS && !set.e[0].deathTimer && hits < 40)
+    {
+        p.x = set.e[0].x - (20 << 8);
+        p.y = set.e[0].y;
+        p.facingLeft = 0;
+        p.attackTimer = 0;
+        p.invulnerable = 255;
+        step(&p, 0, 1);
+        step(&p, PAD_ATTACK, 4);
+        hits++;
+    }
+    CHECK(hits >= 16 && hits < 40, "boss dies after %d slashes (some miss while it leaps)", hits);
+
     // Light protection: 20 s inside the Void, then the pact (double slash damage, +1 damage taken).
     player_init(&p, 250, 200);
     for (int f = 0; f < 20 * 60 - 1; f++) player_updateLight(&p, 1);

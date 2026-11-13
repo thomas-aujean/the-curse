@@ -217,7 +217,11 @@ static void drawRoom(void)
     scrollCamera();
 }
 
-#define SPRITE_COUNT (2 + MAX_ENEMIES)   // ninja, slash, enemies
+// Sprites: 0 ninja, 1 slash, 2.. enemies (boss top), then boss bottom, shots, gem.
+#define SPRITE_BOSS_LOW (2 + MAX_ENEMIES)
+#define SPRITE_SHOTS (SPRITE_BOSS_LOW + 1)
+#define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
+#define SPRITE_COUNT (SPRITE_GEM + 1)
 
 static void drawSprites(void)
 {
@@ -258,13 +262,16 @@ static void drawSprites(void)
     VDP_setSpriteFull(1, sx, sy, size, TILE_ATTR_FULL(PAL1, 1, 0, flip, tiles), 2);
 
     // Sprites 2..: enemies. Flashing when hurt, fast blinking while the death puff plays.
+    s16 bossLowX = 0, bossLowY = -64;
+    u16 bossLowAttr = 0;
     for (u8 i = 0; i < MAX_ENEMIES; i++)
     {
         const Enemy *e = &lv.enemies.e[i];
-        u8 index = 2 + i, link = index + 1 < SPRITE_COUNT ? index + 1 : 0;
+        u8 index = 2 + i;
         s16 ex = (e->x >> 8) - camX - 8, ey = -64;
         u16 attr = 0, esize = SPRITE_SIZE(2, 2);
-        u8 hidden = e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (e->hurtTimer & 2);
+        u8 hidden = e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (e->hurtTimer & 2)
+            || (e->type == ENEMY_BOSS && e->state == BOSS_DASH_WARN && (e->stateTimer & 4));
         if (!hidden)
         {
             u16 epal = e->voidForm ? PAL3 : PAL2;
@@ -274,15 +281,37 @@ static void drawSprites(void)
                 esize = SPRITE_SIZE(2, 3);
                 attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_WALKER);
             }
-            else
+            else if (e->type == ENEMY_FLYER)
             {
                 ey = (e->y >> 8) - camY - GFX_FLYER_BOTTOM - 1;
                 u16 wing = (e->timer >> 3) & 1 ? 4 : 0;
                 attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_FLYER + wing);
             }
+            else
+            {
+                // 32 x 48 in two sprites: feet on pixel row 45 of the doubled walker art.
+                ex = (e->x >> 8) - camX - 16;
+                ey = (e->y >> 8) - camY - 46;
+                esize = SPRITE_SIZE(4, 4);
+                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_BOSS_TOP);
+                bossLowX = ex;
+                bossLowY = ey + 32;
+                bossLowAttr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_BOSS_BOTTOM);
+            }
         }
-        VDP_setSpriteFull(index, ex, ey, esize, attr, link);
+        VDP_setSpriteFull(index, ex, ey, esize, attr, index + 1);
     }
+    VDP_setSpriteFull(SPRITE_BOSS_LOW, bossLowX, bossLowY, SPRITE_SIZE(4, 2), bossLowAttr, SPRITE_SHOTS);
+    for (u8 i = 0; i < MAX_SHOTS; i++)
+    {
+        const Shot *sh = &lv.enemies.shots[i];
+        s16 y = sh->active ? (sh->y >> 8) - camY - 4 : -64;
+        VDP_setSpriteFull(SPRITE_SHOTS + i, (sh->x >> 8) - camX - 4, y, SPRITE_SIZE(1, 1),
+                          TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_SHOT), SPRITE_SHOTS + i + 1);
+    }
+    s16 gy = lv.gemActive ? (lv.gemY >> 8) - camY - 8 : -64;
+    VDP_setSpriteFull(SPRITE_GEM, (lv.gemX >> 8) - camX - 4, gy, SPRITE_SIZE(1, 1),
+                      TILE_ATTR_FULL(PAL3, 1, 0, 0, GFX_TILE_GEM), 0);
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
 
@@ -384,9 +413,59 @@ static u16 readPad(void)
 #endif
 }
 
+// Floor won (placeholder for the illustrated scene): the safe circle bursts open again and the
+// world turns back to normal, then the gem screen, then the next floor.
+static u8 gems, bossesInTime;
+static u16 wonFrames;
+
+static void startFloorWon(void)
+{
+    wonFrames = 1;
+    gems++;
+    if (!lv.bossStrong) bossesInTime++;   // every boss reached in time: boss rush (later)
+}
+
+static void updateFloorWon(void)
+{
+    u16 grow = IS_PAL_SYSTEM ? 75 : 90, total = grow + (IS_PAL_SYSTEM ? 150 : 180);
+    char line[41];
+    wonFrames++;
+    if (wonFrames <= grow)
+    {
+        lv.voidRadiusFx += (lv.voidStartFx - lv.voidRadiusFx) / 12 + (8 << 8);
+        if (lv.voidRadiusFx > lv.voidStartFx) lv.voidRadiusFx = lv.voidStartFx;
+        for (u8 i = 0; i < 8; i++) refreshVoid();   // whole screen each frame: nothing else runs
+    }
+    else if (wonFrames == grow + 1)
+    {
+        VDP_setTextPalette(PAL0);
+        sprintf(line, "GEMME DE LA VIE  %u/7", gems);
+        VDP_drawText(line, 10, 10);
+        VDP_drawText("LE GARDIEN TE LEGUE UN POUVOIR", 5, 13);
+        VDP_setTextPalette(lv.bossStrong ? PAL3 : PAL2);
+        VDP_drawText(lv.bossStrong ? "LE NEANT L'AVAIT ATTEINT..." : "ARRIVE AVANT LE NEANT !", 7, 16);
+    }
+    else if (wonFrames >= total)
+    {
+        s8 hp = player.hp, maxHp = player.maxHp;
+        if (depth < 7) depth++;
+        newFloor(random() ^ vtimer);
+        player.hp = hp;
+        player.maxHp = maxHp;
+        wonFrames = 0;
+        enterRoom();
+        return;
+    }
+    drawSprites();
+}
+
 static void updateRoom(u16 pad, u16 pressed)
 {
-    if (deathFrames)
+    if (wonFrames)
+    {
+        updateFloorWon();
+        return;
+    }    if (deathFrames)
     {
         // Dead: the message stays two seconds, then a new floor starts.
         if (--deathFrames == 0)
@@ -402,7 +481,13 @@ static void updateRoom(u16 pad, u16 pressed)
         return;
     }
     player_update(&player, &lv.room, pad);
-    if (level_update(&lv, &player)) drawRoom();
+    u8 events = level_update(&lv, &player);
+    if (events & LEVEL_REDRAW) drawRoom();
+    if (events & LEVEL_GEM)
+    {
+        startFloorWon();
+        return;
+    }
     refreshVoid();
     updateCamera();
     scrollCamera();

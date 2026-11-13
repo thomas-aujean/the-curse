@@ -18,6 +18,11 @@
 #define GFX_TILE_PLATFORM_VOID (TILE_USER_INDEX + 51)
 #define GFX_TILE_VOID          (TILE_USER_INDEX + 52)   // empty space swallowed by the Void
 
+#define GFX_TILE_BOSS_TOP      (TILE_USER_INDEX + 60)   // 4 x 4 tiles (walker art doubled)
+#define GFX_TILE_BOSS_BOTTOM   (TILE_USER_INDEX + 76)   // 4 x 2 tiles
+#define GFX_TILE_SHOT          (TILE_USER_INDEX + 84)
+#define GFX_TILE_GEM           (TILE_USER_INDEX + 85)
+
 #define GFX_WALKER_FEET 22   // last pixel row of the feet in the 24-row walker art
 #define GFX_FLYER_BOTTOM 13
 

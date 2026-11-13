@@ -88,6 +88,9 @@ Piste de réponse à « que faire si jeu fini rapidement ». Principe : on peut 
   cachées dans son château. Il faut les récupérer et les libérer avant que le Néant ne les engloutisse
   toutes. Chaque étage = une zone du château, chaque boss garde une gemme. La malédiction qui
   réarrange le château justifie les étages générés.
+- **Ennemis (Thomas, 2026-11-13)** : inspirations = ennemis de Rogue Legacy et bestiaire de Shinobi pour les
+  formes normales ; formes Néant inspirées de Metroid (organique, alien). Créatures originales, on reprend
+  des archétypes de comportement, pas des designs.
 - **Univers (Thomas, 2026-11-13)** : un univers par niveau (proposition : 3 univers × 2 variantes de palette,
   façon Isaac). Priorité : finir complètement un premier niveau avant de voir la suite.
 - **Coop (Thomas, 2026-11-13)** : 2 joueurs maximum sur Mega Drive, à condition que ça apporte vraiment

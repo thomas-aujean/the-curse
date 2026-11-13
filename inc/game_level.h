@@ -15,7 +15,8 @@ typedef struct
     const char *const *rows;
 } RoomTemplate;
 
-#define ROOM_TEMPLATE_COUNT 4
+#define ROOM_TEMPLATE_COUNT 5
+#define ROOM_TEMPLATE_RANDOM 4   // the first ones fill ordinary rooms; the last is the boss arena
 extern const RoomTemplate ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT];
 
 typedef struct
@@ -28,10 +29,23 @@ typedef struct
     EnemySet enemies;
     s16 voidCX, voidCY;                // Void circle centre, castle pixels (the boss room centre)
     u32 voidRadiusFx;                  // safe-zone radius, 1/256 px
+    u32 voidStartFx;                   // radius at the start of the floor
     u32 voidRate;                      // shrink per frame, 1/256 px
     u8 voidRunning;
     u8 roomInVoid;                     // the player stands outside the circle
+
+    // Boss room: the Void stops when the player walks in, the doors lock a second later.
+    u8 bossFight;                      // the boss of this floor is alive and fighting
+    u8 bossStrong;                     // reached after the circle closed: Void form
+    u8 lockTimer;
+    u8 gemActive;                      // dropped by the boss, waiting to be picked up
+    s32 gemX, gemY;                    // 1/256 px, y = bottom
+    s16 gemVy;
 } Level;
+
+// level_update result bits
+#define LEVEL_REDRAW 1      // new room, or the doors just locked: redraw the room
+#define LEVEL_GEM    2      // the gem was picked up: the floor is won
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);
 

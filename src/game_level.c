@@ -24,12 +24,12 @@ const RoomTemplate *level_templateFor(const Level *lv, u8 x, u8 y)
 {
     u8 type = lv->floor.type[y][x];
     if (type == ROOM_START) return &ROOM_TEMPLATES[0];
-    if (type == ROOM_BOSS) return &ROOM_TEMPLATES[3];
+    if (type == ROOM_BOSS) return &ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT - 1];
     // Stable per seed and cell: coming back to a room gives the same layout.
     u16 h = lv->floor.seed ^ (u16) ((x * 31 + y * 17) * 0x9E37);
     h ^= h >> 7;
     h ^= h << 5;
-    return &ROOM_TEMPLATES[h % ROOM_TEMPLATE_COUNT];
+    return &ROOM_TEMPLATES[h % ROOM_TEMPLATE_RANDOM];
 }
 
 // Bounding box of a door marker, in blocks.
@@ -54,6 +54,8 @@ static void setPos(Player *p, s16 px, s16 py)
     p->y = (s32) py << 8;
 }
 
+static u8 fps = 60;
+
 // enteredBy: the door of the new room the player comes through (0 = level start).
 static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
 {
@@ -73,7 +75,16 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
                 char c = t->rows[by][bx];
                 if (c == 'w') enemies_add(&lv->enemies, ENEMY_WALKER, bx * 16 + 8, (by + 1) * 16, 0);
                 if (c == 'f') enemies_add(&lv->enemies, ENEMY_FLYER, bx * 16 + 8, by * 16 + 14, 0);
+                if (c == 'B') enemies_add(&lv->enemies, ENEMY_BOSS, bx * 16 + 8, (by + 1) * 16, 0);
             }
+
+    lv->bossFight = lv->floor.type[y][x] == ROOM_BOSS && !lv->cleared[y][x];
+    if (lv->bossFight)
+    {
+        lv->voidRunning = 0;                   // the fight stops the Void
+        lv->bossStrong = lv->voidRadiusFx == 0;
+        lv->lockTimer = fps;
+    }
 
     u8 x0, y0, x1, y1;
     s16 w = t->wBlocks * 16, h = t->hBlocks * 16;
@@ -101,8 +112,6 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             break;
     }
 }
-
-static u8 fps = 60;
 
 void level_setRegion(u8 pal)
 {
@@ -137,6 +146,8 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
     floor_generate(&lv->floor, seed, depth);
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++) lv->visited[y][x] = lv->cleared[y][x] = 0;
+    lv->gemActive = 0;
+    lv->bossFight = 0;
 
     // The circle closes on the centre of the boss room. It starts just around the farthest room
     // corner and reaches zero after VOID_SECONDS.
@@ -158,7 +169,7 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
             if (d > far) far = d;
         }
     u32 radius = isqrt(far) + 32;
-    lv->voidRadiusFx = radius << 8;
+    lv->voidRadiusFx = lv->voidStartFx = radius << 8;
     u32 frames = (u32) VOID_SECONDS * fps;
     lv->voidRate = ((radius << 8) + frames - 1) / frames;   // rounded up: never later than planned
     lv->voidRunning = 1;
@@ -195,10 +206,56 @@ u8 level_update(Level *lv, Player *p)
     for (u8 i = 0; i < MAX_ENEMIES; i++)
     {
         Enemy *e = &lv->enemies.e[i];
-        if (e->type != ENEMY_NONE) enemy_setVoidForm(e, level_pointInVoid(lv, e->x >> 8, (e->y >> 8) - 8));
+        if (e->type == ENEMY_BOSS) enemy_setVoidForm(e, lv->bossStrong);
+        else if (e->type != ENEMY_NONE) enemy_setVoidForm(e, level_pointInVoid(lv, e->x >> 8, (e->y >> 8) - 8));
     }
     enemies_update(&lv->enemies, &lv->room, p);
     if (!enemies_alive(&lv->enemies)) lv->cleared[lv->cellY][lv->cellX] = 1;
+
+    u8 result = 0;
+    if (lv->bossFight)
+    {
+        if (lv->lockTimer && --lv->lockTimer == 0)
+        {
+            // Lock the doors once the player is well inside (never closes on the player).
+            level_buildRoom(&lv->room, level_templateFor(lv, lv->cellX, lv->cellY), 0);
+            result |= LEVEL_REDRAW;
+        }
+        s8 slot = enemies_bossSlot(&lv->enemies);
+        if (slot < 0)
+        {
+            // Boss down: the gem drops where it fell.
+            lv->bossFight = 0;
+            for (u8 i = 0; i < MAX_ENEMIES; i++)
+                if (lv->enemies.e[i].type == ENEMY_BOSS)
+                {
+                    lv->gemX = lv->enemies.e[i].x;
+                    lv->gemY = lv->enemies.e[i].y - (24 << 8);
+                }
+            lv->gemVy = 0;
+            lv->gemActive = 1;
+        }
+    }
+    if (lv->gemActive)
+    {
+        s16 gx = lv->gemX >> 8, gy = lv->gemY >> 8;
+        if (room_tileAt(&lv->room, gx, gy) == TILE_EMPTY)
+        {
+            lv->gemVy += 64;
+            lv->gemY += lv->gemVy;
+        }
+        else
+        {
+            lv->gemY = (s32) (gy & ~7) << 8;
+            lv->gemVy = 0;
+        }
+        if (gx > ppx - 16 && gx < ppx + 16 && gy > ppy - PLAYER_H - 8 && gy < ppy + 8)
+        {
+            lv->gemActive = 0;
+            return result | LEVEL_GEM;
+        }
+    }
+    if (result) return result;
 
     s16 px = p->x >> 8, cy = (p->y >> 8) - PLAYER_H / 2;
     s16 w = lv->room.w * ROOM_TILE, h = lv->room.h * ROOM_TILE;

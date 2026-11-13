@@ -98,6 +98,45 @@ int main(void)
               "seed %u: Void closed in %lu frames", seed, (unsigned long) frames);
     }
 
+    // Boss room: entering stops the Void, the doors lock without trapping the player in a wall,
+    // the boss drops the gem, picking it up wins the floor.
+    for (unsigned seed = 5; seed < 300; seed += 11)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        u8 bx = lv.floor.voidX, by = lv.floor.voidY, nx = bx, ny = by, dir = 0;
+        u8 bd = lv.floor.doors[by][bx];
+        if (bd & DOOR_LEFT) { nx = bx - 1; dir = 1; }        // neighbour exits through its right door
+        else if (bd & DOOR_RIGHT) { nx = bx + 1; dir = 0; }
+        else if (bd & DOOR_UP) { ny = by - 1; dir = 3; }
+        else { ny = by + 1; dir = 2; }
+        lv.cellX = nx;
+        lv.cellY = ny;
+        level_buildRoom(&lv.room, level_templateFor(&lv, nx, ny), lv.floor.doors[ny][nx]);
+        s16 w = lv.room.w * 8, h = lv.room.h * 8;
+        player_init(&p, dir == 0 ? -1 : dir == 1 ? w : w / 2, dir == 2 ? 0 : dir == 3 ? h + PLAYER_H : h - 32);
+        level_update(&lv, &p);
+        CHECK(lv.cellX == bx && lv.cellY == by && lv.bossFight && !lv.voidRunning, "seed %u: boss room entry", seed);
+        int redraws = 0;
+        for (int f = 0; f < 90; f++)
+        {
+            player_update(&p, &lv.room, 0);
+            p.invulnerable = 255;   // the boss must not knock the player around during the check
+            if (level_update(&lv, &p) & LEVEL_REDRAW) redraws++;
+        }
+        CHECK(redraws == 1 && bodyFree(&lv.room, &p), "seed %u: doors lock (%d) without trapping", seed, redraws);
+        s8 slot = enemies_bossSlot(&lv.enemies);
+        CHECK(slot >= 0, "seed %u: boss present", seed);
+        if (slot < 0) continue;
+        lv.enemies.e[slot].deathTimer = 64;   // as if killed
+        p.x = 24 << 8;                        // away from the boss, or the gem is picked up at once
+        int won = level_update(&lv, &p) & LEVEL_GEM;
+        CHECK(!won && lv.gemActive && !lv.bossFight, "seed %u: gem dropped", seed);
+        for (int f = 0; f < 120; f++) level_update(&lv, &p);
+        p.x = lv.gemX;
+        p.y = lv.gemY;
+        p.invulnerable = 255;
+        CHECK(level_update(&lv, &p) & LEVEL_GEM, "seed %u: gem picked up", seed);
+    }
     printf("%d door crossings, %d failures\n", moves, failures);
     return failures != 0;
 }

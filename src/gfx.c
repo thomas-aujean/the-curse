@@ -136,6 +136,18 @@ static const u32 PLATFORM_TILE[8] =
     0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
 
+static const u32 SHOT_TILE[8] =   // PAL2: red orb with a light core
+{
+    0x00444400, 0x04422440, 0x44222244, 0x42222224,
+    0x42222224, 0x44222244, 0x04422440, 0x00444400,
+};
+
+static const u32 GEM_TILE[8] =    // PAL3: cyan gem
+{
+    0x00011000, 0x00144100, 0x01444410, 0x14424441,
+    0x14444441, 0x01444410, 0x00144100, 0x00011000,
+};
+
 // Empty space outside the circle: near-black violet with sparse specks (PAL3 colours 10 and 11).
 static const u32 VOID_TILE[8] =
 {
@@ -181,6 +193,12 @@ static u8 rotatedPixel(const char *const *rows, u8 x, u8 y)
     return artPixel(rows[x], 23 - y);
 }
 
+// Art drawn at double size (placeholder boss).
+static u8 doubledPixel(const char *const *rows, u8 x, u8 y)
+{
+    return artPixel(rows[y >> 1], x >> 1);
+}
+
 // The other quarter turn: the edge of the arc ends up at the bottom.
 static u8 rotatedDownPixel(const char *const *rows, u8 x, u8 y)
 {
@@ -202,7 +220,7 @@ static void artToTiles(const char *const *rows, PixelFn *pixel, u8 wTiles, u8 hT
 
 void gfx_load(void)
 {
-    static u32 buffer[8 * 8];
+    static u32 buffer[16 * 8];
     const char *crouch[32];
 
     PAL_setColor(0, RGB24_TO_VDPCOLOR(0x101028));   // background
@@ -257,6 +275,13 @@ void gfx_load(void)
     VDP_loadTileData(buffer, GFX_TILE_FLYER, 4, CPU);
     artToTiles(FLYER + 16, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_FLYER + 4, 4, CPU);
+
+    artToTiles(WALKER, doubledPixel, 4, 4, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_BOSS_TOP, 16, CPU);
+    artToTiles(WALKER + 16, doubledPixel, 4, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_BOSS_BOTTOM, 8, CPU);
+    VDP_loadTileData(SHOT_TILE, GFX_TILE_SHOT, 1, CPU);
+    VDP_loadTileData(GEM_TILE, GFX_TILE_GEM, 1, CPU);
 
     // Enemies: PAL2 normal form (bone and red eyes), PAL3 Void form (violet and cyan eyes).
     PAL_setColor(32 + 1, RGB24_TO_VDPCOLOR(0x000000));

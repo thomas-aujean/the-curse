@@ -9,7 +9,9 @@
 
 #define MAX_ENEMIES 8
 
-enum { ENEMY_NONE, ENEMY_WALKER, ENEMY_FLYER };
+enum { ENEMY_NONE, ENEMY_WALKER, ENEMY_FLYER, ENEMY_BOSS };
+
+#define MAX_SHOTS 8
 
 typedef struct
 {
@@ -24,11 +26,25 @@ typedef struct
     u8 deathTimer;       // > 0 while the death puff plays, then the slot is freed
     u8 lastHitId;        // the same slash never hits twice
     u16 timer;
+    u8 state;            // boss: current attack (BOSS_*)
+    u8 step;             // boss: position in the attack cycle
+    u16 stateTimer;
 } Enemy;
+
+enum { BOSS_IDLE, BOSS_DASH_WARN, BOSS_DASH, BOSS_LEAP, BOSS_SHOOT };
+
+typedef struct
+{
+    u8 active;
+    s32 x, y;            // centre, 1/256 px
+    s16 vx, vy;
+    u8 damage;
+} Shot;
 
 typedef struct
 {
     Enemy e[MAX_ENEMIES];
+    Shot shots[MAX_SHOTS];
 } EnemySet;
 
 void enemies_setRegion(u8 pal);
@@ -42,5 +58,8 @@ void enemies_update(EnemySet *s, const Room *r, Player *p);
 
 u8 enemies_alive(const EnemySet *s);   // still fighting (death puffs excluded)
 void enemy_size(u8 type, s16 *w, s16 *h);
+
+// Slot of the boss if one is still fighting, -1 otherwise.
+s8 enemies_bossSlot(const EnemySet *s);
 
 #endif

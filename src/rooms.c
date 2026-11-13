@@ -2,7 +2,7 @@
 
 // Room templates, drawn in 16 x 16 blocks (2 x 2 tiles): one screen = 20 x 14 blocks.
 //   #  wall          -  one-way platform (top tile row)          .  empty
-//   w f      spawn points: walker (feet on the bottom of the block), flyer
+//   w f B    spawn points: walker (feet on the bottom of the block), flyer, boss
 //   L R U D  door blocks: open when the floor map has a neighbour on that side, wall otherwise.
 //            An open D (hole in the floor) is covered by a platform: DOWN + C drops into the room
 //            below, and coming up from below the player lands on it.
@@ -108,10 +108,29 @@ static const char *const ROOM_HALL[] =   // 2 x 2 screens
     "##################DD####################",
 };
 
+static const char *const ROOM_ARENA[] =   // 2 x 1 screens, boss room: flat floor, few platforms
+{
+    "##################UU####################",
+    "#......................................#",
+    "#......................................#",
+    "#.................------...............#",
+    "#......................................#",
+    "#......................................#",
+    "#.......------................------...#",
+    "#......................................#",
+    "#......................................#",
+    "#..------......................------..#",
+    "L......................................R",
+    "L..................B...................R",
+    "##########DD############################",
+    "##########DD############################",
+};
+
 const RoomTemplate ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT] =
 {
     { 20, 14, ROOM_SMALL },
     { 40, 14, ROOM_CORRIDOR },
     { 20, 28, ROOM_SHAFT },
     { 40, 28, ROOM_HALL },
+    { 40, 14, ROOM_ARENA },
 };
