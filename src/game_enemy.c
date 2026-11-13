@@ -70,10 +70,13 @@ void enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
 
 void enemies_setVoid(EnemySet *s, u8 voidForm)
 {
-    for (u8 i = 0; i < MAX_ENEMIES; i++)
+    for (u8 i = 0; i < MAX_ENEMIES; i++) enemy_setVoidForm(&s->e[i], voidForm);
+}
+
+void enemy_setVoidForm(Enemy *e, u8 voidForm)
+{
     {
-        Enemy *e = &s->e[i];
-        if (e->type == ENEMY_NONE || e->deathTimer || e->voidForm == voidForm) continue;
+        if (e->type == ENEMY_NONE || e->deathTimer || e->voidForm == voidForm) return;
         // Keep the damage already taken.
         s8 lost = STATS[e->type][e->voidForm].hp - e->hp;
         e->voidForm = voidForm;
@@ -232,7 +235,8 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
                 e->vy = knockback;
                 player_bounce(p);
             }
-            if (--e->hp <= 0) e->deathTimer = deathFrames;
+            e->hp -= player_slashDamage(p);
+            if (e->hp <= 0) e->deathTimer = deathFrames;
             continue;
         }
         if (overlap(ppx - PLAYER_W / 2, ppy - ph, ppx + PLAYER_W / 2 - 1, ppy - 1, x0, y0, x1, y1))

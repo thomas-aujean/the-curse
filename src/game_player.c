@@ -8,6 +8,7 @@ typedef struct
     u8 coyote, buffer, dropFrames, attackFrames, attackFrom, attackTo;
     u8 invulFrames, hurtFrames;
     s16 knockX, knockY, bounceVel;
+    u16 lightMax;
 } Tuning;
 
 static const Tuning NTSC =
@@ -33,6 +34,7 @@ static const Tuning NTSC =
     .knockX = 448,
     .knockY = 768,
     .bounceVel = 1280,  // ~40 px hop after a downward hit
+    .lightMax = 20 * 60, // 20 s of protection inside the Void
 };
 
 static Tuning t;
@@ -63,6 +65,7 @@ void player_setRegion(u8 pal)
     t.knockX = NTSC.knockX * 6 / 5;
     t.knockY = NTSC.knockY * 6 / 5;
     t.bounceVel = NTSC.bounceVel * 6 / 5;
+    t.lightMax = 20 * 50;
 }
 
 void player_init(Player *p, s16 px, s16 py)
@@ -76,6 +79,8 @@ void player_init(Player *p, s16 px, s16 py)
     p->attackId = 0;
     p->maxHp = p->hp = 6;
     p->invulnerable = p->hurtTimer = 0;
+    p->light = t.lightMax;
+    p->corrupted = 0;
 }
 
 static u8 solidAt(const Room *r, s16 px, s16 py)
@@ -306,7 +311,7 @@ void player_bounce(Player *p)
 void player_hurt(Player *p, u8 damage, u8 fromRight)
 {
     if (p->invulnerable || p->hp <= 0) return;
-    p->hp -= damage;
+    p->hp -= damage + p->corrupted;   // the pact's price: one more half heart per hit
     if (p->hp < 0) p->hp = 0;
     p->invulnerable = t.invulFrames;
     p->hurtTimer = t.hurtFrames;
@@ -315,4 +320,29 @@ void player_hurt(Player *p, u8 damage, u8 fromRight)
     p->onGround = 0;
     p->crouching = 0;
     p->attackTimer = 0;
+}
+u16 player_lightMax(void)
+{
+    return t.lightMax;
+}
+
+void player_updateLight(Player *p, u8 inVoid)
+{
+    if (inVoid)
+    {
+        if (p->light) p->light--;
+        if (!p->light) p->corrupted = 1;
+    }
+    else
+    {
+        // Refills twice as fast as it drains; the Void lets go once a quarter is back.
+        p->light += 2;
+        if (p->light > t.lightMax) p->light = t.lightMax;
+        if (p->light >= t.lightMax / 4) p->corrupted = 0;
+    }
+}
+
+u8 player_slashDamage(const Player *p)
+{
+    return p->corrupted ? 2 : 1;
 }

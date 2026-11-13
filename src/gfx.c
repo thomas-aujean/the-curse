@@ -136,6 +136,28 @@ static const u32 PLATFORM_TILE[8] =
     0x00000000, 0x00000000, 0x00000000, 0x00000000,
 };
 
+// Empty space outside the circle: near-black violet with sparse specks (PAL3 colours 10 and 11).
+static const u32 VOID_TILE[8] =
+{
+    0xAAAAAAAA, 0xAAAAAABA, 0xAAAAAAAA, 0xAABAAAAA,
+    0xAAAAAAAA, 0xAAAAAAAA, 0xBAAAAAAA, 0xAAAAABAA,
+};
+
+// Same drawing, colours moved to PAL3 indices 5.. (room colour i -> 4 + i).
+static void remapTile(const u32 *src, u32 *dst)
+{
+    for (u8 y = 0; y < 8; y++)
+    {
+        u32 in = src[y], out = 0;
+        for (u8 x = 0; x < 8; x++)
+        {
+            u32 nib = (in >> (28 - x * 4)) & 0xF;
+            out |= (nib ? nib + 4 : 0) << (28 - x * 4);
+        }
+        dst[y] = out;
+    }
+}
+
 static u8 artPixel(const char *row, u8 x)
 {
     for (u8 i = 0; i < x; i++)
@@ -203,6 +225,17 @@ void gfx_load(void)
 
     VDP_loadTileData(SOLID_TILE, GFX_TILE_SOLID, 1, CPU);
     VDP_loadTileData(PLATFORM_TILE, GFX_TILE_PLATFORM, 1, CPU);
+    {
+        u32 tile[8];
+        remapTile(SOLID_TILE, tile);
+        VDP_loadTileData(tile, GFX_TILE_SOLID_VOID, 1, CPU);
+        remapTile(PLATFORM_TILE, tile);
+        VDP_loadTileData(tile, GFX_TILE_PLATFORM_VOID, 1, CPU);
+        VDP_loadTileData(VOID_TILE, GFX_TILE_VOID, 1, CPU);
+    }
+    // Room colours outside the circle (PAL3 5..11): cold and dead.
+    static const u32 VOID_ROOM[7] = { 0x220044, 0x442266, 0x664488, 0x444466, 0x8888AA, 0x0A0012, 0x3A2266 };
+    for (u8 i = 0; i < 7; i++) PAL_setColor(48 + 5 + i, RGB24_TO_VDPCOLOR(VOID_ROOM[i]));
 
     artToTiles(NINJA, plainPixel, 2, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_STAND, 8, CPU);
@@ -242,4 +275,10 @@ void gfx_setRoomPalette(u8 inVoid)
     static const u32 VOIDED[6] = { 0x000000, 0x220044, 0x442266, 0x664488, 0x444466, 0x8888AA };
     const u32 *c = inVoid ? VOIDED : NORMAL;
     for (u8 i = 0; i < 6; i++) PAL_setColor(i, RGB24_TO_VDPCOLOR(c[i]));
+}
+void gfx_setPlayerCorrupted(u8 corrupted)
+{
+    PAL_setColor(16 + 2, RGB24_TO_VDPCOLOR(corrupted ? 0x440066 : 0x222266));
+    PAL_setColor(16 + 3, RGB24_TO_VDPCOLOR(corrupted ? 0x8822CC : 0x4444AA));
+    PAL_setColor(16 + 5, RGB24_TO_VDPCOLOR(corrupted ? 0x44EEEE : 0xEE2222));
 }

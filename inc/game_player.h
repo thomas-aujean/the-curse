@@ -4,7 +4,6 @@
 #include "game_room.h"
 
 #ifdef PC_TEST
-typedef int32_t s32;
 #define PAD_UP    0x0001
 #define PAD_DOWN  0x0002
 #define PAD_LEFT  0x0004
@@ -46,6 +45,8 @@ typedef struct
     s8 hp, maxHp;        // half hearts
     u8 invulnerable;     // frames of blinking after a hit
     u8 hurtTimer;        // frames of knockback without control
+    u16 light;           // protection against the Void, in frames: drains inside it, refills outside
+    u8 corrupted;        // light ran out: touched by the Void (pact: hits harder, takes more)
     u16 prevPad;
 } Player;
 
@@ -55,7 +56,12 @@ void player_init(Player *p, s16 px, s16 py);
 void player_update(Player *p, const Room *r, u16 pad);
 void player_boostUp(Player *p);
 void player_bounce(Player *p);   // downward slash hit something: small hop
-void player_hurt(Player *p, u8 damage, u8 fromRight);   // ignored while invulnerable   // full-jump speed upwards, e.g. when entering a room from below
+void player_hurt(Player *p, u8 damage, u8 fromRight);   // ignored while invulnerable
+
+// Light protection: call once per frame with whether the current room is in the Void.
+void player_updateLight(Player *p, u8 inVoid);
+u16 player_lightMax(void);
+u8 player_slashDamage(const Player *p);   // full-jump speed upwards, e.g. when entering a room from below
 u8 player_attackActive(const Player *p);
 u8 player_attackTimer(const Player *p);
 

@@ -22,8 +22,6 @@ static Player player;
 static u8 mode = MODE_ROOM;
 static u8 depth = 1;
 static bool showSecrets = FALSE;
-static bool voidRunning = FALSE;
-static u16 voidFrames;
 static u16 deathFrames;      // > 0 while the death message is shown
 
 // ---------------------------------------------------------------- floor map
@@ -49,7 +47,7 @@ static void drawCell(u8 x, u8 y)
     u16 pal = PAL0;
     if (t == ROOM_BOSS) pal = PAL1;
     else if (t >= ROOM_UPGRADE) pal = PAL2;
-    if (!secret && floor_voidDist2(&lv.floor, x, y) > lv.voidRadius * lv.voidRadius) pal = PAL3;
+    if (!secret && level_cellInVoid(&lv, x, y)) pal = PAL3;
 
     char cell[4] = { '[', known ? LETTER[t] : ' ', ']', 0 };
     if (x == lv.cellX && y == lv.cellY) cell[1] = '@';
@@ -77,7 +75,7 @@ static void drawMapStatus(void)
     VDP_setTextPalette(PAL0);
     sprintf(line, "GRAINE %04X  ETAGE %u  SALLES %u   ", lv.floor.seed, depth, lv.floor.roomCount);
     VDP_drawText(line, 2, 2);
-    sprintf(line, "NEANT R=%3u %s   ", lv.voidRadius, voidRunning ? "AVANCE" : "ARRET ");
+    sprintf(line, "NEANT R=%4u %s   ", (u16) (lv.voidRadiusFx >> 8), lv.voidRunning ? "AVANCE" : "ARRET ");
     VDP_drawText(line, 2, 27);
 }
 
@@ -96,8 +94,6 @@ static void drawMap(void)
 static void newFloor(u16 seed)
 {
     level_start(&lv, &player, seed, depth);
-    voidRunning = FALSE;
-    gfx_setRoomPalette(lv.roomInVoid);
 }
 
 static void updateMap(u16 pressed)
@@ -115,8 +111,7 @@ static void updateMap(u16 pressed)
     }
     if (pressed & BUTTON_A)
     {
-        if (lv.voidRadius == 0) level_setVoidRadius(&lv, level_startRadius(&lv));
-        voidRunning = !voidRunning;
+        lv.voidRunning = !lv.voidRunning && lv.voidRadiusFx;
         drawMapStatus();
     }
 }
@@ -128,11 +123,24 @@ static void updateMap(u16 pressed)
 static s16 camX, camY;          // top-left of the screen, room pixels
 static s16 drawnTX, drawnTY;    // camera tile the plane currently matches
 
-static void drawTile(s16 tx, s16 ty)
+// Void state of each plane cell as last drawn (bit per cell), so the circle only rewrites what changed.
+static u8 drawnVoid[32][64 / 8];
+
+static void drawTileState(s16 tx, s16 ty, u8 inVoid)
 {
     u8 t = (tx < lv.room.w && ty < lv.room.h) ? lv.room.tiles[ty][tx] : TILE_EMPTY;
-    u16 tile = t == TILE_SOLID ? GFX_TILE_SOLID : t == TILE_PLATFORM ? GFX_TILE_PLATFORM : 0;
-    VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(PAL0, 0, 0, 0, tile), tx & 63, ty & 31);
+    u16 tile;
+    if (inVoid) tile = t == TILE_SOLID ? GFX_TILE_SOLID_VOID : t == TILE_PLATFORM ? GFX_TILE_PLATFORM_VOID : GFX_TILE_VOID;
+    else tile = t == TILE_SOLID ? GFX_TILE_SOLID : t == TILE_PLATFORM ? GFX_TILE_PLATFORM : 0;
+    u8 cx = tx & 63, cy = ty & 31;
+    VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(inVoid ? PAL3 : PAL0, 0, 0, 0, tile), cx, cy);
+    if (inVoid) drawnVoid[cy][cx >> 3] |= 1 << (cx & 7);
+    else drawnVoid[cy][cx >> 3] &= ~(1 << (cx & 7));
+}
+
+static void drawTile(s16 tx, s16 ty)
+{
+    drawTileState(tx, ty, level_pointInVoid(&lv, tx * 8 + 4, ty * 8 + 4));
 }
 
 static void drawColumn(s16 tx)
@@ -171,6 +179,33 @@ static void scrollCamera(void)
     while (drawnTY > ty) { drawnTY--; drawRow(drawnTY); }
     VDP_setHorizontalScroll(BG_B, -camX);
     VDP_setVerticalScroll(BG_B, camY);
+}
+
+// The circle moves about one pixel every few frames: re-check a band of visible rows each frame
+// (the whole screen every 8 frames) and rewrite only the tiles that crossed the edge. Skipped when
+// the screen is entirely inside or outside the circle.
+static void refreshVoid(void)
+{
+    static u8 band;
+    s16 r = lv.voidRadiusFx >> 8;
+    s16 wx = lv.cellX * CELL_W_PX + camX - lv.voidCX, wy = lv.cellY * CELL_H_PX + camY - lv.voidCY;
+    s16 x0 = wx, x1 = wx + 328, y0 = wy, y1 = wy + 232;
+    s16 nx = x0 > 0 ? x0 : x1 < 0 ? x1 : 0, ny = y0 > 0 ? y0 : y1 < 0 ? y1 : 0;
+    s16 fx = -x0 > x1 ? x0 : x1, fy = -y0 > y1 ? y0 : y1;
+    u32 r2 = (u32) r * r;
+    u32 near = (u32) ((s32) nx * nx) + (u32) ((s32) ny * ny);
+    u32 far = (u32) ((s32) fx * fx) + (u32) ((s32) fy * fy);
+    u8 allIn = far <= r2, allOut = near > r2;
+
+    band = (band + 1) & 7;
+    for (s16 ty = drawnTY + band; ty <= drawnTY + SCREEN_H_TILES; ty += 8)
+        for (s16 tx = drawnTX; tx <= drawnTX + SCREEN_W_TILES; tx++)
+        {
+            u8 cx = tx & 63, cy = ty & 31;
+            u8 was = (drawnVoid[cy][cx >> 3] >> (cx & 7)) & 1;
+            u8 now = allIn ? 0 : allOut ? 1 : level_pointInVoid(&lv, tx * 8 + 4, ty * 8 + 4);
+            if (now != was) drawTileState(tx, ty, now);
+        }
 }
 
 static void drawRoom(void)
@@ -259,10 +294,24 @@ static void hideSprites(void)
 
 static void drawHud(void)
 {
-    char line[12];
-    VDP_setTextPalette(PAL0);
-    sprintf(line, "VIE %d/%d ", player.hp, player.maxHp);
-    VDP_drawText(line, 1, 0);
+    static u8 wasCorrupted = 0xFF;
+    char line[32];
+    // Light protection as a 10-step bar; redraw only every 8 frames, the text costs VDP writes.
+    if (!(vtimer & 7))
+    {
+        u16 steps = (u32) player.light * 10 / player_lightMax();
+        char bar[11];
+        for (u8 i = 0; i < 10; i++) bar[i] = i < steps ? '=' : '.';
+        bar[10] = 0;
+        sprintf(line, "VIE %d/%d  LUM %s ", player.hp, player.maxHp, bar);
+        VDP_setTextPalette(player.corrupted ? PAL3 : PAL0);
+        VDP_drawText(line, 1, 0);
+    }
+    if (player.corrupted != wasCorrupted)
+    {
+        wasCorrupted = player.corrupted;
+        gfx_setPlayerCorrupted(player.corrupted);
+    }
 }
 
 #ifdef DEBUG_HUD
@@ -281,10 +330,9 @@ static void enterRoom(void)
 {
     mode = MODE_ROOM;
     VDP_clearPlane(BG_A, TRUE);
-    gfx_setRoomPalette(lv.roomInVoid);
     drawRoom();
     VDP_setTextPalette(PAL0);
-    VDP_drawText("START carte", 27, 0);
+    VDP_drawText("START carte", 28, 0);
 }
 
 static void enterMap(void)
@@ -293,22 +341,25 @@ static void enterMap(void)
     VDP_setHorizontalScroll(BG_B, 0);
     VDP_setVerticalScroll(BG_B, 0);
     hideSprites();
-    gfx_setRoomPalette(0);
     drawMap();
 }
 
-// The Void shrinks by one unit per second, whatever the region, in the room as on the map.
-static void updateVoid(void)
+// On the map the Void keeps closing (level_update only runs in rooms): shrink it here, and
+// redraw the map once per second.
+static void updateMapVoid(void)
 {
-    if (!voidRunning || ++voidFrames < (IS_PAL_SYSTEM ? 50 : 60)) return;
-    voidFrames = 0;
-    u16 r = lv.voidRadius ? lv.voidRadius - 1 : 0;
-    if (!r) voidRunning = FALSE;
-    u8 changed = level_setVoidRadius(&lv, r);
-    if (mode == MODE_MAP) drawMap();
-    else if (changed) gfx_setRoomPalette(lv.roomInVoid);
+    static u16 frames;
+    if (lv.voidRunning)
+    {
+        lv.voidRadiusFx = lv.voidRadiusFx > lv.voidRate ? lv.voidRadiusFx - lv.voidRate : 0;
+        if (!lv.voidRadiusFx) lv.voidRunning = 0;
+    }
+    if (++frames >= (IS_PAL_SYSTEM ? 50 : 60))
+    {
+        frames = 0;
+        drawMap();
+    }
 }
-
 // ---------------------------------------------------------------- main
 
 static u16 readPad(void)
@@ -351,11 +402,8 @@ static void updateRoom(u16 pad, u16 pressed)
         return;
     }
     player_update(&player, &lv.room, pad);
-    if (level_update(&lv, &player))
-    {
-        gfx_setRoomPalette(lv.roomInVoid);
-        drawRoom();
-    }
+    if (level_update(&lv, &player)) drawRoom();
+    refreshVoid();
     updateCamera();
     scrollCamera();
     drawSprites();
@@ -379,6 +427,7 @@ int main(bool hardReset)
     VDP_resetSprites();
     player_setRegion(IS_PAL_SYSTEM);
     enemies_setRegion(IS_PAL_SYSTEM);
+    level_setRegion(IS_PAL_SYSTEM);
 
     newFloor(0x1234);
     enterRoom();
@@ -392,8 +441,11 @@ int main(bool hardReset)
 
         if (mode == MODE_ROOM) updateRoom(pad, pressed);
         else if (pressed & BUTTON_START) enterRoom();
-        else updateMap(pressed);
-        updateVoid();
+        else
+        {
+            updateMap(pressed);
+            updateMapVoid();
+        }
         SYS_doVBlankProcess();
     }
     return 0;

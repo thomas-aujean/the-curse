@@ -34,7 +34,8 @@ typedef struct
 void enemies_setRegion(u8 pal);
 void enemies_clear(EnemySet *s);
 void enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm);
-void enemies_setVoid(EnemySet *s, u8 voidForm);   // the Void reached the room: everyone transforms
+void enemies_setVoid(EnemySet *s, u8 voidForm);   // everyone transforms
+void enemy_setVoidForm(Enemy *e, u8 voidForm);    // keeps the damage already taken
 
 // Moves the enemies, applies the player's slash to them and their contact damage to the player.
 void enemies_update(EnemySet *s, const Room *r, Player *p);

@@ -8,7 +8,8 @@
 # Capture : tools\shots\<Name>.png — le HUD de diagnostic (angle, vitesses, position) est en bas.
 param(
     [Parameter(Mandatory)] [string] $Name,
-    [Parameter(Mandatory)] [string[]] $Steps
+    [Parameter(Mandatory)] [string[]] $Steps,
+    [string] $Flags = ''    # extra compiler flags, e.g. "-DVOID_SECONDS=20"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,7 +32,7 @@ try {
     Remove-Item -Recurse -Force out -ErrorAction SilentlyContinue
     # make écrit sur stderr même quand tout va bien : ne pas en faire une erreur PowerShell.
     $ErrorActionPreference = 'Continue'
-    $log = & make -f D:/code/tools/sgdk/makefile.gen release "EXTRA_FLAGS=-DDEBUG_HUD -DDEBUG_SCRIPT -Itools" 2>&1
+    $log = & make -f D:/code/tools/sgdk/makefile.gen release "EXTRA_FLAGS=-DDEBUG_HUD -DDEBUG_SCRIPT -Itools $Flags" 2>&1
     $ErrorActionPreference = 'Stop'
     if (-not (Test-Path out\rom.bin)) { $log | Select-String 'error' | Select-Object -First 10; throw 'Build échoué' }
 } finally { Pop-Location }

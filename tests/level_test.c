@@ -81,6 +81,23 @@ int main(void)
                 }
             }
     }
+    // The Void: every room is safe at the start, the circle closes on the boss in VOID_SECONDS.
+    for (unsigned seed = 1; seed < 400; seed += 7)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        for (int y = 0; y < FLOOR_H; y++)
+            for (int x = 0; x < FLOOR_W; x++)
+            {
+                u8 t = lv.floor.type[y][x];
+                if (t != ROOM_NONE && t != ROOM_SECRET && t != ROOM_SUPER_SECRET)
+                    CHECK(!level_cellInVoid(&lv, x, y), "seed %u: room (%d,%d) in the Void at start", seed, x, y);
+            }
+        u32 frames = 0;
+        while (lv.voidRunning && frames < 400 * 60) { level_update(&lv, &p); frames++; }
+        CHECK(frames >= VOID_SECONDS * 60 * 97 / 100 && frames <= VOID_SECONDS * 60,   // rate rounded up: up to 3 % early
+              "seed %u: Void closed in %lu frames", seed, (unsigned long) frames);
+    }
+
     printf("%d door crossings, %d failures\n", moves, failures);
     return failures != 0;
 }

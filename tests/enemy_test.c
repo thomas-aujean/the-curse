@@ -103,6 +103,20 @@ int main(void)
     enemies_setVoid(&set, 1);
     CHECK(set.e[0].voidForm && set.e[0].hp == 3, "Void form hp %d", set.e[0].hp);
 
+    // Light protection: 20 s inside the Void, then the pact (double slash damage, +1 damage taken).
+    player_init(&p, 250, 200);
+    for (int f = 0; f < 20 * 60 - 1; f++) player_updateLight(&p, 1);
+    CHECK(!p.corrupted && p.light == 1, "light lasts 20 s (light %u)", p.light);
+    player_updateLight(&p, 1);
+    CHECK(p.corrupted && player_slashDamage(&p) == 2, "corrupted when the light runs out");
+    p.invulnerable = 0;
+    player_hurt(&p, 1, 0);
+    CHECK(p.hp == 4, "pact: hits cost one more (hp %d)", p.hp);
+    for (int f = 0; f < 149; f++) player_updateLight(&p, 0);
+    CHECK(p.corrupted, "still corrupted before a quarter of light is back");
+    player_updateLight(&p, 0);
+    CHECK(!p.corrupted, "released at a quarter of light (light %u)", p.light);
+
     printf("%d failures\n", failures);
     return failures != 0;
 }
