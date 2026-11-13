@@ -60,6 +60,70 @@ static const char *const SLASH[16] =
     "........................",
 };
 
+static const char *const WALKER[24] =
+{
+    "......1111......",
+    ".....122221.....",
+    "....12222221....",
+    "....12412421....",
+    "....12222221....",
+    ".....121121.....",
+    "......1221......",
+    "....11222211....",
+    "...1232222321...",
+    "..123.1221.321..",
+    "..12..1331..21..",
+    "..12..1221..21..",
+    "..11..1331..11..",
+    "......1221......",
+    ".....122221.....",
+    ".....12..21.....",
+    ".....12..21.....",
+    ".....12..21.....",
+    ".....13..31.....",
+    ".....12..21.....",
+    ".....12..21.....",
+    "....122..221....",
+    "....111..111....",
+    "................",
+};
+
+static const char *const FLYER[32] =   // two 16-row frames: wings up, wings down
+{
+    "1..............1",
+    "11............11",
+    "121..........121",
+    "1221........1221",
+    "12221.1111.12221",
+    ".12221222212221.",
+    "..122224422221..",
+    "...1222222221...",
+    "....12222221....",
+    ".....122221.....",
+    "......1221......",
+    ".......11.......",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "......1111......",
+    ".....122221.....",
+    "....12244221....",
+    "..112222222211..",
+    ".12222222222221.",
+    "1222111221112221",
+    "1221...11...1221",
+    "121..........121",
+    "11............11",
+    "1..............1",
+    "................",
+    "................",
+};
+
 static const u32 SOLID_TILE[8] =
 {
     0x22222221, 0x23333331, 0x23333331, 0x11111111,
@@ -93,6 +157,12 @@ static u8 plainPixel(const char *const *rows, u8 x, u8 y)
 static u8 rotatedPixel(const char *const *rows, u8 x, u8 y)
 {
     return artPixel(rows[x], 23 - y);
+}
+
+// The other quarter turn: the edge of the arc ends up at the bottom.
+static u8 rotatedDownPixel(const char *const *rows, u8 x, u8 y)
+{
+    return artPixel(rows[15 - x], y);
 }
 
 // Sprite tiles are stored column by column (all rows of column 0, then column 1...).
@@ -146,4 +216,30 @@ void gfx_load(void)
     VDP_loadTileData(buffer, GFX_TILE_SLASH, 6, CPU);
     artToTiles(SLASH, rotatedPixel, 2, 3, buffer);
     VDP_loadTileData(buffer, GFX_TILE_SLASH_UP, 6, CPU);
+    artToTiles(SLASH, rotatedDownPixel, 2, 3, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_SLASH_DOWN, 6, CPU);
+    artToTiles(WALKER, plainPixel, 2, 3, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_WALKER, 6, CPU);
+    artToTiles(FLYER, plainPixel, 2, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_FLYER, 4, CPU);
+    artToTiles(FLYER + 16, plainPixel, 2, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_FLYER + 4, 4, CPU);
+
+    // Enemies: PAL2 normal form (bone and red eyes), PAL3 Void form (violet and cyan eyes).
+    PAL_setColor(32 + 1, RGB24_TO_VDPCOLOR(0x000000));
+    PAL_setColor(32 + 2, RGB24_TO_VDPCOLOR(0xCCCCAA));
+    PAL_setColor(32 + 3, RGB24_TO_VDPCOLOR(0x888866));
+    PAL_setColor(32 + 4, RGB24_TO_VDPCOLOR(0xEE2222));
+    PAL_setColor(48 + 1, RGB24_TO_VDPCOLOR(0x000000));
+    PAL_setColor(48 + 2, RGB24_TO_VDPCOLOR(0x8844CC));
+    PAL_setColor(48 + 3, RGB24_TO_VDPCOLOR(0x442288));
+    PAL_setColor(48 + 4, RGB24_TO_VDPCOLOR(0x44EEEE));
+}
+
+void gfx_setRoomPalette(u8 inVoid)
+{
+    static const u32 NORMAL[6] = { 0x101028, 0x442222, 0x884444, 0xAA6644, 0x886622, 0xCCAA66 };
+    static const u32 VOIDED[6] = { 0x000000, 0x220044, 0x442266, 0x664488, 0x444466, 0x8888AA };
+    const u32 *c = inVoid ? VOIDED : NORMAL;
+    for (u8 i = 0; i < 6; i++) PAL_setColor(i, RGB24_TO_VDPCOLOR(c[i]));
 }

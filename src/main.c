@@ -23,27 +23,13 @@ static u8 mode = MODE_ROOM;
 static u8 depth = 1;
 static bool showSecrets = FALSE;
 static bool voidRunning = FALSE;
-static u16 radius;          // Void radius, same units as floor_voidDist2()
 static u16 voidFrames;
+static u16 deathFrames;      // > 0 while the death message is shown
 
 // ---------------------------------------------------------------- floor map
 
 static const char LETTER[] = { ' ', '.', 'S', 'B', 'U', '$', '?', '!' };
 
-static u16 startRadius(void)
-{
-    u16 maxD2 = 0;
-    for (u8 y = 0; y < FLOOR_H; y++)
-        for (u8 x = 0; x < FLOOR_W; x++)
-            if (lv.floor.type[y][x] != ROOM_NONE)
-            {
-                u16 d2 = floor_voidDist2(&lv.floor, x, y);
-                if (d2 > maxD2) maxD2 = d2;
-            }
-    u16 r = 0;
-    while (r * r <= maxD2) r++;
-    return r;
-}
 
 static void drawCell(u8 x, u8 y)
 {
@@ -63,7 +49,7 @@ static void drawCell(u8 x, u8 y)
     u16 pal = PAL0;
     if (t == ROOM_BOSS) pal = PAL1;
     else if (t >= ROOM_UPGRADE) pal = PAL2;
-    if (!secret && floor_voidDist2(&lv.floor, x, y) > radius * radius) pal = PAL3;
+    if (!secret && floor_voidDist2(&lv.floor, x, y) > lv.voidRadius * lv.voidRadius) pal = PAL3;
 
     char cell[4] = { '[', known ? LETTER[t] : ' ', ']', 0 };
     if (x == lv.cellX && y == lv.cellY) cell[1] = '@';
@@ -91,7 +77,7 @@ static void drawMapStatus(void)
     VDP_setTextPalette(PAL0);
     sprintf(line, "GRAINE %04X  ETAGE %u  SALLES %u   ", lv.floor.seed, depth, lv.floor.roomCount);
     VDP_drawText(line, 2, 2);
-    sprintf(line, "NEANT R=%3u %s   ", radius, voidRunning ? "AVANCE" : "ARRET ");
+    sprintf(line, "NEANT R=%3u %s   ", lv.voidRadius, voidRunning ? "AVANCE" : "ARRET ");
     VDP_drawText(line, 2, 27);
 }
 
@@ -110,8 +96,8 @@ static void drawMap(void)
 static void newFloor(u16 seed)
 {
     level_start(&lv, &player, seed, depth);
-    radius = startRadius();
     voidRunning = FALSE;
+    gfx_setRoomPalette(lv.roomInVoid);
 }
 
 static void updateMap(u16 pressed)
@@ -129,17 +115,9 @@ static void updateMap(u16 pressed)
     }
     if (pressed & BUTTON_A)
     {
-        if (radius == 0) radius = startRadius();
+        if (lv.voidRadius == 0) level_setVoidRadius(&lv, level_startRadius(&lv));
         voidRunning = !voidRunning;
         drawMapStatus();
-    }
-    // The Void shrinks by one unit per second, whatever the region.
-    if (voidRunning && ++voidFrames >= (IS_PAL_SYSTEM ? 50 : 60))
-    {
-        voidFrames = 0;
-        if (radius) radius--;
-        if (!radius) voidRunning = FALSE;
-        drawMap();
     }
 }
 
@@ -204,25 +182,35 @@ static void drawRoom(void)
     scrollCamera();
 }
 
-static void drawPlayer(void)
+#define SPRITE_COUNT (2 + MAX_ENEMIES)   // ninja, slash, enemies
+
+static void drawSprites(void)
 {
     s16 px = (player.x >> 8) - camX, py = (player.y >> 8) - camY;
     u16 flip = player.facingLeft;
     u16 frame = player.crouching ? GFX_TILE_CROUCH : GFX_TILE_STAND;
 
-    // Sprite 0: ninja (16 x 32, feet on row GFX_FEET_ROW of the art).
-    VDP_setSpriteFull(0, px - 8, py - GFX_FEET_ROW - 1, SPRITE_SIZE(2, 4),
-                      TILE_ATTR_FULL(PAL1, 1, 0, flip, frame), 1);
+    // Sprite 0: ninja (16 x 32, feet on row GFX_FEET_ROW of the art); blinks while invulnerable.
+    s16 ny = (player.invulnerable & 4) ? -64 : py - GFX_FEET_ROW - 1;
+    VDP_setSpriteFull(0, px - 8, ny, SPRITE_SIZE(2, 4), TILE_ATTR_FULL(PAL1, 1, 0, flip, frame), 1);
 
-    // Sprite 1: slash in front of the chest or above the head, hidden off-screen when inactive.
+    // Sprite 1: slash, hidden off-screen when inactive.
+    s16 top = py - (player.crouching ? PLAYER_CROUCH_H : PLAYER_H);
     s16 sx, sy;
     u16 size, tiles;
-    if (player.attackUp)
+    if (player.attackDir == ATTACK_UP)
     {
         sx = px - 8;
-        sy = py - (player.crouching ? PLAYER_CROUCH_H : PLAYER_H) - 20;   // the arc starts 4 px into its art
+        sy = top - 20;   // the arc starts 1 px into its art
         size = SPRITE_SIZE(2, 3);
         tiles = GFX_TILE_SLASH_UP;
+    }
+    else if (player.attackDir == ATTACK_DOWN)
+    {
+        sx = px - 8;
+        sy = py - 4;
+        size = SPRITE_SIZE(2, 3);
+        tiles = GFX_TILE_SLASH_DOWN;
     }
     else
     {
@@ -232,8 +220,49 @@ static void drawPlayer(void)
         tiles = GFX_TILE_SLASH;
     }
     if (!player_attackActive(&player)) sy = -64;
-    VDP_setSpriteFull(1, sx, sy, size, TILE_ATTR_FULL(PAL1, 1, 0, flip, tiles), 0);
-    VDP_updateSprites(2, DMA_QUEUE);
+    VDP_setSpriteFull(1, sx, sy, size, TILE_ATTR_FULL(PAL1, 1, 0, flip, tiles), 2);
+
+    // Sprites 2..: enemies. Flashing when hurt, fast blinking while the death puff plays.
+    for (u8 i = 0; i < MAX_ENEMIES; i++)
+    {
+        const Enemy *e = &lv.enemies.e[i];
+        u8 index = 2 + i, link = index + 1 < SPRITE_COUNT ? index + 1 : 0;
+        s16 ex = (e->x >> 8) - camX - 8, ey = -64;
+        u16 attr = 0, esize = SPRITE_SIZE(2, 2);
+        u8 hidden = e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (e->hurtTimer & 2);
+        if (!hidden)
+        {
+            u16 epal = e->voidForm ? PAL3 : PAL2;
+            if (e->type == ENEMY_WALKER)
+            {
+                ey = (e->y >> 8) - camY - GFX_WALKER_FEET - 1;
+                esize = SPRITE_SIZE(2, 3);
+                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_WALKER);
+            }
+            else
+            {
+                ey = (e->y >> 8) - camY - GFX_FLYER_BOTTOM - 1;
+                u16 wing = (e->timer >> 3) & 1 ? 4 : 0;
+                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_FLYER + wing);
+            }
+        }
+        VDP_setSpriteFull(index, ex, ey, esize, attr, link);
+    }
+    VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
+}
+
+static void hideSprites(void)
+{
+    for (u8 i = 0; i < SPRITE_COUNT; i++) VDP_setSpritePosition(i, 0, -64);
+    VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
+}
+
+static void drawHud(void)
+{
+    char line[12];
+    VDP_setTextPalette(PAL0);
+    sprintf(line, "VIE %d/%d ", player.hp, player.maxHp);
+    VDP_drawText(line, 1, 0);
 }
 
 #ifdef DEBUG_HUD
@@ -252,6 +281,7 @@ static void enterRoom(void)
 {
     mode = MODE_ROOM;
     VDP_clearPlane(BG_A, TRUE);
+    gfx_setRoomPalette(lv.roomInVoid);
     drawRoom();
     VDP_setTextPalette(PAL0);
     VDP_drawText("START carte", 27, 0);
@@ -262,10 +292,21 @@ static void enterMap(void)
     mode = MODE_MAP;
     VDP_setHorizontalScroll(BG_B, 0);
     VDP_setVerticalScroll(BG_B, 0);
-    VDP_setSpritePosition(0, 0, -64);
-    VDP_setSpritePosition(1, 0, -64);
-    VDP_updateSprites(2, DMA_QUEUE);
+    hideSprites();
+    gfx_setRoomPalette(0);
     drawMap();
+}
+
+// The Void shrinks by one unit per second, whatever the region, in the room as on the map.
+static void updateVoid(void)
+{
+    if (!voidRunning || ++voidFrames < (IS_PAL_SYSTEM ? 50 : 60)) return;
+    voidFrames = 0;
+    u16 r = lv.voidRadius ? lv.voidRadius - 1 : 0;
+    if (!r) voidRunning = FALSE;
+    u8 changed = level_setVoidRadius(&lv, r);
+    if (mode == MODE_MAP) drawMap();
+    else if (changed) gfx_setRoomPalette(lv.roomInVoid);
 }
 
 // ---------------------------------------------------------------- main
@@ -292,6 +333,44 @@ static u16 readPad(void)
 #endif
 }
 
+static void updateRoom(u16 pad, u16 pressed)
+{
+    if (deathFrames)
+    {
+        // Dead: the message stays two seconds, then a new floor starts.
+        if (--deathFrames == 0)
+        {
+            newFloor(random() ^ vtimer);
+            enterRoom();
+        }
+        return;
+    }
+    if (pressed & BUTTON_START)
+    {
+        enterMap();
+        return;
+    }
+    player_update(&player, &lv.room, pad);
+    if (level_update(&lv, &player))
+    {
+        gfx_setRoomPalette(lv.roomInVoid);
+        drawRoom();
+    }
+    updateCamera();
+    scrollCamera();
+    drawSprites();
+    drawHud();
+#ifdef DEBUG_HUD
+    drawDebug();
+#endif
+    if (player.hp <= 0)
+    {
+        deathFrames = IS_PAL_SYSTEM ? 100 : 120;
+        VDP_setTextPalette(PAL1);
+        VDP_drawText("LE NEANT T'A EU...", 11, 13);
+    }
+}
+
 int main(bool hardReset)
 {
     (void) hardReset;
@@ -299,6 +378,7 @@ int main(bool hardReset)
     gfx_load();
     VDP_resetSprites();
     player_setRegion(IS_PAL_SYSTEM);
+    enemies_setRegion(IS_PAL_SYSTEM);
 
     newFloor(0x1234);
     enterRoom();
@@ -310,26 +390,10 @@ int main(bool hardReset)
         u16 pressed = pad & ~prevPad;
         prevPad = pad;
 
-        if (mode == MODE_ROOM)
-        {
-            if (pressed & BUTTON_START) enterMap();
-            else
-            {
-                player_update(&player, &lv.room, pad);
-                if (level_update(&lv, &player)) drawRoom();
-                updateCamera();
-                scrollCamera();
-                drawPlayer();
-#ifdef DEBUG_HUD
-                drawDebug();
-#endif
-            }
-        }
-        else
-        {
-            if (pressed & BUTTON_START) enterRoom();
-            else updateMap(pressed);
-        }
+        if (mode == MODE_ROOM) updateRoom(pad, pressed);
+        else if (pressed & BUTTON_START) enterRoom();
+        else updateMap(pressed);
+        updateVoid();
         SYS_doVBlankProcess();
     }
     return 0;

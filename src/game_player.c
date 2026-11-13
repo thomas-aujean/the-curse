@@ -6,6 +6,8 @@ typedef struct
     s16 runMax, accel, turn, decel, airAccel, airDecel;
     s16 gravity, jumpVel, jumpCut, maxFall;
     u8 coyote, buffer, dropFrames, attackFrames, attackFrom, attackTo;
+    u8 invulFrames, hurtFrames;
+    s16 knockX, knockY, bounceVel;
 } Tuning;
 
 static const Tuning NTSC =
@@ -26,6 +28,11 @@ static const Tuning NTSC =
     .attackFrames = 14,
     .attackFrom = 2,   // hitbox active on frames [from, to) of the slash
     .attackTo = 8,
+    .invulFrames = 90,  // 1.5 s of blinking after a hit
+    .hurtFrames = 14,
+    .knockX = 448,
+    .knockY = 768,
+    .bounceVel = 1280,  // ~40 px hop after a downward hit
 };
 
 static Tuning t;
@@ -51,6 +58,11 @@ void player_setRegion(u8 pal)
     t.attackFrames = NTSC.attackFrames * 5 / 6;
     t.attackFrom = NTSC.attackFrom * 5 / 6;
     t.attackTo = NTSC.attackTo * 5 / 6;
+    t.invulFrames = NTSC.invulFrames * 5 / 6;
+    t.hurtFrames = NTSC.hurtFrames * 5 / 6;
+    t.knockX = NTSC.knockX * 6 / 5;
+    t.knockY = NTSC.knockY * 6 / 5;
+    t.bounceVel = NTSC.bounceVel * 6 / 5;
 }
 
 void player_init(Player *p, s16 px, s16 py)
@@ -59,8 +71,11 @@ void player_init(Player *p, s16 px, s16 py)
     p->y = (s32) py << 8;
     p->vx = p->vy = 0;
     p->onGround = p->facingLeft = p->crouching = p->jumpHeld = 0;
-    p->coyote = p->jumpBuffer = p->dropTimer = p->attackTimer = p->attackUp = 0;
+    p->coyote = p->jumpBuffer = p->dropTimer = p->attackTimer = p->attackDir = 0;
     p->prevPad = 0;
+    p->attackId = 0;
+    p->maxHp = p->hp = 6;
+    p->invulnerable = p->hurtTimer = 0;
 }
 
 static u8 solidAt(const Room *r, s16 px, s16 py)
@@ -152,6 +167,12 @@ static void moveY(Player *p, const Room *r, s16 h)
 
 void player_update(Player *p, const Room *r, u16 pad)
 {
+    if (p->invulnerable) p->invulnerable--;
+    if (p->hurtTimer)
+    {
+        p->hurtTimer--;
+        pad = 0;   // knocked back: no control
+    }
     u16 pressed = pad & ~p->prevPad;
     p->prevPad = pad;
 
@@ -164,7 +185,9 @@ void player_update(Player *p, const Room *r, u16 pad)
     if (pressed & PAD_ATTACK && !p->attackTimer)
     {
         p->attackTimer = t.attackFrames;
-        p->attackUp = (pad & PAD_UP) != 0;   // direction is locked for the whole slash
+        p->attackId++;
+        // Direction is locked for the whole slash. Down only in the air (on the ground it is a crouch).
+        p->attackDir = (pad & PAD_UP) ? ATTACK_UP : ((pad & PAD_DOWN) && !p->onGround) ? ATTACK_DOWN : ATTACK_SIDE;
     }
 
     // Crouch; standing back up needs headroom.
@@ -244,12 +267,19 @@ void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
 {
     s16 px = p->x >> 8, py = p->y >> 8;
     s16 top = py - (p->crouching ? PLAYER_CROUCH_H : PLAYER_H);
-    if (p->attackUp)
+    if (p->attackDir == ATTACK_UP)
     {
         *x0 = px - 8;
         *x1 = px + 7;
         *y0 = top - 20;
         *y1 = top + 4;
+    }
+    else if (p->attackDir == ATTACK_DOWN)
+    {
+        *x0 = px - 8;
+        *x1 = px + 7;
+        *y0 = py - 4;
+        *y1 = py + 20;
     }
     else
     {
@@ -264,4 +294,25 @@ void player_boostUp(Player *p)
     p->vy = -t.jumpVel;
     p->jumpHeld = 0;
     p->onGround = 0;
+}
+
+void player_bounce(Player *p)
+{
+    p->vy = -t.bounceVel;
+    p->jumpHeld = 0;
+    p->onGround = 0;
+}
+
+void player_hurt(Player *p, u8 damage, u8 fromRight)
+{
+    if (p->invulnerable || p->hp <= 0) return;
+    p->hp -= damage;
+    if (p->hp < 0) p->hp = 0;
+    p->invulnerable = t.invulFrames;
+    p->hurtTimer = t.hurtFrames;
+    p->vx = fromRight ? -t.knockX : t.knockX;
+    p->vy = -t.knockY;
+    p->onGround = 0;
+    p->crouching = 0;
+    p->attackTimer = 0;
 }

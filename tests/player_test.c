@@ -111,7 +111,7 @@ static void region(int pal)
     run(&p, PAD_UP | PAD_ATTACK, 3);
     s16 bx0, by0, bx1, by1;
     player_attackBox(&p, &bx0, &by0, &bx1, &by1);
-    CHECK(p.attackUp && player_attackActive(&p) && by1 < 200 - PLAYER_H + 8 && bx0 < 100 && bx1 > 100,
+    CHECK(p.attackDir == ATTACK_UP && player_attackActive(&p) && by1 < 200 - PLAYER_H + 8 && bx0 < 100 && bx1 > 100,
           "%s upward slash box %d,%d-%d,%d", name, bx0, by0, bx1, by1);
 }
 

@@ -39,6 +39,7 @@ int main(void)
     // Walk through every door of many floors: the player must arrive inside the new room, free of
     // walls, settle on the ground within two seconds and not bounce straight back.
     player_setRegion(0);
+    enemies_setRegion(0);
     static Level lv;
     Player p;
     int moves = 0;

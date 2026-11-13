@@ -23,10 +23,13 @@ typedef int32_t s32;
 #define PAD_C     BUTTON_C
 #endif
 
-// Controls: C jump (release early = shorter jump), B slash (UP + B: upward slash), DOWN crouch,
+// Controls: C jump (release early = shorter jump), B slash (UP + B: upward; DOWN + B in the air: downward,
+// bouncing off what it hits), DOWN crouch,
 // DOWN + C drop through a platform.
 #define PAD_JUMP   PAD_C
 #define PAD_ATTACK PAD_B
+
+enum { ATTACK_SIDE, ATTACK_UP, ATTACK_DOWN };
 
 #define PLAYER_W 12
 #define PLAYER_H 28
@@ -38,7 +41,11 @@ typedef struct
     s32 x, y;            // x = centre of the hitbox, y = just below the feet
     s16 vx, vy;
     u8 onGround, facingLeft, crouching, jumpHeld;
-    u8 coyote, jumpBuffer, dropTimer, attackTimer, attackUp;
+    u8 coyote, jumpBuffer, dropTimer, attackTimer, attackDir;   // attackDir: ATTACK_*
+    u8 attackId;         // changes at every slash, so an enemy is hit once per slash
+    s8 hp, maxHp;        // half hearts
+    u8 invulnerable;     // frames of blinking after a hit
+    u8 hurtTimer;        // frames of knockback without control
     u16 prevPad;
 } Player;
 
@@ -46,7 +53,9 @@ typedef struct
 void player_setRegion(u8 pal);
 void player_init(Player *p, s16 px, s16 py);
 void player_update(Player *p, const Room *r, u16 pad);
-void player_boostUp(Player *p);   // full-jump speed upwards, e.g. when entering a room from below
+void player_boostUp(Player *p);
+void player_bounce(Player *p);   // downward slash hit something: small hop
+void player_hurt(Player *p, u8 damage, u8 fromRight);   // ignored while invulnerable   // full-jump speed upwards, e.g. when entering a room from below
 u8 player_attackActive(const Player *p);
 u8 player_attackTimer(const Player *p);
 
