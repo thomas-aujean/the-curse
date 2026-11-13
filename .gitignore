@@ -3,3 +3,5 @@ out/
 res/*.rs.h
 tools/shots/
 tools/script.h
+res/art.h
+tools/art/__pycache__/
