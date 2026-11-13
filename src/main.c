@@ -224,7 +224,9 @@ static void drawRoom(void)
 #define SPRITE_SHOTS (SPRITE_BOSS_LOW + 1)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
 #define SPRITE_ITEM (SPRITE_GEM + 1)
-#define SPRITE_COUNT (SPRITE_ITEM + 1)
+#define SPRITE_PROPS (SPRITE_ITEM + 1)
+#define SPRITE_PICKUPS (SPRITE_PROPS + MAX_PROPS)
+#define SPRITE_COUNT (SPRITE_PICKUPS + MAX_PICKUPS)
 
 static void drawSprites(void)
 {
@@ -350,7 +352,28 @@ static void drawSprites(void)
                           TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), 0);
     else
         VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 8, lv.itemId ? lv.itemY - camY - 20 - bob : -64,
-                          SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), 0);
+                          SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), SPRITE_PROPS);
+
+    for (u8 i = 0; i < MAX_PROPS; i++)
+    {
+        const Prop *pr = &lv.props[i];
+        s16 y = (i < lv.propCount && pr->alive) ? pr->y - camY - 16 : -64;
+        VDP_setSpriteFull(SPRITE_PROPS + i, pr->x - camX - 8, y, SPRITE_SIZE(2, 2),
+                          TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_JAR), SPRITE_PROPS + i + 1);
+    }
+    for (u8 i = 0; i < MAX_PICKUPS; i++)
+    {
+        const Pickup *pk = &lv.pickups[i];
+        u8 index = SPRITE_PICKUPS + i, link = i + 1 < MAX_PICKUPS ? index + 1 : 0;
+        s16 x = (pk->x >> 8) - camX, y = (pk->y >> 8) - camY;
+        if (pk->type == PICKUP_COIN)
+            VDP_setSpriteFull(index, x - 4, y - 7, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL2, 1, 0, (vtimer >> 3) & 1, GFX_TILE_COIN), link);
+        else if (pk->type == PICKUP_HEART || (pk->type == PICKUP_ITEM && pk->itemId == ITEM_HEART))
+            VDP_setSpriteFull(index, x - 4, y - 12, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), link);
+        else if (pk->type == PICKUP_ITEM)
+            VDP_setSpriteFull(index, x - 8, y - 20, SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), link);
+        else VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
+    }
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
 
@@ -363,6 +386,7 @@ static void hideSprites(void)
 // HUD on plane A (does not scroll): hearts and light bar top left, minimap of the rooms around
 // top right. Each part is redrawn only when what it shows has changed.
 static u8 hudHp = 0xFF, hudMaxHp = 0xFF, hudLight = 0xFF, hudCell = 0xFF, hudCorrupted = 0xFF;
+static u16 hudCoins = 0xFFFF;
 static u16 itemMessage;   // frames left showing the name of the item just taken
 
 static void hudTile(u16 x, u16 y, u16 pal, u16 tile)
@@ -423,6 +447,30 @@ static void drawHud(void)
         hudCell = cell;
         drawMinimap();
     }
+    if (player.coins != hudCoins)
+    {
+        char line[8];
+        hudCoins = player.coins;
+        hudTile(1, 2, PAL2, GFX_TILE_COIN);
+        sprintf(line, "%u  ", player.coins);
+        VDP_setTextPalette(PAL0);
+        VDP_drawText(line, 2, 2);
+    }
+    // Shop price tags under the wares (the small shop room never scrolls).
+    if (lv.shopChanged)
+    {
+        lv.shopChanged = 0;
+        VDP_clearTextArea(0, 25, 40, 1);
+        for (u8 i = 0; i < 3; i++)
+        {
+            const Pickup *pk = &lv.pickups[i];
+            if (pk->type != PICKUP_ITEM) continue;
+            char tag[4];
+            sprintf(tag, "%u", pk->price);
+            VDP_setTextPalette(player.coins >= pk->price ? PAL2 : PAL1);
+            VDP_drawText(tag, ((pk->x >> 8) - camX) / 8 - (pk->price >= 10), ((pk->y >> 8) - camY) / 8 + 1);
+        }
+    }
     if (itemMessage && --itemMessage == 0) VDP_clearTextArea(0, 4, 40, 1);
 }
 
@@ -440,6 +488,8 @@ static void showItemName(u8 item)
 static void forceHud(void)
 {
     hudHp = hudMaxHp = hudLight = hudCell = hudCorrupted = 0xFF;
+    hudCoins = 0xFFFF;
+    lv.shopChanged = 1;
 }
 #ifdef DEBUG_HUD
 static void drawDebug(void)

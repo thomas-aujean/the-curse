@@ -39,6 +39,8 @@
 #define GFX_TILE_JELLY_SMALL   (TILE_USER_INDEX + 123)  // 1 x 1, bottom on row 6
 #define GFX_TILE_ARROW         (TILE_USER_INDEX + 124)
 #define GFX_TILE_SHURIKEN      (TILE_USER_INDEX + 125)
+#define GFX_TILE_COIN          (TILE_USER_INDEX + 126)  // PAL2 gold
+#define GFX_TILE_JAR           (TILE_USER_INDEX + 127)  // 2 x 2 (PAL2), bottom on row 15
 
 #define GFX_WALKER_FEET 22   // last pixel row of the feet in the 24-row walker art
 #define GFX_FLYER_BOTTOM 13

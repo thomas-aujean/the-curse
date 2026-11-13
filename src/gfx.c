@@ -269,6 +269,31 @@ static const u32 SMALL_TILES[3][8] =   // PAL2/PAL3: small jelly, arrow, shurike
     { 0x00010000, 0x00121000, 0x01222100, 0x12242210, 0x01222100, 0x00121000, 0x00010000, 0x00000000 },
 };
 
+static const u32 COIN_TILE[8] =
+{
+    0x00000000, 0x00166100, 0x01655610, 0x01656610, 0x01656610, 0x01666610, 0x00111100, 0x00000000,
+};
+
+static const char *const JAR[16] =
+{
+    "................",
+    "................",
+    "................",
+    ".....111111.....",
+    "......1331......",
+    ".....132231.....",
+    "....13222231....",
+    "...1322222231...",
+    "...1355555531...",
+    "...1322222231...",
+    "...1322222231...",
+    "...1355555531...",
+    "...1322222231...",
+    "....13333331....",
+    ".....111111.....",
+    "................",
+};
+
 // Empty space outside the circle: near-black violet with sparse specks (PAL3 colours 10 and 11).
 static const u32 VOID_TILE[8] =
 {
@@ -426,6 +451,11 @@ void gfx_load(void)
     artToTiles(JELLY, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_JELLY, 4, CPU);
     VDP_loadTileData(SMALL_TILES[0], GFX_TILE_JELLY_SMALL, 3, CPU);
+    VDP_loadTileData(COIN_TILE, GFX_TILE_COIN, 1, CPU);
+    artToTiles(JAR, plainPixel, 2, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_JAR, 4, CPU);
+    PAL_setColor(32 + 5, RGB24_TO_VDPCOLOR(0xEEBB22));   // gold
+    PAL_setColor(32 + 6, RGB24_TO_VDPCOLOR(0xAA6600));
 
     // Enemies: PAL2 normal form (bone and red eyes), PAL3 Void form (violet and cyan eyes).
     PAL_setColor(32 + 1, RGB24_TO_VDPCOLOR(0x000000));

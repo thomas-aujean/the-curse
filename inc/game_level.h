@@ -19,6 +19,28 @@ typedef struct
 #define ROOM_TEMPLATE_RANDOM 4   // the first ones fill ordinary rooms; the last is the boss arena
 extern const RoomTemplate ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT];
 
+#define MAX_PICKUPS 10
+#define SHOP_HEART_PRICE 3
+#define SHOP_ITEM_PRICE 12
+#define MAX_PROPS 6
+
+enum { PICKUP_NONE, PICKUP_COIN, PICKUP_HEART, PICKUP_ITEM };
+
+typedef struct
+{
+    u8 type;              // PICKUP_*
+    u8 itemId;            // PICKUP_ITEM: what is sold
+    u8 price;             // coins; 0 = free
+    s32 x, y;             // 1/256 px, y = bottom
+    s16 vx, vy;
+} Pickup;
+
+typedef struct
+{
+    u8 alive;
+    s16 x, y;             // room pixels, centre of the bottom
+} Prop;
+
 typedef struct
 {
     s16 x0, y0, x1, y1;   // room pixels, inclusive
@@ -38,6 +60,13 @@ typedef struct
     u8 crackedCount;
     u8 itemId, lastItem;               // item on the altar of the current room (ITEM_*)
     s16 itemX, itemY;                  // room pixels, y = floor under the item
+    Pickup pickups[MAX_PICKUPS];       // coins, half hearts, shop wares
+    Prop props[MAX_PROPS];             // breakable jars of the current room
+    u8 propCount;
+    u8 propsBroken[FLOOR_H][FLOOR_W];  // bit per jar, so broken jars stay broken
+    u8 shopBought[FLOOR_H][FLOOR_W];   // bit per shop slot
+    u8 shopChanged;                    // a ware was bought: redraw the price tags
+    u16 rng;
     EnemySet enemies;
     s16 voidCX, voidCY;                // Void circle centre, castle pixels (the boss room centre)
     u32 voidRadiusFx;                  // safe-zone radius, 1/256 px

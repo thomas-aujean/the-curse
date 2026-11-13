@@ -64,6 +64,8 @@ static void setPos(Player *p, s16 px, s16 py)
 
 static u8 fps = 60;
 
+static u8 nearPlayer(s16 x, s16 y, s16 ppx, s16 ppy);
+
 static const u8 DIR_BITS[4] = { DOOR_LEFT, DOOR_RIGHT, DOOR_UP, DOOR_DOWN };
 static const char DIR_MARKER[4] = { 'L', 'R', 'U', 'D' };
 
@@ -125,6 +127,35 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
     lv->itemX = t->wBlocks * 8;
     lv->itemY = (t->hBlocks - 2) * 16;
 
+    // Breakable jars ('o'), unless already broken; coins left on the floor are lost.
+    for (u8 i = 0; i < MAX_PICKUPS; i++) lv->pickups[i].type = PICKUP_NONE;
+    lv->propCount = 0;
+    for (u8 by = 0; by < t->hBlocks; by++)
+        for (u8 bx = 0; bx < t->wBlocks; bx++)
+            if (t->rows[by][bx] == 'o' && lv->propCount < MAX_PROPS)
+            {
+                Prop *pr = &lv->props[lv->propCount];
+                pr->alive = !(lv->propsBroken[y][x] & (1 << lv->propCount));
+                pr->x = bx * 16 + 8;
+                pr->y = (by + 1) * 16;
+                lv->propCount++;
+            }
+
+    // Shop: a heart and two upgrades on display, with their price.
+    if (lv->floor.type[y][x] == ROOM_SHOP)
+        for (u8 slot = 0; slot < 3; slot++)
+        {
+            if (lv->shopBought[y][x] & (1 << slot)) continue;
+            Pickup *pk = &lv->pickups[slot];
+            pk->type = PICKUP_ITEM;
+            pk->itemId = slot == 0 ? ITEM_HEART
+                : ITEM_FIRST_UPGRADE + (lv->floor.seed + slot * 5 + x) % UPGRADE_COUNT;
+            pk->price = slot == 0 ? SHOP_HEART_PRICE : SHOP_ITEM_PRICE;
+            pk->x = (s32) (t->wBlocks * 8 + (slot - 1) * 64) << 8;
+            pk->y = (s32) ((t->hBlocks - 2) * 16) << 8;
+            pk->vx = pk->vy = 0;
+        }
+    lv->shopChanged = 1;
     lv->bossFight = lv->floor.type[y][x] == ROOM_BOSS && !lv->cleared[y][x];
     if (lv->bossFight)
     {
@@ -198,7 +229,9 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
     floor_generate(&lv->floor, seed, depth);
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++)
-            lv->visited[y][x] = lv->cleared[y][x] = lv->opened[y][x] = lv->taken[y][x] = 0;
+            lv->visited[y][x] = lv->cleared[y][x] = lv->opened[y][x] = lv->taken[y][x] = 0,
+            lv->propsBroken[y][x] = lv->shopBought[y][x] = 0;
+    lv->rng = seed | 1;
     lv->gemActive = 0;
     lv->bossFight = 0;
 
@@ -278,6 +311,119 @@ static u8 breakWalls(Level *lv, const Player *p)
     return 0;
 }
 
+static u16 lootRandom(Level *lv)
+{
+    lv->rng ^= lv->rng << 7;
+    lv->rng ^= lv->rng >> 9;
+    lv->rng ^= lv->rng << 8;
+    return lv->rng;
+}
+
+static void spawnPickup(Level *lv, u8 type, s16 x, s16 y, s16 vx)
+{
+    for (u8 i = 0; i < MAX_PICKUPS; i++)
+    {
+        Pickup *pk = &lv->pickups[i];
+        if (pk->type != PICKUP_NONE) continue;
+        pk->type = type;
+        pk->price = 0;
+        pk->x = (s32) x << 8;
+        pk->y = (s32) y << 8;
+        pk->vx = vx;
+        pk->vy = -640;   // small pop upwards
+        return;
+    }
+}
+
+// Coins burst out, spread left and right; sometimes a half heart.
+static void dropLoot(Level *lv, s16 x, s16 y, u8 coins, u8 heartPercent)
+{
+    for (u8 i = 0; i < coins; i++) spawnPickup(lv, PICKUP_COIN, x, y, ((s16) i * 2 - (coins - 1)) * 96);
+    if (lootRandom(lv) % 100 < heartPercent) spawnPickup(lv, PICKUP_HEART, x, y, 0);
+}
+
+static void lootEnemies(Level *lv)
+{
+    for (u8 i = 0; i < MAX_ENEMIES; i++)
+    {
+        Enemy *e = &lv->enemies.e[i];
+        if (e->type == ENEMY_NONE || !e->deathTimer || e->looted) continue;
+        e->looted = 1;
+        s16 x = e->x >> 8, y = (e->y >> 8) - 8;
+        if (e->type == ENEMY_BOSS) dropLoot(lv, x, y, 5, 0);
+        else if (lootRandom(lv) % 100 < 60) dropLoot(lv, x, y, 1, 5);
+    }
+}
+
+static u8 breakProps(Level *lv, const Player *p)
+{
+    if (!player_attackActive(p)) return 0;
+    s16 ax0, ay0, ax1, ay1;
+    player_attackBox(p, &ax0, &ay0, &ax1, &ay1);
+    for (u8 i = 0; i < lv->propCount; i++)
+    {
+        Prop *pr = &lv->props[i];
+        if (!pr->alive || ax0 > pr->x + 6 || pr->x - 6 > ax1 || ay0 > pr->y - 1 || pr->y - 14 > ay1) continue;
+        pr->alive = 0;
+        lv->propsBroken[lv->cellY][lv->cellX] |= 1 << i;
+        dropLoot(lv, pr->x, pr->y - 8, 1 + lootRandom(lv) % 3, 20);
+    }
+    return 0;
+}
+
+// Pickups fall and bounce on floors and platforms; touching one takes it (wares only if affordable).
+static u8 updatePickups(Level *lv, Player *p, s16 ppx, s16 ppy)
+{
+    u8 result = 0;
+    for (u8 i = 0; i < MAX_PICKUPS; i++)
+    {
+        Pickup *pk = &lv->pickups[i];
+        if (pk->type == PICKUP_NONE) continue;
+        if (pk->type != PICKUP_ITEM)
+        {
+            pk->vy += 64;
+            if (pk->vy > 1024) pk->vy = 1024;
+            pk->x += pk->vx;
+            s16 nx = pk->x >> 8;
+            if (room_tileAt(&lv->room, nx, (pk->y >> 8) - 4) == TILE_SOLID)
+            {
+                pk->x -= pk->vx;
+                pk->vx = -pk->vx / 2;
+            }
+            s16 oldY = pk->y >> 8;
+            pk->y += pk->vy;
+            s16 gy = pk->y >> 8;
+            u8 t = room_tileAt(&lv->room, pk->x >> 8, gy);
+            if (pk->vy > 0 && (t == TILE_SOLID || (t == TILE_PLATFORM && oldY <= (gy & ~7))))
+            {
+                pk->y = (s32) (gy & ~7) << 8;
+                pk->vy = pk->vy > 384 ? -pk->vy / 3 : 0;   // one small bounce
+                pk->vx = pk->vx / 2;
+            }
+        }
+        s16 x = pk->x >> 8, y = pk->y >> 8;
+        if (!nearPlayer(x, y - 4, ppx, ppy)) continue;
+        if (pk->type == PICKUP_COIN) p->coins++;
+        else if (pk->type == PICKUP_HEART)
+        {
+            if (p->hp >= p->maxHp) continue;   // left on the floor for later
+            p->hp++;
+        }
+        else
+        {
+            if (p->coins < pk->price) continue;
+            p->coins -= pk->price;
+            player_takeItem(p, pk->itemId);
+            lv->lastItem = pk->itemId;
+            lv->shopBought[lv->cellY][lv->cellX] |= 1 << i;
+            lv->shopChanged = 1;
+            result |= LEVEL_ITEM;
+        }
+        pk->type = PICKUP_NONE;
+    }
+    return result;
+}
+
 static u8 nearPlayer(s16 x, s16 y, s16 ppx, s16 ppy)
 {
     return x > ppx - 16 && x < ppx + 16 && y > ppy - PLAYER_H - 8 && y < ppy + 8;
@@ -305,6 +451,9 @@ u8 level_update(Level *lv, Player *p)
 
     u8 result = 0;
     if (breakWalls(lv, p)) result |= LEVEL_REDRAW;
+    lootEnemies(lv);
+    breakProps(lv, p);
+    result |= updatePickups(lv, p, ppx, ppy);
 
     if (lv->itemId != ITEM_NONE && nearPlayer(lv->itemX, lv->itemY - 8, ppx, ppy))
     {

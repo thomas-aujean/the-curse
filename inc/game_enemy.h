@@ -39,6 +39,7 @@ typedef struct
     u8 hurtTimer;        // frozen and flashing after a hit
     u8 deathTimer;       // > 0 while the death puff plays, then the slot is freed
     u8 lastHitId;        // the same slash never hits twice
+    u8 looted;           // its coins were dropped
     u16 timer;
     u8 state;            // boss: current attack (BOSS_*)
     u8 step;             // boss: position in the attack cycle

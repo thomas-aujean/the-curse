@@ -89,6 +89,7 @@ Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
         e->facingLeft = i & 1;
         e->hurtTimer = e->deathTimer = 0;
         e->lastHitId = 0xFF;
+        e->looted = 0;
         e->timer = i * 37;   // desynchronise the bobbing
         e->state = BOSS_IDLE;
         e->step = 0;
@@ -564,6 +565,7 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             {
                 // Splits into small jellies (three in the Void) that jump apart.
                 e->deathTimer = 1;
+                e->looted = 1;   // the small ones carry the coins
                 u8 parts = e->voidForm ? 3 : 2;
                 for (u8 k = 0; k < parts; k++)
                 {

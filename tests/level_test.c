@@ -187,6 +187,66 @@ int main(void)
     }
     CHECK(secretsOpened > 50, "only %d secret passages tested", secretsOpened);
 
-    printf("%d door crossings, %d secret passages, %d failures\n", moves, secretsOpened, failures);
+    // Jars break into coins that land and can be picked up; broken jars stay broken.
+    int jarsTested = 0, shopsTested = 0;
+    for (unsigned seed = 2; seed < 200; seed += 3)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        for (int y = 0; y < FLOOR_H; y++)
+            for (int x = 0; x < FLOOR_W; x++)
+            {
+                u8 type = lv.floor.type[y][x];
+                if (type == ROOM_NONE || type == ROOM_BOSS) continue;
+                level_enter(&lv, &p, x, y);
+                enemies_clear(&lv.enemies);
+                if (type == ROOM_SHOP)
+                {
+                    // Too poor: nothing happens. Rich enough: the heart is sold.
+                    Pickup heart = lv.pickups[0];
+                    CHECK(heart.type == PICKUP_ITEM && heart.itemId == ITEM_HEART, "seed %u: shop heart", seed);
+                    p.coins = 2;
+                    p.hp = 2;
+                    player_place(&p, heart.x >> 8, heart.y >> 8);
+                    p.hp = 2;
+                    level_update(&lv, &p);
+                    CHECK(p.coins == 2 && lv.pickups[0].type == PICKUP_ITEM, "seed %u: sold without money", seed);
+                    p.coins = 20;
+                    int r = level_update(&lv, &p);
+                    CHECK((r & LEVEL_ITEM) && p.coins == 20 - SHOP_HEART_PRICE && p.hp == 4, "seed %u: heart bought", seed);
+                    level_enter(&lv, &p, x, y);
+                    CHECK(lv.pickups[0].type == PICKUP_NONE, "seed %u: bought ware came back", seed);
+                    shopsTested++;
+                }
+                if (!lv.propCount) continue;
+                Prop pr = lv.props[0];
+                CHECK(pr.alive, "seed %u: jar alive", seed);
+                player_place(&p, pr.x - 16, pr.y);
+                p.facingLeft = 0;
+                p.coins = 0;
+                for (int f = 0; f < 6; f++)
+                {
+                    player_update(&p, &lv.room, f ? PAD_ATTACK : 0);
+                    p.facingLeft = 0;
+                    level_update(&lv, &p);
+                }
+                CHECK(!lv.props[0].alive, "seed %u (%d,%d): jar not broken", seed, x, y);
+                int coins = p.coins;   // some may already have landed on the player
+                for (int i = 0; i < MAX_PICKUPS; i++) coins += lv.pickups[i].type == PICKUP_COIN;
+                for (int f = 0; f < 90; f++) level_update(&lv, &p);   // land
+                for (int i = 0; i < MAX_PICKUPS; i++)
+                    if (lv.pickups[i].type == PICKUP_COIN)
+                    {
+                        player_place(&p, lv.pickups[i].x >> 8, lv.pickups[i].y >> 8);
+                        level_update(&lv, &p);
+                    }
+                CHECK(coins >= 1 && p.coins == coins, "seed %u: %d coins dropped, %u picked", seed, coins, p.coins);
+                level_enter(&lv, &p, x, y);
+                CHECK(!lv.props[0].alive, "seed %u: jar back after leaving", seed);
+                jarsTested++;
+            }
+    }
+    CHECK(jarsTested > 100 && shopsTested > 20, "jars %d shops %d", jarsTested, shopsTested);
+
+    printf("%d door crossings, %d secret passages, %d jars, %d shops, %d failures\n", moves, secretsOpened, jarsTested, shopsTested, failures);
     return failures != 0;
 }

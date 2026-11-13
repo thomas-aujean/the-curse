@@ -71,6 +71,7 @@ typedef struct
     u8 airJumps, airJumpsLeft;
     u8 lightDrain;             // light lost per frame inside the Void
     s8 damageBonus;
+    u16 coins;
     u8 corrupted;        // light ran out: touched by the Void (pact: hits harder, takes more)
     u16 prevPad;
 } Player;
