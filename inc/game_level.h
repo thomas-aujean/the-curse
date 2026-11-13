@@ -35,9 +35,13 @@ typedef struct
     s16 vx, vy;
 } Pickup;
 
+// Breakable props, then Rogue Legacy style chests (opened, not destroyed).
+enum { PROP_JAR, PROP_URN, PROP_CRATE, PROP_CANDLE, PROP_CHEST_BRONZE, PROP_CHEST_SILVER, PROP_CHEST_GOLD };
+
 typedef struct
 {
-    u8 alive;
+    u8 type;              // PROP_*
+    u8 alive;             // chests: closed
     s16 x, y;             // room pixels, centre of the bottom
 } Prop;
 

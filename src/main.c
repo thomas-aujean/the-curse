@@ -294,7 +294,7 @@ static u8 ninjaFrame(void)
     if (speed < 96)
     {
         runDistance = 0;
-        return (vtimer >> 5) & 1 ? NINJA_IDLE1 : NINJA_IDLE0;
+        return NINJA_IDLE0 + ((vtimer >> 4) & 3);
     }
     runDistance += speed;   // no division in the frame loop: step the frame every 6 px
     while (runDistance >= 6 * 256)
@@ -309,10 +309,10 @@ static void drawSprites(void)
 {
     s16 px = (player.x >> 8) - camX, py = (player.y >> 8) - camY;
     u16 flip = player.facingLeft;
-    u16 frame = GFX_NINJA + ninjaFrame() * 8;
-    // Sprite 0: ninja (16 x 32, feet on row GFX_FEET_ROW of the art); blinks while invulnerable.
+    u16 frame = GFX_NINJA + ninjaFrame() * 12;
+    // Sprite 0: ninja (24 x 32, body centred on x 12, feet on row GFX_FEET_ROW); blinks while invulnerable.
     s16 ny = (player.invulnerable & 4) ? -64 : py - GFX_FEET_ROW - 1;
-    VDP_setSpriteFull(0, px - 8, ny, SPRITE_SIZE(2, 4), TILE_ATTR_FULL(PAL1, 1, 0, flip, frame), 1);
+    VDP_setSpriteFull(0, px - 12, ny, SPRITE_SIZE(3, 4), TILE_ATTR_FULL(PAL1, 1, 0, flip, frame), 1);
 
     // Sprite 1: slash, hidden off-screen when inactive.
     s16 top = py - (player.crouching ? PLAYER_CROUCH_H : PLAYER_H);
@@ -433,11 +433,13 @@ static void drawSprites(void)
     for (u8 i = 0; i < MAX_PROPS; i++)
     {
         const Prop *pr = &lv.props[i];
-        s16 y = (i < lv.propCount && pr->alive) ? pr->y - camY - 16 : -64;
-        VDP_setSpriteFull(SPRITE_PROPS + i, pr->x - camX - 8, y, SPRITE_SIZE(2, 2),
-                          TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_JAR), SPRITE_PROPS + i + 1);
-    }
-    for (u8 i = 0; i < MAX_PICKUPS; i++)
+        u8 chest = pr->type >= PROP_CHEST_BRONZE;
+        u8 shown = i < lv.propCount && (pr->alive || chest);   // opened chests stay, open
+        u16 frame = chest ? PROP_CHEST_BRONZE + (pr->type - PROP_CHEST_BRONZE) * 2 + !pr->alive : pr->type;
+        u16 flicker = pr->type == PROP_CANDLE && ((vtimer >> 3) & 1);   // candle flame wavers
+        VDP_setSpriteFull(SPRITE_PROPS + i, pr->x - camX - 8, shown ? pr->y - camY - 16 : -64, SPRITE_SIZE(2, 2),
+                          TILE_ATTR_FULL(PAL2, 1, 0, flicker, GFX_PROPS + frame * 4), SPRITE_PROPS + i + 1);
+    }    for (u8 i = 0; i < MAX_PICKUPS; i++)
     {
         const Pickup *pk = &lv.pickups[i];
         u8 index = SPRITE_PICKUPS + i, link = i + 1 < MAX_PICKUPS ? index + 1 : 0;

@@ -3,7 +3,7 @@
 // Room templates, drawn in 16 x 16 blocks (2 x 2 tiles): one screen = 20 x 14 blocks.
 //   #  wall          -  one-way platform (top tile row)          .  empty
 //   w f B    spawn points (feet on the bottom of the block): walker, flyer, boss,
-//   a n g j  archer, ninja, shield guard, jelly        o  breakable jar (coins)
+//   a n g j  archer, ninja, shield guard, jelly        o  breakable prop (coins)   c  chest
 //   L R U D  door blocks: open when the floor map has a neighbour on that side, wall otherwise.
 //            An open D (hole in the floor) is covered by a platform: DOWN + C drops into the room
 //            below, and coming up from below the player lands on it.
@@ -31,7 +31,7 @@ static const char *const ROOM_CORRIDOR[] =   // 2 x 1 screens
 {
     "##################UU####################",
     "#......................................#",
-    "#......................................#",
+    "#...................c..................#",
     "#.................------...............#",
     "#.............f........................#",
     "#...........o..........................#",
@@ -49,7 +49,7 @@ static const char *const ROOM_SHAFT[] =   // 1 x 2 screens
 {
     "#########UU#########",
     "#..................#",
-    "#..................#",
+    "#........c.........#",
     "#.......----.......#",
     "#..................#",
     "#.----.............#",
@@ -96,7 +96,7 @@ static const char *const ROOM_HALL[] =   // 2 x 2 screens
     "##################......###########....#",
     "#......................................#",
     "#................------................#",
-    "#....a.........................------..#",
+    "#....a..c......................------..#",
     "#.........------.......................#",
     "#.............................f........#",
     "#................................------#",

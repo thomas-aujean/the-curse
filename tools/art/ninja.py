@@ -1,4 +1,5 @@
-"""The ninja as a jointed puppet, rendered into 16 x 32 frames (feet on row 29), facing right.
+"""The ninja as a jointed puppet, rendered into 24 x 32 frames (feet on row 29, body centred on x 12),
+facing right. The extra width leaves room for the headband tails streaming behind.
 
 Each pose gives limb angles; the renderer paints back limbs, torso, front limbs, head and scarf,
 then adds a 1-px dark outline. Consistent proportions across every frame, cheap to tweak.
@@ -7,7 +8,7 @@ PAL1: 1 outline, 2 suit shadow, 3 suit, 4 skin, 5 scarf, 6 blade, 7 suit highlig
 """
 import math
 
-W, H = 16, 32
+W, H = 24, 32
 FEET = 29
 
 # Head, facing right (rows top to bottom). '.' = empty.
@@ -36,20 +37,24 @@ def pose_run(i):
 POSES = {}
 for i in range(8):
     POSES["run%d" % i] = pose_run(i)
-POSES["idle0"] = dict(lean=0, bob=0, legs=((10, 0), (-8, 0)), arms=((15, 40), (-10, 30)), scarf=0)
-POSES["idle1"] = dict(lean=0, bob=1, legs=((10, 0), (-8, 0)), arms=((15, 45), (-10, 35)), scarf=2)
+# Fighting stance (Street Fighter style): wide, knees bent, guard fist forward, breathing on 4 frames.
+for i, bob in enumerate((0, 1, 1, 0)):
+    POSES["idle%d" % i] = dict(lean=1, bob=bob + 1, legs=((28, -12), (-26, 8)),
+                               arms=((15, 40), (55, 100 - bob * 10)), scarf=i * 2, wind=0.4)
 POSES["rise"] = dict(lean=1, bob=-1, legs=((60, -70), (20, -80)), arms=((-40, 10), (-70, -20)), scarf=5)
 POSES["peak"] = dict(lean=0, bob=0, legs=((35, -45), (-15, -50)), arms=((60, 80), (-40, 20)), scarf=3)
 POSES["fall"] = dict(lean=0, bob=0, legs=((15, -10), (-20, -15)), arms=((100, 110), (-90, -60)), scarf=1)
-POSES["slash0"] = dict(lean=-1, bob=0, legs=((25, 0), (-20, 0)), arms=((-150, -110), (-20, 20)), scarf=4)
+POSES["slash0"] = dict(lean=-1, bob=0, legs=((25, 0), (-20, 0)), arms=((-150, -110), (-20, 20)), scarf=4)   # drawing
 POSES["slash1"] = dict(lean=2, bob=1, legs=((35, 5), (-30, 0)), arms=((90, 90), (-40, 10)), scarf=6,
                        sword=True)
-POSES["slash2"] = dict(lean=1, bob=1, legs=((30, 5), (-25, 0)), arms=((135, 140), (-30, 20)), scarf=7)
+POSES["slash2"] = dict(lean=1, bob=1, legs=((30, 5), (-25, 0)), arms=((135, 140), (-30, 20)), scarf=7,
+                       free_hands=True)
 POSES["crouch"] = dict(lean=1, bob=0, crouch=True, legs=((85, -10), (40, -60)), arms=((40, 90), (10, 60)),
                        scarf=1)
-POSES["hurt"] = dict(lean=-2, bob=0, legs=((20, 10), (-30, -20)), arms=((-60, -30), (-120, -90)), scarf=5)
+POSES["hurt"] = dict(lean=-2, bob=0, legs=((20, 10), (-30, -20)), arms=((-60, -30), (-120, -90)), scarf=5,
+                     free_hands=True)
 
-ORDER = ["idle0", "idle1"] + ["run%d" % i for i in range(8)] + ["rise", "peak", "fall",
+ORDER = ["idle%d" % i for i in range(4)] + ["run%d" % i for i in range(8)] + ["rise", "peak", "fall",
                                                                   "slash0", "slash1", "slash2",
                                                                   "crouch", "hurt"]
 
@@ -73,12 +78,33 @@ def segment(img, x0, y0, angle, length, color, thick):
     return x1, y1
 
 
+def line(img, a, b, color, thick):
+    steps = int(max(abs(b[0] - a[0]), abs(b[1] - a[1])) * 2) + 1
+    for s in range(steps + 1):
+        t = s / steps
+        stamp(img, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, color, thick)
+
+
+def reach(img, shoulder, target, upper, lower, color):
+    # Elbow placed by the law of cosines, bent downwards (natural for a hand raised behind).
+    dx, dy = target[0] - shoulder[0], target[1] - shoulder[1]
+    d = min(math.hypot(dx, dy), upper + lower - 0.01)
+    base = math.atan2(dy, dx)
+    cos_a = (upper * upper + d * d - lower * lower) / (2 * upper * d)
+    alpha = math.acos(max(-1.0, min(1.0, cos_a)))
+    angle = base - alpha if math.sin(base - alpha) > math.sin(base + alpha) else base + alpha
+    elbow = (shoulder[0] + math.cos(angle) * upper, shoulder[1] + math.sin(angle) * upper)
+    line(img, shoulder, elbow, color, 2)
+    line(img, elbow, target, color, 2)
+    stamp(img, target[0], target[1], 4, 1)   # hand on the grip
+
+
 def render(p):
     img = [[0] * W for _ in range(H)]
     crouch = p.get("crouch", False)
     bob, lean = p["bob"], p["lean"]
     hip_y = (22 if crouch else 18) + bob
-    hip_x = 7
+    hip_x = 11
     neck_x, neck_y = hip_x + lean, hip_y - (6 if crouch else 7)
     (ft, fs), (bt, bs) = p["legs"]
     (fua, fla), (bua, bla) = p["arms"]
@@ -100,9 +126,12 @@ def render(p):
         if sword:   # blade held straight out (the slash arc is a separate sprite)
             segment(img, hx, hy - 1, 90, 6, 9, 1)
 
-    # Sword on the back: hilt over the right shoulder (hidden while it is in hand).
+    # Sword on the back, drawn first so the torso covers its middle: scabbard running down the back,
+    # guard behind the shoulder, grip sticking out behind the head (hidden while it is in hand).
+    holding = not p.get("sword") and not p.get("free_hands")
+    grip = (neck_x - 6, neck_y - 8)
     if not p.get("sword"):
-        segment(img, neck_x - 3, neck_y + 6, 145, 9, 9, 1)
+        line(img, (neck_x - 3, neck_y - 2), (neck_x + 2, neck_y + 10), 8, 2)    # scabbard
 
     leg(bt, bs, 2)
     arm(bua, bla, 2)
@@ -116,20 +145,37 @@ def render(p):
                 img[y][x] = 5 if y == hip_y - 1 else (7 if x == int(round(cx + half)) and y < hip_y - 2 else 3)
     leg(ft, fs, 3)
 
+    if not p.get("sword"):
+        # Hilt sticking out behind the head: steel guard, wrapped grip, pommel.
+        line(img, (neck_x - 5, neck_y - 3), (neck_x - 2, neck_y - 4), 9, 1)   # guard
+        line(img, (neck_x - 4, neck_y - 4), grip, 2, 1)                       # grip
+        stamp(img, grip[0] - 1, grip[1] - 1, 9, 1)                            # pommel
+    if holding:
+        # Front hand on the grip, ready to draw (drawn before the head: the arm passes behind it).
+        reach(img, (neck_x + 1, neck_y + 1), (grip[0] + 1, grip[1] + 2), 5, 5, 3)
+
     # Head.
     hx0, hy0 = neck_x - 2, neck_y - 7
     for y, row in enumerate(HEAD):
         for x, ch in enumerate(row):
             if ch != "." and 0 <= hy0 + y < H and 0 <= hx0 + x < W:
                 img[hy0 + y][hx0 + x] = int(ch)
-    # Scarf tails flowing behind the head, rippling with the frame.
-    for k in range(5):
-        wave = [0, 1, 1, 0, -1, -1, 0, 1][(p["scarf"] + k) % 8]
-        x, y = hx0 - 1 - k, hy0 + 3 + wave + k // 3
-        if 0 <= x < W and 0 <= y < H:
-            img[y][x] = 5 if k % 2 == 0 else 8
-
-    arm(fua, fla, 3, p.get("sword", False))
+    # Headband: knot at the back of the head, two long tails streaming behind in the wind. Taut and
+    # level when moving, drooping when standing; the wave travels along them from frame to frame.
+    wind = p.get("wind", 1.0)
+    kx, ky = hx0 - 1, hy0 + 2
+    stamp(img, kx, ky, 5, 1)
+    for strand, (length, drop) in enumerate(((7, 0.0), (5, 0.6))):
+        for k in range(1, length + 1):
+            phase = (p["scarf"] + k) % 8
+            wave = [0, 1, 1, 0, -1, -1, 0, 1][phase] * (0.5 + 0.5 * wind)
+            sag = k * (1 - wind) * 0.8 + k * drop * 0.3
+            x = kx - k
+            y = ky + strand + wave + sag
+            if 0 <= x < W and 0 <= int(round(y)) < H:
+                img[int(round(y))][x] = 5 if (k + strand) % 3 else 8
+    if not holding:
+        arm(fua, fla, 3, p.get("sword", False))
 
     # Auto outline: empty pixels touching the figure become outline.
     out = [row[:] for row in img]

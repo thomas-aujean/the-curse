@@ -132,9 +132,18 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
     lv->propCount = 0;
     for (u8 by = 0; by < t->hBlocks; by++)
         for (u8 bx = 0; bx < t->wBlocks; bx++)
-            if (t->rows[by][bx] == 'o' && lv->propCount < MAX_PROPS)
+            if ((t->rows[by][bx] == 'o' || t->rows[by][bx] == 'c') && lv->propCount < MAX_PROPS)
             {
                 Prop *pr = &lv->props[lv->propCount];
+                // Varied props, fixed per seed and room; chests: bronze 70 %, silver 25 %, gold 5 %.
+                u16 roll = (lv->floor.seed + x * 37 + y * 101 + lv->propCount * 13) * 0x9E37;
+                roll ^= roll >> 8;
+                if (t->rows[by][bx] == 'o') pr->type = PROP_JAR + (roll & 3);
+                else
+                {
+                    u8 r100 = roll % 100;
+                    pr->type = r100 < 70 ? PROP_CHEST_BRONZE : r100 < 95 ? PROP_CHEST_SILVER : PROP_CHEST_GOLD;
+                }
                 pr->alive = !(lv->propsBroken[y][x] & (1 << lv->propCount));
                 pr->x = bx * 16 + 8;
                 pr->y = (by + 1) * 16;
@@ -368,9 +377,36 @@ static u8 breakProps(Level *lv, const Player *p)
         if (!pr->alive || ax0 > pr->x + 6 || pr->x - 6 > ax1 || ay0 > pr->y - 1 || pr->y - 14 > ay1) continue;
         pr->alive = 0;
         lv->propsBroken[lv->cellY][lv->cellX] |= 1 << i;
-        u8 coins = 1 + lootRandom(lv) % 3;
         u8 inVoid = level_pointInVoid(lv, pr->x, pr->y - 8);
-        dropLoot(lv, pr->x, pr->y - 8, inVoid ? coins * 2 : coins, inVoid ? 35 : 20);   // richer in the Void
+        u8 coins, heart;
+        switch (pr->type)
+        {
+            case PROP_CANDLE: coins = 1; heart = 5; break;
+            case PROP_CRATE: coins = 1 + lootRandom(lv) % 2; heart = 30; break;
+            case PROP_URN: coins = 2 + lootRandom(lv) % 3; heart = 10; break;
+            case PROP_CHEST_BRONZE: coins = 3 + lootRandom(lv) % 3; heart = 10; break;
+            case PROP_CHEST_SILVER: coins = 6 + lootRandom(lv) % 4; heart = 30; break;
+            case PROP_CHEST_GOLD: coins = 3; heart = 0; break;
+            default: coins = 1 + lootRandom(lv) % 3; heart = 20; break;
+        }
+        if (inVoid) coins *= 2;   // richer in the Void
+        dropLoot(lv, pr->x, pr->y - 8, coins, inVoid ? heart + 15 : heart);
+        if (pr->type == PROP_CHEST_GOLD)
+        {
+            // A gold chest holds an upgrade, popping out like the coins.
+            for (u8 k = 0; k < MAX_PICKUPS; k++)
+            {
+                Pickup *pk = &lv->pickups[k];
+                if (pk->type != PICKUP_NONE) continue;
+                pk->type = PICKUP_ITEM;
+                pk->itemId = ITEM_FIRST_UPGRADE + lootRandom(lv) % UPGRADE_COUNT;
+                pk->price = 0;
+                pk->x = (s32) pr->x << 8;
+                pk->y = (s32) (pr->y - 16) << 8;
+                pk->vx = pk->vy = 0;
+                break;
+            }
+        }
     }
     return 0;
 }

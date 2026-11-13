@@ -424,6 +424,7 @@ void gfx_load(void)
     VDP_loadTileSet(img_far.tileset, GFX_FAR, CPU);
     VDP_loadTileSet(&ts_ninja, GFX_NINJA, CPU);
     PAL_setColors(16, pal_ninja.data, 16, CPU);
+    VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);
     // The Void's colours (PAL3 5..14): the castle's, drained and frozen.
     static const u32 VOID_ROOM[10] =
     {
@@ -472,8 +473,7 @@ void gfx_load(void)
     VDP_loadTileData(COIN_TILE, GFX_TILE_COIN, 1, CPU);
     artToTiles(JAR, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_JAR, 4, CPU);
-    PAL_setColor(32 + 5, RGB24_TO_VDPCOLOR(0xEEBB22));   // gold
-    PAL_setColor(32 + 6, RGB24_TO_VDPCOLOR(0xAA6600));
+    PAL_setColors(32, pal_props.data, 16, CPU);   // enemies, coins, props and chests share PAL2
 
     // Enemies: PAL2 normal form (bone and red eyes), PAL3 Void form (violet and cyan eyes).
     PAL_setColor(32 + 1, RGB24_TO_VDPCOLOR(0x000000));
