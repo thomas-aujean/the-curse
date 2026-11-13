@@ -205,10 +205,10 @@ int main(void)
                     Pickup heart = lv.pickups[0];
                     CHECK(heart.type == PICKUP_ITEM && heart.itemId == ITEM_HEART, "seed %u: shop heart", seed);
                     p.coins = 2;
-                    p.hp = 2;
                     player_place(&p, heart.x >> 8, heart.y >> 8);
                     p.hp = 2;
-                    level_update(&lv, &p);
+                    lv.messageCooldown = 0;
+                    CHECK((level_update(&lv, &p) & LEVEL_MESSAGE) && lv.message == MSG_NO_MONEY, "seed %u: no money message", seed);
                     CHECK(p.coins == 2 && lv.pickups[0].type == PICKUP_ITEM, "seed %u: sold without money", seed);
                     p.coins = 20;
                     int r = level_update(&lv, &p);

@@ -371,6 +371,15 @@ static u8 breakProps(Level *lv, const Player *p)
     return 0;
 }
 
+// A short message, at most once every two seconds (standing on a heart would spam it).
+static u8 levelMessage(Level *lv, u8 message)
+{
+    if (lv->messageCooldown) return 0;
+    lv->message = message;
+    lv->messageCooldown = fps * 2;
+    return LEVEL_MESSAGE;
+}
+
 // Pickups fall and bounce on floors and platforms; touching one takes it (wares only if affordable).
 static u8 updatePickups(Level *lv, Player *p, s16 ppx, s16 ppy)
 {
@@ -406,12 +415,20 @@ static u8 updatePickups(Level *lv, Player *p, s16 ppx, s16 ppy)
         if (pk->type == PICKUP_COIN) p->coins++;
         else if (pk->type == PICKUP_HEART)
         {
-            if (p->hp >= p->maxHp) continue;   // left on the floor for later
+            if (p->hp >= p->maxHp)   // left on the floor for later, like Isaac
+            {
+                result |= levelMessage(lv, MSG_FULL_HEALTH);
+                continue;
+            }
             p->hp++;
         }
         else
         {
-            if (p->coins < pk->price) continue;
+            if (p->coins < pk->price)
+            {
+                result |= levelMessage(lv, MSG_NO_MONEY);
+                continue;
+            }
             p->coins -= pk->price;
             player_takeItem(p, pk->itemId);
             lv->lastItem = pk->itemId;
@@ -451,6 +468,7 @@ u8 level_update(Level *lv, Player *p)
 
     u8 result = 0;
     if (breakWalls(lv, p)) result |= LEVEL_REDRAW;
+    if (lv->messageCooldown) lv->messageCooldown--;
     lootEnemies(lv);
     breakProps(lv, p);
     result |= updatePickups(lv, p, ppx, ppy);

@@ -224,6 +224,20 @@ int main(void)
         CHECK(leapt && shuriken == !form, "ninja form %d: leapt %d shuriken %d", form, leapt, shuriken);
     }
 
+    // Spirits drift through inner walls but never leave the room.
+    enemies_clear(&set);
+    enemies_add(&set, ENEMY_FLYER, 40, 100, 1);
+    player_init(&p, 30, 200);
+    int escaped = 0;
+    for (int f = 0; f < 600; f++)
+    {
+        p.invulnerable = 255;
+        p.x = -40 * 256;                // lure it out of the room
+        enemies_update(&set, &room, &p);
+        if ((set.e[0].x >> 8) < 16 || (set.e[0].x >> 8) > 304) escaped = 1;
+    }
+    CHECK(!escaped, "flyer left the room");
+
     // Light protection: 20 s inside the Void, then the pact (double slash damage, +1 damage taken).
     player_init(&p, 250, 200);
     for (int f = 0; f < 20 * 60 - 1; f++) player_updateLight(&p, 1);

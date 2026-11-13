@@ -243,7 +243,7 @@ static void updateFlyer(Enemy *e, const EnemyStats *st, const Player *p)
         e->vy = approach(e->vy, 0, 32);
     }
     e->x += e->vx;
-    e->y += e->vy;   // spirits drift through walls
+    e->y += e->vy;   // spirits drift through inner walls (kept inside the room by enemies_update)
 }
 
 static void fireShots(EnemySet *s, const Enemy *e, u8 count, u8 damage)
@@ -533,6 +533,13 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
 
         s16 w, h;
         enemy_size(e->type, &w, &h);
+        // Everyone stays inside the room's outer walls (spirits drift through inner walls only).
+        s32 minX = (s32) (16 + w / 2) << 8, maxX = (s32) (r->w * ROOM_TILE - 16 - w / 2) << 8;
+        s32 minY = (s32) (16 + h) << 8, maxY = (s32) (r->h * ROOM_TILE - 16) << 8;
+        if (e->x < minX) { e->x = minX; e->vx = 0; }
+        if (e->x > maxX) { e->x = maxX; e->vx = 0; }
+        if (e->y < minY) { e->y = minY; e->vy = 0; }
+        if (e->y > maxY) { e->y = maxY; e->vy = 0; }
         s16 ex = e->x >> 8, ey = e->y >> 8;
         s16 x0 = ex - w / 2, x1 = ex + w / 2 - 1, y0 = ey - h, y1 = ey - 1;
 

@@ -66,6 +66,7 @@ typedef struct
     u8 propsBroken[FLOOR_H][FLOOR_W];  // bit per jar, so broken jars stay broken
     u8 shopBought[FLOOR_H][FLOOR_W];   // bit per shop slot
     u8 shopChanged;                    // a ware was bought: redraw the price tags
+    u8 message, messageCooldown;       // MSG_* to show (LEVEL_MESSAGE)
     u16 rng;
     EnemySet enemies;
     s16 voidCX, voidCY;                // Void circle centre, castle pixels (the boss room centre)
@@ -88,6 +89,9 @@ typedef struct
 #define LEVEL_REDRAW 1      // new room, or the doors just locked: redraw the room
 #define LEVEL_GEM    2      // the gem was picked up: the floor is won
 #define LEVEL_ITEM   4      // an item was picked up (lastItem): show its name
+#define LEVEL_MESSAGE 8     // show lv->message
+
+enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY };
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);
 void level_enter(Level *lv, Player *p, u8 x, u8 y);   // jump straight into a room (tests, debug)

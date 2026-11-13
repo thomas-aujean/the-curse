@@ -474,9 +474,8 @@ static void drawHud(void)
     if (itemMessage && --itemMessage == 0) VDP_clearTextArea(0, 4, 40, 1);
 }
 
-static void showItemName(u8 item)
+static void showText(const char *name)
 {
-    const char *name = player_itemName(item);
     u16 len = 0;
     while (name[len]) len++;
     VDP_clearTextArea(0, 4, 40, 1);
@@ -630,7 +629,8 @@ static void updateRoom(u16 pad, u16 pressed)
     player_update(&player, &lv.room, pad);
     u8 events = level_update(&lv, &player);
     if (events & LEVEL_REDRAW) drawRoom();
-    if (events & LEVEL_ITEM) showItemName(lv.lastItem);
+    if (events & LEVEL_ITEM) showText(player_itemName(lv.lastItem));
+    if (events & LEVEL_MESSAGE) showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : "PAS ASSEZ DE PIECES");
     if (events & LEVEL_GEM)
     {
         startFloorWon();
