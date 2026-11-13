@@ -47,7 +47,17 @@
 
 #define GFX_FEET_ROW 29   // last pixel row of the feet in the 32-row ninja art
 
+// Zone-1 castle tiles (res/castle.png): stone autotiles [parity * 16 + open-edges mask], cracked
+// walls, plank pieces. The Void copy uses the same layout in PAL3.
+#define GFX_CASTLE         (TILE_USER_INDEX + 140)
+#define GFX_CASTLE_VOID    (TILE_USER_INDEX + 180)
+#define GFX_FAR            (TILE_USER_INDEX + 230)   // dusk sky on plane A (parallax)
+#define CASTLE_STONE       1     // + parity * 16 + mask (1 top, 2 bottom, 4 left, 8 right open)
+#define CASTLE_CRACKED     33    // + parity
+#define CASTLE_PLANK       35    // alone; 36 left end, 37 middle, 38 right end
+
 void gfx_load(void);
+void gfx_drawFar(void);   // the parallax sky on plane A
 void gfx_setRoomPalette(u8 inVoid);
 void gfx_setPlayerCorrupted(u8 corrupted);   // violet ninja while touched by the Void   // cold, dead colours once the Void has swallowed the room
 

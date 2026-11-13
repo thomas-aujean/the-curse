@@ -1,4 +1,5 @@
 #include "gfx.h"
+#include "art.h"
 
 // Digits are palette indices, '.' is transparent.
 // PAL0 (room): 1-3 bricks, 4-5 platform, 15 text.  PAL1 (ninja): 1 outline, 2-3 suit, 4 skin,
@@ -294,11 +295,11 @@ static const char *const JAR[16] =
     "................",
 };
 
-// Empty space outside the circle: near-black violet with sparse specks (PAL3 colours 10 and 11).
+// Empty space outside the circle: near-black violet with sparse specks (PAL3 colours 14, 6, 7).
 static const u32 VOID_TILE[8] =
 {
-    0xAAAAAAAA, 0xAAAAAABA, 0xAAAAAAAA, 0xAABAAAAA,
-    0xAAAAAAAA, 0xAAAAAAAA, 0xBAAAAAAA, 0xAAAAABAA,
+    0xEEEEEEEE, 0xEEEEEE6E, 0xEEEEEEEE, 0xEE7EEEEE,
+    0xEEEEEEEE, 0xEEEEEEEE, 0x6EEEEEEE, 0xEEEEE7EE,
 };
 
 // Same drawing, colours moved to PAL3 indices 5.. (room colour i -> 4 + i).
@@ -409,9 +410,24 @@ void gfx_load(void)
         VDP_loadTileData(tile, GFX_TILE_CRACKED_VOID, 1, CPU);
         VDP_loadTileData(HUD_TILES[0], GFX_TILE_HEART, 7, CPU);
     }
-    // Room colours outside the circle (PAL3 5..11): cold and dead.
-    static const u32 VOID_ROOM[7] = { 0x220044, 0x442266, 0x664488, 0x444466, 0x8888AA, 0x0A0012, 0x3A2266 };
-    for (u8 i = 0; i < 7; i++) PAL_setColor(48 + 5 + i, RGB24_TO_VDPCOLOR(VOID_ROOM[i]));
+    // Castle tiles, then the same tiles with colours 1..9 moved to PAL3 5..13 (the Void's).
+    PAL_setColors(0, pal_castle.data, 16, CPU);
+    VDP_loadTileSet(&ts_castle, GFX_CASTLE, CPU);
+    {
+        u32 tile[8];
+        for (u16 i = 0; i < ts_castle.numTile; i++)
+        {
+            remapTile(ts_castle.tiles + i * 8, tile);
+            VDP_loadTileData(tile, GFX_CASTLE_VOID + i, 1, CPU);
+        }
+    }
+    VDP_loadTileSet(img_far.tileset, GFX_FAR, CPU);
+    // The Void's colours (PAL3 5..14): the castle's, drained and frozen.
+    static const u32 VOID_ROOM[10] =
+    {
+        0x000000, 0x1A0A2A, 0x2A1A44, 0x443366, 0x665588, 0x9988CC, 0x221133, 0x332255, 0x224444, 0x08040E,
+    };
+    for (u8 i = 0; i < 10; i++) PAL_setColor(48 + 5 + i, RGB24_TO_VDPCOLOR(VOID_ROOM[i]));
 
     artToTiles(NINJA, plainPixel, 2, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_STAND, 8, CPU);
@@ -480,4 +496,8 @@ void gfx_setPlayerCorrupted(u8 corrupted)
     PAL_setColor(16 + 2, RGB24_TO_VDPCOLOR(corrupted ? 0x440066 : 0x222266));
     PAL_setColor(16 + 3, RGB24_TO_VDPCOLOR(corrupted ? 0x8822CC : 0x4444AA));
     PAL_setColor(16 + 5, RGB24_TO_VDPCOLOR(corrupted ? 0x44EEEE : 0xEE2222));
+}
+void gfx_drawFar(void)
+{
+    VDP_setTileMapEx(BG_A, img_far.tilemap, TILE_ATTR_FULL(PAL0, 0, 0, 0, GFX_FAR), 0, 0, 0, 0, 64, 32, CPU);
 }

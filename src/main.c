@@ -126,20 +126,42 @@ static s16 drawnTX, drawnTY;    // camera tile the plane currently matches
 // Void state of each plane cell as last drawn (bit per cell), so the circle only rewrites what changed.
 static u8 drawnVoid[32][64 / 8];
 
+static u8 roomTile(s16 tx, s16 ty)
+{
+    if (tx < 0 || ty < 0 || tx >= lv.room.w || ty >= lv.room.h) return TILE_SOLID;   // walls go on
+    return lv.room.tiles[ty][tx];
+}
+
+// Castle tile for a room cell: stone picks its variant from the open sides (sunlit top, shaded
+// underside, lit left face...), planks from their neighbours. Index into the castle tileset.
+static u16 castleTile(s16 tx, s16 ty)
+{
+    u8 t = roomTile(tx, ty);
+    if (t == TILE_PLATFORM)
+    {
+        u8 l = roomTile(tx - 1, ty) == TILE_PLATFORM, r = roomTile(tx + 1, ty) == TILE_PLATFORM;
+        return CASTLE_PLANK + (l && r ? 2 : l ? 3 : r ? 1 : 0);
+    }
+    if (t != TILE_SOLID) return 0;
+    u8 parity = (tx + ty) & 1;   // bricks span two tiles
+    if (lv.crackedCount && level_crackedAt(&lv, tx * 8 + 4, ty * 8 + 4)) return CASTLE_CRACKED + parity;
+    u8 mask = (roomTile(tx, ty - 1) != TILE_SOLID) | (roomTile(tx, ty + 1) != TILE_SOLID) << 1
+        | (roomTile(tx - 1, ty) != TILE_SOLID) << 2 | (roomTile(tx + 1, ty) != TILE_SOLID) << 3;
+    return CASTLE_STONE + parity * 16 + mask;
+}
+
 static void drawTileState(s16 tx, s16 ty, u8 inVoid)
 {
-    u8 t = (tx < lv.room.w && ty < lv.room.h) ? lv.room.tiles[ty][tx] : TILE_EMPTY;
+    u16 index = (tx >= 0 && ty >= 0 && tx < lv.room.w && ty < lv.room.h) ? castleTile(tx, ty) : 0;
     u16 tile;
-    if (inVoid) tile = t == TILE_SOLID ? GFX_TILE_SOLID_VOID : t == TILE_PLATFORM ? GFX_TILE_PLATFORM_VOID : GFX_TILE_VOID;
-    else tile = t == TILE_SOLID ? GFX_TILE_SOLID : t == TILE_PLATFORM ? GFX_TILE_PLATFORM : 0;
-    if (t == TILE_SOLID && lv.crackedCount && level_crackedAt(&lv, tx * 8 + 4, ty * 8 + 4))
-        tile = inVoid ? GFX_TILE_CRACKED_VOID : GFX_TILE_CRACKED;   // a secret room behind
+    if (inVoid) tile = index ? GFX_CASTLE_VOID + index : GFX_TILE_VOID;
+    else tile = index ? GFX_CASTLE + index : 0;   // 0: transparent, the sky shows through
     u8 cx = tx & 63, cy = ty & 31;
-    VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(inVoid ? PAL3 : PAL0, 0, 0, 0, tile), cx, cy);
+    // High priority: the room is drawn over the parallax sky of plane A.
+    VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(inVoid ? PAL3 : PAL0, 1, 0, 0, tile), cx, cy);
     if (inVoid) drawnVoid[cy][cx >> 3] |= 1 << (cx & 7);
     else drawnVoid[cy][cx >> 3] &= ~(1 << (cx & 7));
 }
-
 static void drawTile(s16 tx, s16 ty)
 {
     drawTileState(tx, ty, level_pointInVoid(&lv, tx * 8 + 4, ty * 8 + 4));
@@ -181,6 +203,9 @@ static void scrollCamera(void)
     while (drawnTY > ty) { drawnTY--; drawRow(drawnTY); }
     VDP_setHorizontalScroll(BG_B, -camX);
     VDP_setVerticalScroll(BG_B, camY);
+    // Parallax: the far sky and ramparts drift at a quarter of the room's speed.
+    VDP_setHorizontalScroll(BG_A, -((lv.cellX * CELL_W_PX + camX) >> 2));
+    VDP_setVerticalScroll(BG_A, 8 + (camY >> 3));
 }
 
 // The circle moves about one pixel every few frames: re-check a band of visible rows each frame
@@ -391,7 +416,7 @@ static u16 itemMessage;   // frames left showing the name of the item just taken
 
 static void hudTile(u16 x, u16 y, u16 pal, u16 tile)
 {
-    VDP_setTileMapXY(BG_A, TILE_ATTR_FULL(pal, 1, 0, 0, tile), x, y);
+    VDP_setTileMapXY(WINDOW, TILE_ATTR_FULL(pal, 1, 0, 0, tile), x, y);
 }
 
 static void drawMinimap(void)
@@ -460,7 +485,6 @@ static void drawHud(void)
     if (lv.shopChanged)
     {
         lv.shopChanged = 0;
-        VDP_clearTextArea(0, 25, 40, 1);
         for (u8 i = 0; i < 3; i++)
         {
             const Pickup *pk = &lv.pickups[i];
@@ -468,19 +492,21 @@ static void drawHud(void)
             char tag[4];
             sprintf(tag, "%u", pk->price);
             VDP_setTextPalette(player.coins >= pk->price ? PAL2 : PAL1);
-            VDP_drawText(tag, ((pk->x >> 8) - camX) / 8 - (pk->price >= 10), ((pk->y >> 8) - camY) / 8 + 1);
+            // On the room plane, in the air above the ware (the shop room never scrolls).
+            VDP_drawTextBG(BG_B, tag, (pk->x >> 8) / 8 - (pk->price >= 10), (pk->y >> 8) / 8 - 4);
         }
     }
-    if (itemMessage && --itemMessage == 0) VDP_clearTextArea(0, 4, 40, 1);
+    if (itemMessage && --itemMessage == 0) VDP_clearTextArea(12, 2, 21, 1);
 }
 
 static void showText(const char *name)
 {
     u16 len = 0;
     while (name[len]) len++;
-    VDP_clearTextArea(0, 4, 40, 1);
+    // Window row 2, between the coins and the minimap.
+    VDP_clearTextArea(12, 2, 21, 1);
     VDP_setTextPalette(PAL0);
-    VDP_drawText(name, 20 - len / 2, 4);
+    VDP_drawText(name, 22 - len / 2, 2);
     itemMessage = IS_PAL_SYSTEM ? 100 : 120;
 }
 
@@ -498,14 +524,19 @@ static void drawDebug(void)
     sprintf(line, "X%4d Y%4d VX%5d VY%5d %c%c%c ", (s16) (player.x >> 8), (s16) (player.y >> 8),
             player.vx, player.vy, player.onGround ? 'G' : '-', player.crouching ? 'C' : '-',
             player_attackActive(&player) ? 'A' : '-');
-    VDP_drawText(line, 1, 27);
+    VDP_drawTextBG(BG_B, line, 1, 27);
 }
 #endif
 
+// Room screen: sky on plane A (parallax), room on plane B (high priority), HUD in the window plane
+// over the top 3 rows (the window replaces plane A there; the room still shows through).
 static void enterRoom(void)
 {
     mode = MODE_ROOM;
-    VDP_clearPlane(BG_A, TRUE);
+    VDP_setWindowVPos(FALSE, 3);
+    VDP_setTextPlane(WINDOW);
+    VDP_clearPlane(WINDOW, TRUE);
+    gfx_drawFar();
     drawRoom();
     forceHud();
     itemMessage = 0;
@@ -514,6 +545,10 @@ static void enterRoom(void)
 static void enterMap(void)
 {
     mode = MODE_MAP;
+    VDP_setWindowVPos(FALSE, 0);
+    VDP_setTextPlane(BG_A);
+    VDP_setHorizontalScroll(BG_A, 0);
+    VDP_setVerticalScroll(BG_A, 0);
     VDP_setHorizontalScroll(BG_B, 0);
     VDP_setVerticalScroll(BG_B, 0);
     hideSprites();
@@ -565,6 +600,14 @@ static u16 readPad(void)
 static u8 gems, bossesInTime;
 static u16 wonFrames;
 
+// Big centred messages: the window plane covers the whole screen for a moment (the room on plane B
+// still shows through its transparent pixels).
+static void fullWindow(void)
+{
+    VDP_setWindowVPos(FALSE, 28);
+    VDP_clearPlane(WINDOW, TRUE);
+}
+
 static void startFloorWon(void)
 {
     wonFrames = 1;
@@ -585,6 +628,7 @@ static void updateFloorWon(void)
     }
     else if (wonFrames == grow + 1)
     {
+        fullWindow();
         VDP_setTextPalette(PAL0);
         sprintf(line, "GEMME DE LA VIE  %u/7", gems);
         VDP_drawText(line, 10, 10);
@@ -647,6 +691,7 @@ static void updateRoom(u16 pad, u16 pressed)
     if (player.hp <= 0)
     {
         deathFrames = IS_PAL_SYSTEM ? 100 : 120;
+        fullWindow();
         VDP_setTextPalette(PAL1);
         VDP_drawText("LE NEANT T'A EU...", 11, 13);
     }
@@ -656,6 +701,7 @@ int main(bool hardReset)
 {
     (void) hardReset;
     VDP_setPlaneSize(64, 32, TRUE);
+    VDP_setTextPriority(1);
     gfx_load();
     VDP_resetSprites();
     player_setRegion(IS_PAL_SYSTEM);
