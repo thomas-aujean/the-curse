@@ -509,7 +509,8 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
 
     s16 ppx = p->x >> 8, ppy = p->y >> 8;
     s16 ph = p->crouching ? PLAYER_CROUCH_H : PLAYER_H;
-    s16 px0 = ppx - PLAYER_W / 2, px1 = ppx + PLAYER_W / 2 - 1, py0 = ppy - ph, py1 = ppy - 1;
+    // Hurtbox smaller than the sprite: 2 px narrower each side, head spared by 6 px.
+    s16 px0 = ppx - PLAYER_W / 2 + 2, px1 = ppx + PLAYER_W / 2 - 3, py0 = ppy - ph + 6, py1 = ppy - 1;
 
     for (u8 i = 0; i < MAX_ENEMIES; i++)
     {
@@ -586,7 +587,9 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             }
             continue;
         }
-        if (overlap(px0, py0, px1, py1, x0, y0, x1, y1))
+        // Contact damage from a shrunk box (no hurt from empty sprite corners), and never from an
+        // enemy that is reeling from a hit.
+        if (!e->hurtTimer && overlap(px0, py0, px1, py1, x0 + 3, y0 + 4, x1 - 3, y1))
             player_hurt(p, st->damage, ex > ppx);
     }
     updateShots(s, r, p, px0, py0, px1, py1);

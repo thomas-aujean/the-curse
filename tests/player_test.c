@@ -111,7 +111,7 @@ static void region(int pal)
     run(&p, PAD_UP | PAD_ATTACK, 3);
     s16 bx0, by0, bx1, by1;
     player_attackBox(&p, &bx0, &by0, &bx1, &by1);
-    CHECK(p.attackDir == ATTACK_UP && player_attackActive(&p) && by1 < 200 - PLAYER_H + 8 && bx0 < 100 && bx1 > 100,
+    CHECK(p.attackDir == ATTACK_UP && player_attackActive(&p) && by1 <= 200 - PLAYER_H + 8 && by0 < 200 - PLAYER_H - 16 && bx0 < 100 && bx1 > 100,
           "%s upward slash box %d,%d-%d,%d", name, bx0, by0, bx1, by1);
 }
 
@@ -172,7 +172,7 @@ static void upgrades(void)
     run(&p, PAD_ATTACK, 3);
     s16 x0, y0, x1, y1;
     player_attackBox(&p, &x0, &y0, &x1, &y1);
-    CHECK(x1 - x0 == 25, "long blade box %d", x1 - x0);
+    CHECK(x1 - x0 == 25 + 10, "long blade box %d", x1 - x0);
     player_place(&p, 50, 200);
     CHECK(p.reachBonus == 10 && p.hp == p.maxHp, "upgrades kept on a new floor");
 }

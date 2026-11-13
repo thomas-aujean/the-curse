@@ -348,31 +348,33 @@ u8 player_attackTimer(const Player *p)
     return p->attackTimer;
 }
 
+// Slash hitboxes are a little larger than the drawn arcs and start inside the body, so an enemy
+// pressed against the ninja is still hit: generous to the player, as in most action games.
 void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
 {
     s16 px = p->x >> 8, py = p->y >> 8;
     s16 top = py - (p->crouching ? PLAYER_CROUCH_H : PLAYER_H);
     if (p->attackDir == ATTACK_UP)
     {
-        *x0 = px - 8;
-        *x1 = px + 7;
-        *y0 = top - 20;
-        *y1 = top + 4;
+        *x0 = px - 12;
+        *x1 = px + 11;
+        *y0 = top - 24;
+        *y1 = top + 8;
     }
     else if (p->attackDir == ATTACK_DOWN)
     {
-        *x0 = px - 8;
-        *x1 = px + 7;
-        *y0 = py - 4;
-        *y1 = py + 20;
+        *x0 = px - 10;
+        *x1 = px + 9;
+        *y0 = py - 6;
+        *y1 = py + 22;
     }
     else
     {
-        // Standing, the blade sweeps from the chest down to the knees: low enemies (jellies) get hit.
-        *y0 = py - (p->crouching ? 16 : 24);
-        *y1 = p->crouching ? *y0 + 11 : py - 4;
-        *x0 = p->facingLeft ? px - 20 - p->reachBonus : px + 4;
-        *x1 = *x0 + 15 + p->reachBonus;
+        // Standing, the blade sweeps from above the chest down to the knees (low enemies get hit).
+        *y0 = py - (p->crouching ? 18 : 28);
+        *y1 = p->crouching ? py - 2 : py - 4;
+        *x0 = p->facingLeft ? px - 22 - p->reachBonus : px - 4;
+        *x1 = p->facingLeft ? px + 3 : px + 21 + p->reachBonus;
     }
 }
 void player_boostUp(Player *p)
