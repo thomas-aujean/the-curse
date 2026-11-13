@@ -499,5 +499,5 @@ void gfx_setPlayerCorrupted(u8 corrupted)
 }
 void gfx_drawFar(void)
 {
-    VDP_setTileMapEx(BG_A, img_far.tilemap, TILE_ATTR_FULL(PAL0, 0, 0, 0, GFX_FAR), 0, 0, 0, 0, 64, 32, CPU);
+    VDP_setTileMapEx(BG_B, img_far.tilemap, TILE_ATTR_FULL(PAL0, 0, 0, 0, GFX_FAR), 0, 0, 0, 0, 64, 32, CPU);
 }

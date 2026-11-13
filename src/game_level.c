@@ -350,7 +350,9 @@ static void lootEnemies(Level *lv)
         if (e->type == ENEMY_NONE || !e->deathTimer || e->looted) continue;
         e->looted = 1;
         s16 x = e->x >> 8, y = (e->y >> 8) - 8;
-        if (e->type == ENEMY_BOSS) dropLoot(lv, x, y, 5, 0);
+        // Risk pays: Void forms always drop, and twice as much.
+        if (e->type == ENEMY_BOSS) dropLoot(lv, x, y, e->voidForm ? 10 : 5, 0);
+        else if (e->voidForm) dropLoot(lv, x, y, 2, 15);
         else if (lootRandom(lv) % 100 < 60) dropLoot(lv, x, y, 1, 5);
     }
 }
@@ -366,7 +368,9 @@ static u8 breakProps(Level *lv, const Player *p)
         if (!pr->alive || ax0 > pr->x + 6 || pr->x - 6 > ax1 || ay0 > pr->y - 1 || pr->y - 14 > ay1) continue;
         pr->alive = 0;
         lv->propsBroken[lv->cellY][lv->cellX] |= 1 << i;
-        dropLoot(lv, pr->x, pr->y - 8, 1 + lootRandom(lv) % 3, 20);
+        u8 coins = 1 + lootRandom(lv) % 3;
+        u8 inVoid = level_pointInVoid(lv, pr->x, pr->y - 8);
+        dropLoot(lv, pr->x, pr->y - 8, inVoid ? coins * 2 : coins, inVoid ? 35 : 20);   // richer in the Void
     }
     return 0;
 }

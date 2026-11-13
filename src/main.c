@@ -123,9 +123,39 @@ static void updateMap(u16 pressed)
 static s16 camX, camY;          // top-left of the screen, room pixels
 static s16 drawnTX, drawnTY;    // camera tile the plane currently matches
 
-// Void state of each plane cell as last drawn (bit per cell), so the circle only rewrites what changed.
-static u8 drawnVoid[32][64 / 8];
+// The Void circle on screen: for each visible row, the room columns inside the circle form one
+// interval [in0, in1). One square root per row gives it, so the edge costs almost nothing and only
+// the tiles crossing it are rewritten. Inside: high priority (normal). Outside: low priority, which
+// the shadow/highlight mode draws at half brightness: the castle is seen through the Void, darkened.
+static s16 rowRoomY[32];          // room row currently held by each plane row
+static s16 rowIn0[32], rowIn1[32];
 
+static u16 isqrt32(u32 v)
+{
+    u16 lo = 0, hi = 0xFFFF;
+    while (lo < hi)
+    {
+        u16 mid = lo + (hi - lo + 1) / 2;
+        if ((u32) mid * mid <= v) lo = mid;
+        else hi = mid - 1;
+    }
+    return lo;
+}
+
+static void rowInterval(s16 ty, s16 *in0, s16 *in1)
+{
+    s16 r = lv.voidRadiusFx >> 8;
+    s16 wy = lv.cellY * CELL_H_PX + ty * 8 + 4 - lv.voidCY;
+    if (wy > r || -wy > r)
+    {
+        *in0 = *in1 = 0;
+        return;
+    }
+    s16 half = isqrt32((u32) r * r - (u32) ((s32) wy * wy));
+    s16 cx = lv.voidCX - lv.cellX * CELL_W_PX;   // circle centre in room pixels
+    *in0 = (cx - half - 4 + 7) >> 3;             // first tile whose centre is inside
+    *in1 = ((cx + half - 4) >> 3) + 1;
+}
 static u8 roomTile(s16 tx, s16 ty)
 {
     if (tx < 0 || ty < 0 || tx >= lv.room.w || ty >= lv.room.h) return TILE_SOLID;   // walls go on
@@ -153,30 +183,26 @@ static u16 castleTile(s16 tx, s16 ty)
 static void drawTileState(s16 tx, s16 ty, u8 inVoid)
 {
     u16 index = (tx >= 0 && ty >= 0 && tx < lv.room.w && ty < lv.room.h) ? castleTile(tx, ty) : 0;
-    u16 tile;
-    if (inVoid) tile = index ? GFX_CASTLE_VOID + index : GFX_TILE_VOID;
-    else tile = index ? GFX_CASTLE + index : 0;   // 0: transparent, the sky shows through
-    u8 cx = tx & 63, cy = ty & 31;
-    // High priority: the room is drawn over the parallax sky of plane A.
-    VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(inVoid ? PAL3 : PAL0, 1, 0, 0, tile), cx, cy);
-    if (inVoid) drawnVoid[cy][cx >> 3] |= 1 << (cx & 7);
-    else drawnVoid[cy][cx >> 3] &= ~(1 << (cx & 7));
-}
-static void drawTile(s16 tx, s16 ty)
-{
-    drawTileState(tx, ty, level_pointInVoid(&lv, tx * 8 + 4, ty * 8 + 4));
+    VDP_setTileMapXY(BG_A, TILE_ATTR_FULL(PAL0, !inVoid, 0, 0, index ? GFX_CASTLE + index : 0), tx & 63, ty & 31);
 }
 
 static void drawColumn(s16 tx)
 {
-    for (s16 ty = drawnTY; ty <= drawnTY + SCREEN_H_TILES; ty++) drawTile(tx, ty);
+    for (s16 ty = drawnTY; ty <= drawnTY + SCREEN_H_TILES; ty++)
+    {
+        u8 cy = ty & 31;
+        drawTileState(tx, ty, tx < rowIn0[cy] || tx >= rowIn1[cy]);
+    }
 }
 
 static void drawRow(s16 ty)
 {
-    for (s16 tx = drawnTX; tx <= drawnTX + SCREEN_W_TILES; tx++) drawTile(tx, ty);
+    u8 cy = ty & 31;
+    rowInterval(ty, &rowIn0[cy], &rowIn1[cy]);
+    rowRoomY[cy] = ty;
+    for (s16 tx = drawnTX; tx <= drawnTX + SCREEN_W_TILES; tx++)
+        drawTileState(tx, ty, tx < rowIn0[cy] || tx >= rowIn1[cy]);
 }
-
 static void updateCamera(void)
 {
     // Dead zone: the camera only moves when the ninja leaves a box around the screen centre.
@@ -201,40 +227,41 @@ static void scrollCamera(void)
     while (drawnTX > tx) { drawnTX--; drawColumn(drawnTX); }
     while (drawnTY < ty) { drawnTY++; drawRow(drawnTY + SCREEN_H_TILES); }
     while (drawnTY > ty) { drawnTY--; drawRow(drawnTY); }
-    VDP_setHorizontalScroll(BG_B, -camX);
-    VDP_setVerticalScroll(BG_B, camY);
+    VDP_setHorizontalScroll(BG_A, -camX);
+    VDP_setVerticalScroll(BG_A, camY);
     // Parallax: the far sky and ramparts drift at a quarter of the room's speed.
-    VDP_setHorizontalScroll(BG_A, -((lv.cellX * CELL_W_PX + camX) >> 2));
-    VDP_setVerticalScroll(BG_A, 8 + (camY >> 3));
+    VDP_setHorizontalScroll(BG_B, -((lv.cellX * CELL_W_PX + camX) >> 2));
+    VDP_setVerticalScroll(BG_B, 8 + (camY >> 3));
 }
 
-// The circle moves about one pixel every few frames: re-check a band of visible rows each frame
-// (the whole screen every 8 frames) and rewrite only the tiles that crossed the edge. Skipped when
-// the screen is entirely inside or outside the circle.
+// Each frame: new interval per visible row, rewrite only the columns between the old and new edges.
+static void rewriteSpan(s16 ty, s16 a, s16 b, s16 in0, s16 in1)
+{
+    if (a > b) { s16 t = a; a = b; b = t; }
+    if (a < drawnTX) a = drawnTX;
+    if (b > drawnTX + SCREEN_W_TILES + 1) b = drawnTX + SCREEN_W_TILES + 1;
+    for (s16 tx = a; tx < b; tx++) drawTileState(tx, ty, tx < in0 || tx >= in1);
+}
+
 static void refreshVoid(void)
 {
-    static u8 band;
-    s16 r = lv.voidRadiusFx >> 8;
-    s16 wx = lv.cellX * CELL_W_PX + camX - lv.voidCX, wy = lv.cellY * CELL_H_PX + camY - lv.voidCY;
-    s16 x0 = wx, x1 = wx + 328, y0 = wy, y1 = wy + 232;
-    s16 nx = x0 > 0 ? x0 : x1 < 0 ? x1 : 0, ny = y0 > 0 ? y0 : y1 < 0 ? y1 : 0;
-    s16 fx = -x0 > x1 ? x0 : x1, fy = -y0 > y1 ? y0 : y1;
-    u32 r2 = (u32) r * r;
-    u32 near = (u32) ((s32) nx * nx) + (u32) ((s32) ny * ny);
-    u32 far = (u32) ((s32) fx * fx) + (u32) ((s32) fy * fy);
-    u8 allIn = far <= r2, allOut = near > r2;
-
-    band = (band + 1) & 7;
-    for (s16 ty = drawnTY + band; ty <= drawnTY + SCREEN_H_TILES; ty += 8)
-        for (s16 tx = drawnTX; tx <= drawnTX + SCREEN_W_TILES; tx++)
+    for (s16 ty = drawnTY; ty <= drawnTY + SCREEN_H_TILES; ty++)
+    {
+        u8 cy = ty & 31;
+        s16 in0, in1;
+        rowInterval(ty, &in0, &in1);
+        if (in0 == rowIn0[cy] && in1 == rowIn1[cy]) continue;
+        if (in0 >= in1 || rowIn0[cy] >= rowIn1[cy])
+            rewriteSpan(ty, rowIn0[cy] < rowIn1[cy] ? rowIn0[cy] : in0, rowIn0[cy] < rowIn1[cy] ? rowIn1[cy] : in1, in0, in1);
+        else
         {
-            u8 cx = tx & 63, cy = ty & 31;
-            u8 was = (drawnVoid[cy][cx >> 3] >> (cx & 7)) & 1;
-            u8 now = allIn ? 0 : allOut ? 1 : level_pointInVoid(&lv, tx * 8 + 4, ty * 8 + 4);
-            if (now != was) drawTileState(tx, ty, now);
+            rewriteSpan(ty, rowIn0[cy], in0, in0, in1);
+            rewriteSpan(ty, rowIn1[cy], in1, in0, in1);
         }
+        rowIn0[cy] = in0;
+        rowIn1[cy] = in1;
+    }
 }
-
 static void drawRoom(void)
 {
     updateCamera();
@@ -493,7 +520,7 @@ static void drawHud(void)
             sprintf(tag, "%u", pk->price);
             VDP_setTextPalette(player.coins >= pk->price ? PAL2 : PAL1);
             // On the room plane, in the air above the ware (the shop room never scrolls).
-            VDP_drawTextBG(BG_B, tag, (pk->x >> 8) / 8 - (pk->price >= 10), (pk->y >> 8) / 8 - 4);
+            VDP_drawTextBG(BG_A, tag, (pk->x >> 8) / 8 - (pk->price >= 10), (pk->y >> 8) / 8 - 4);
         }
     }
     if (itemMessage && --itemMessage == 0) VDP_clearTextArea(12, 2, 21, 1);
@@ -524,7 +551,7 @@ static void drawDebug(void)
     sprintf(line, "X%4d Y%4d VX%5d VY%5d %c%c%c ", (s16) (player.x >> 8), (s16) (player.y >> 8),
             player.vx, player.vy, player.onGround ? 'G' : '-', player.crouching ? 'C' : '-',
             player_attackActive(&player) ? 'A' : '-');
-    VDP_drawTextBG(BG_B, line, 1, 27);
+    VDP_drawTextBG(BG_A, line, 1, 27);
 }
 #endif
 
@@ -534,6 +561,7 @@ static void enterRoom(void)
 {
     mode = MODE_ROOM;
     VDP_setWindowVPos(FALSE, 3);
+    VDP_setHilightShadow(TRUE);
     VDP_setTextPlane(WINDOW);
     VDP_clearPlane(WINDOW, TRUE);
     gfx_drawFar();
@@ -546,6 +574,7 @@ static void enterMap(void)
 {
     mode = MODE_MAP;
     VDP_setWindowVPos(FALSE, 0);
+    VDP_setHilightShadow(FALSE);
     VDP_setTextPlane(BG_A);
     VDP_setHorizontalScroll(BG_A, 0);
     VDP_setVerticalScroll(BG_A, 0);
@@ -624,7 +653,7 @@ static void updateFloorWon(void)
     {
         lv.voidRadiusFx += (lv.voidStartFx - lv.voidRadiusFx) / 12 + (8 << 8);
         if (lv.voidRadiusFx > lv.voidStartFx) lv.voidRadiusFx = lv.voidStartFx;
-        for (u8 i = 0; i < 8; i++) refreshVoid();   // whole screen each frame: nothing else runs
+        refreshVoid();
     }
     else if (wonFrames == grow + 1)
     {
