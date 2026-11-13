@@ -22,6 +22,16 @@
 #define GFX_TILE_BOSS_BOTTOM   (TILE_USER_INDEX + 76)   // 4 x 2 tiles
 #define GFX_TILE_SHOT          (TILE_USER_INDEX + 84)
 #define GFX_TILE_GEM           (TILE_USER_INDEX + 85)
+#define GFX_TILE_CRACKED       (TILE_USER_INDEX + 86)   // wall hiding a secret room
+#define GFX_TILE_CRACKED_VOID  (TILE_USER_INDEX + 87)
+#define GFX_TILE_HEART         (TILE_USER_INDEX + 88)   // HUD (PAL1)
+#define GFX_TILE_HEART_HALF    (TILE_USER_INDEX + 89)
+#define GFX_TILE_HEART_EMPTY   (TILE_USER_INDEX + 90)
+#define GFX_TILE_LIGHT         (TILE_USER_INDEX + 91)   // HUD (PAL2, PAL3 when corrupted)
+#define GFX_TILE_LIGHT_EMPTY   (TILE_USER_INDEX + 92)
+#define GFX_TILE_MAP_FILLED    (TILE_USER_INDEX + 93)   // minimap, colour 15 of the palette
+#define GFX_TILE_MAP_OUTLINE   (TILE_USER_INDEX + 94)
+#define GFX_TILE_RELIC         (TILE_USER_INDEX + 95)   // 2 x 2 tiles (PAL2)
 
 #define GFX_WALKER_FEET 22   // last pixel row of the feet in the 24-row walker art
 #define GFX_FLYER_BOTTOM 13

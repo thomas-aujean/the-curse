@@ -148,6 +148,44 @@ static const u32 GEM_TILE[8] =    // PAL3: cyan gem
     0x14444441, 0x01444410, 0x00144100, 0x00011000,
 };
 
+// Same bricks with a thin crack: "slightly different", the player learns to spot it.
+static const u32 CRACKED_TILE[8] =
+{
+    0x22222221, 0x23313331, 0x23331331, 0x11111111,
+    0x33312333, 0x33121333, 0x33312333, 0x11111111,
+};
+
+static const u32 HUD_TILES[7][8] =
+{
+    { 0x05500550, 0x55555555, 0x55555555, 0x55555555, 0x05555550, 0x00555500, 0x00055000, 0x00000000 },   // heart
+    { 0x05500110, 0x55551001, 0x55551001, 0x55551001, 0x05551010, 0x00551100, 0x00051000, 0x00000000 },   // half
+    { 0x01100110, 0x10011001, 0x10000001, 0x10000001, 0x01000010, 0x00100100, 0x00011000, 0x00000000 },   // empty
+    { 0x00000000, 0x22222222, 0x22222222, 0x22222222, 0x22222222, 0x22222222, 0x00000000, 0x00000000 },   // light
+    { 0x00000000, 0x33333333, 0x30000003, 0x30000003, 0x30000003, 0x33333333, 0x00000000, 0x00000000 },   // light empty
+    { 0x00000000, 0x0FFFFFF0, 0x0FFFFFF0, 0x0FFFFFF0, 0x0FFFFFF0, 0x0FFFFFF0, 0x0FFFFFF0, 0x00000000 },   // map filled
+    { 0x00000000, 0x0FFFFFF0, 0x0F0000F0, 0x0F0000F0, 0x0F0000F0, 0x0F0000F0, 0x0FFFFFF0, 0x00000000 },   // map outline
+};
+
+static const char *const RELIC[16] =   // PAL2: a mysterious chalice (good or bad, nobody knows)
+{
+    "................",
+    "...1111111111...",
+    "..122222222221..",
+    "..124444444421..",
+    "..122444444221..",
+    "...1222442221...",
+    "....12222221....",
+    ".....122221.....",
+    "......1221......",
+    "......1331......",
+    "......1221......",
+    ".....123321.....",
+    "....12222221....",
+    "...1333333331...",
+    "...1111111111...",
+    "................",
+};
+
 // Empty space outside the circle: near-black violet with sparse specks (PAL3 colours 10 and 11).
 static const u32 VOID_TILE[8] =
 {
@@ -250,6 +288,10 @@ void gfx_load(void)
         remapTile(PLATFORM_TILE, tile);
         VDP_loadTileData(tile, GFX_TILE_PLATFORM_VOID, 1, CPU);
         VDP_loadTileData(VOID_TILE, GFX_TILE_VOID, 1, CPU);
+        VDP_loadTileData(CRACKED_TILE, GFX_TILE_CRACKED, 1, CPU);
+        remapTile(CRACKED_TILE, tile);
+        VDP_loadTileData(tile, GFX_TILE_CRACKED_VOID, 1, CPU);
+        VDP_loadTileData(HUD_TILES[0], GFX_TILE_HEART, 7, CPU);
     }
     // Room colours outside the circle (PAL3 5..11): cold and dead.
     static const u32 VOID_ROOM[7] = { 0x220044, 0x442266, 0x664488, 0x444466, 0x8888AA, 0x0A0012, 0x3A2266 };
@@ -282,6 +324,8 @@ void gfx_load(void)
     VDP_loadTileData(buffer, GFX_TILE_BOSS_BOTTOM, 8, CPU);
     VDP_loadTileData(SHOT_TILE, GFX_TILE_SHOT, 1, CPU);
     VDP_loadTileData(GEM_TILE, GFX_TILE_GEM, 1, CPU);
+    artToTiles(RELIC, plainPixel, 2, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_RELIC, 4, CPU);
 
     // Enemies: PAL2 normal form (bone and red eyes), PAL3 Void form (violet and cyan eyes).
     PAL_setColor(32 + 1, RGB24_TO_VDPCOLOR(0x000000));

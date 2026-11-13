@@ -30,6 +30,24 @@
 
 enum { ATTACK_SIDE, ATTACK_UP, ATTACK_DOWN };
 
+// Items: a heart in secret rooms, upgrades (good or bad, like Isaac) on altars.
+enum
+{
+    ITEM_NONE,
+    ITEM_HEART,
+    ITEM_FIRST_UPGRADE,
+    ITEM_STONE_HEART = ITEM_FIRST_UPGRADE,   // +1 heart
+    ITEM_WIND_BOOTS,                         // runs faster
+    ITEM_RAVEN_WINGS,                        // double jump
+    ITEM_LONG_BLADE,                         // longer side slash
+    ITEM_LANTERN,                            // light lasts 50 % longer
+    ITEM_GLASS_HEART,                        // -1 heart, slash +1 damage
+    ITEM_LEAD_BOOTS,                         // runs slower
+    ITEM_VOID_BLOOD,                         // light drains twice as fast
+    ITEM_COUNT
+};
+#define UPGRADE_COUNT (ITEM_COUNT - ITEM_FIRST_UPGRADE)
+
 #define PLAYER_W 12
 #define PLAYER_H 28
 #define PLAYER_CROUCH_H 18
@@ -46,13 +64,23 @@ typedef struct
     u8 invulnerable;     // frames of blinking after a hit
     u8 hurtTimer;        // frames of knockback without control
     u16 light;           // protection against the Void, in frames: drains inside it, refills outside
+    u16 lightMax;
+    // Upgrades (kept from floor to floor)
+    s16 runBonus, jumpBonus;   // 1/256 px per frame, already scaled for the region
+    u8 reachBonus;             // px added to the side slash
+    u8 airJumps, airJumpsLeft;
+    u8 lightDrain;             // light lost per frame inside the Void
+    s8 damageBonus;
     u8 corrupted;        // light ran out: touched by the Void (pact: hits harder, takes more)
     u16 prevPad;
 } Player;
 
 // Per-frame constants: NTSC values, scaled for 50 Hz so a jump has the same height and duration.
 void player_setRegion(u8 pal);
-void player_init(Player *p, s16 px, s16 py);
+void player_init(Player *p, s16 px, s16 py);    // new game: full health, no upgrades
+void player_place(Player *p, s16 px, s16 py);   // new floor: keeps health and upgrades
+void player_takeItem(Player *p, u8 item);
+const char *player_itemName(u8 item);
 void player_update(Player *p, const Room *r, u16 pad);
 void player_boostUp(Player *p);
 void player_bounce(Player *p);   // downward slash hit something: small hop
@@ -60,7 +88,6 @@ void player_hurt(Player *p, u8 damage, u8 fromRight);   // ignored while invulne
 
 // Light protection: call once per frame with whether the current room is in the Void.
 void player_updateLight(Player *p, u8 inVoid);
-u16 player_lightMax(void);
 u8 player_slashDamage(const Player *p);   // full-jump speed upwards, e.g. when entering a room from below
 u8 player_attackActive(const Player *p);
 u8 player_attackTimer(const Player *p);

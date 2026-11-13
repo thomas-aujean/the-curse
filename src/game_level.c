@@ -23,13 +23,21 @@ void level_buildRoom(Room *r, const RoomTemplate *t, u8 doors)
 const RoomTemplate *level_templateFor(const Level *lv, u8 x, u8 y)
 {
     u8 type = lv->floor.type[y][x];
-    if (type == ROOM_START) return &ROOM_TEMPLATES[0];
+    // Rooms holding an item use the small room: the item always sits in its middle, on the floor.
+    if (type == ROOM_START || type == ROOM_UPGRADE || type == ROOM_SHOP || type == ROOM_SECRET
+        || type == ROOM_SUPER_SECRET)
+        return &ROOM_TEMPLATES[0];
     if (type == ROOM_BOSS) return &ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT - 1];
     // Stable per seed and cell: coming back to a room gives the same layout.
     u16 h = lv->floor.seed ^ (u16) ((x * 31 + y * 17) * 0x9E37);
     h ^= h >> 7;
     h ^= h << 5;
     return &ROOM_TEMPLATES[h % ROOM_TEMPLATE_RANDOM];
+}
+
+u8 level_doors(const Level *lv, u8 x, u8 y)
+{
+    return lv->floor.doors[y][x] | (lv->floor.hidden[y][x] & lv->opened[y][x]);
 }
 
 // Bounding box of a door marker, in blocks.
@@ -56,6 +64,20 @@ static void setPos(Player *p, s16 px, s16 py)
 
 static u8 fps = 60;
 
+static const u8 DIR_BITS[4] = { DOOR_LEFT, DOOR_RIGHT, DOOR_UP, DOOR_DOWN };
+static const char DIR_MARKER[4] = { 'L', 'R', 'U', 'D' };
+
+// Which item a room holds: fixed per seed and cell, so the same floor always gives the same items.
+static u8 itemFor(const Level *lv, u8 x, u8 y)
+{
+    u8 type = lv->floor.type[y][x];
+    if (type == ROOM_SECRET) return ITEM_HEART;
+    if (type != ROOM_UPGRADE && type != ROOM_SUPER_SECRET) return ITEM_NONE;
+    u16 h = lv->floor.seed * 13 + x * 7 + y * 3 + type;
+    h ^= h >> 5;
+    return ITEM_FIRST_UPGRADE + h % UPGRADE_COUNT;
+}
+
 // enteredBy: the door of the new room the player comes through (0 = level start).
 static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
 {
@@ -63,7 +85,23 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
     lv->cellX = x;
     lv->cellY = y;
     lv->visited[y][x] = 1;
-    level_buildRoom(&lv->room, t, lv->floor.doors[y][x]);
+    level_buildRoom(&lv->room, t, level_doors(lv, x, y));
+
+    // Walls hiding a secret room: still solid, drawn cracked, broken by a slash.
+    lv->crackedCount = 0;
+    u8 hidden = lv->floor.hidden[y][x] & ~lv->opened[y][x];
+    for (u8 d = 0; d < 4; d++)
+        if (hidden & DIR_BITS[d])
+        {
+            u8 x0, y0, x1, y1;
+            findDoor(t, DIR_MARKER[d], &x0, &y0, &x1, &y1);
+            Cracked *c = &lv->cracked[lv->crackedCount++];
+            c->dir = DIR_BITS[d];
+            c->x0 = x0 * 16;
+            c->y0 = y0 * 16;
+            c->x1 = (x1 + 1) * 16 - 1;
+            c->y1 = (y1 + 1) * 16 - 1;
+        }
 
     // Enemies come back each time, unless the room was cleared. Never in the start room.
     // Their form is set every frame from their position (level_update).
@@ -77,6 +115,11 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
                 if (c == 'f') enemies_add(&lv->enemies, ENEMY_FLYER, bx * 16 + 8, by * 16 + 14, 0);
                 if (c == 'B') enemies_add(&lv->enemies, ENEMY_BOSS, bx * 16 + 8, (by + 1) * 16, 0);
             }
+
+    // Item on its altar, in the middle of the small room, until taken.
+    lv->itemId = lv->taken[y][x] ? ITEM_NONE : itemFor(lv, x, y);
+    lv->itemX = t->wBlocks * 8;
+    lv->itemY = (t->hBlocks - 2) * 16;
 
     lv->bossFight = lv->floor.type[y][x] == ROOM_BOSS && !lv->cleared[y][x];
     if (lv->bossFight)
@@ -107,10 +150,15 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             setPos(p, (x0 + x1 + 1) * 8, h);
             player_boostUp(p);
             break;
-        default:
-            player_init(p, w / 2, h - 32);
+        default:           // start of the floor: keeps health and upgrades
+            player_place(p, w / 2 - 32, h - 32);
             break;
     }
+}
+
+void level_enter(Level *lv, Player *p, u8 x, u8 y)
+{
+    enterRoom(lv, p, x, y, 0);
 }
 
 void level_setRegion(u8 pal)
@@ -145,7 +193,8 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
 {
     floor_generate(&lv->floor, seed, depth);
     for (u8 y = 0; y < FLOOR_H; y++)
-        for (u8 x = 0; x < FLOOR_W; x++) lv->visited[y][x] = lv->cleared[y][x] = 0;
+        for (u8 x = 0; x < FLOOR_W; x++)
+            lv->visited[y][x] = lv->cleared[y][x] = lv->opened[y][x] = lv->taken[y][x] = 0;
     lv->gemActive = 0;
     lv->bossFight = 0;
 
@@ -192,6 +241,44 @@ u8 level_cellInVoid(const Level *lv, u8 x, u8 y)
         > (u32) r * r;
 }
 
+u8 level_crackedAt(const Level *lv, s16 px, s16 py)
+{
+    for (u8 i = 0; i < lv->crackedCount; i++)
+    {
+        const Cracked *c = &lv->cracked[i];
+        if (px >= c->x0 && px <= c->x1 && py >= c->y0 && py <= c->y1) return 1;
+    }
+    return 0;
+}
+
+// A slash on a cracked wall opens the passage on both sides.
+static u8 breakWalls(Level *lv, const Player *p)
+{
+    if (!player_attackActive(p) || !lv->crackedCount) return 0;
+    s16 ax0, ay0, ax1, ay1;
+    player_attackBox(p, &ax0, &ay0, &ax1, &ay1);
+    for (u8 i = 0; i < lv->crackedCount; i++)
+    {
+        Cracked *c = &lv->cracked[i];
+        if (ax0 > c->x1 || c->x0 > ax1 || ay0 > c->y1 || c->y0 > ay1) continue;
+        u8 x = lv->cellX, y = lv->cellY;
+        lv->opened[y][x] |= c->dir;
+        if (c->dir == DOOR_LEFT) lv->opened[y][x - 1] |= DOOR_RIGHT;
+        if (c->dir == DOOR_RIGHT) lv->opened[y][x + 1] |= DOOR_LEFT;
+        if (c->dir == DOOR_UP) lv->opened[y - 1][x] |= DOOR_DOWN;
+        if (c->dir == DOOR_DOWN) lv->opened[y + 1][x] |= DOOR_UP;
+        *c = lv->cracked[--lv->crackedCount];
+        level_buildRoom(&lv->room, level_templateFor(lv, x, y), level_doors(lv, x, y));
+        return 1;
+    }
+    return 0;
+}
+
+static u8 nearPlayer(s16 x, s16 y, s16 ppx, s16 ppy)
+{
+    return x > ppx - 16 && x < ppx + 16 && y > ppy - PLAYER_H - 8 && y < ppy + 8;
+}
+
 u8 level_update(Level *lv, Player *p)
 {
     if (lv->voidRunning)
@@ -213,6 +300,17 @@ u8 level_update(Level *lv, Player *p)
     if (!enemies_alive(&lv->enemies)) lv->cleared[lv->cellY][lv->cellX] = 1;
 
     u8 result = 0;
+    if (breakWalls(lv, p)) result |= LEVEL_REDRAW;
+
+    if (lv->itemId != ITEM_NONE && nearPlayer(lv->itemX, lv->itemY - 8, ppx, ppy))
+    {
+        player_takeItem(p, lv->itemId);
+        lv->lastItem = lv->itemId;
+        lv->itemId = ITEM_NONE;
+        lv->taken[lv->cellY][lv->cellX] = 1;
+        result |= LEVEL_ITEM;
+    }
+
     if (lv->bossFight)
     {
         if (lv->lockTimer && --lv->lockTimer == 0)
@@ -249,22 +347,22 @@ u8 level_update(Level *lv, Player *p)
             lv->gemY = (s32) (gy & ~7) << 8;
             lv->gemVy = 0;
         }
-        if (gx > ppx - 16 && gx < ppx + 16 && gy > ppy - PLAYER_H - 8 && gy < ppy + 8)
+        if (nearPlayer(gx, gy, ppx, ppy))
         {
             lv->gemActive = 0;
             return result | LEVEL_GEM;
         }
     }
-    if (result) return result;
+    if (result & LEVEL_REDRAW) return result;
 
     s16 px = p->x >> 8, cy = (p->y >> 8) - PLAYER_H / 2;
     s16 w = lv->room.w * ROOM_TILE, h = lv->room.h * ROOM_TILE;
-    u8 x = lv->cellX, y = lv->cellY, doors = lv->floor.doors[y][x];
+    u8 x = lv->cellX, y = lv->cellY, doors = level_doors(lv, x, y);
 
     if (px < 0 && (doors & DOOR_LEFT)) enterRoom(lv, p, x - 1, y, DOOR_RIGHT);
     else if (px >= w && (doors & DOOR_RIGHT)) enterRoom(lv, p, x + 1, y, DOOR_LEFT);
     else if (cy < 0 && (doors & DOOR_UP)) enterRoom(lv, p, x, y - 1, DOOR_DOWN);
     else if (cy >= h && (doors & DOOR_DOWN)) enterRoom(lv, p, x, y + 1, DOOR_UP);
-    else return 0;
-    return 1;
+    else return result;
+    return result | LEVEL_REDRAW;
 }

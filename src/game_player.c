@@ -38,10 +38,12 @@ static const Tuning NTSC =
 };
 
 static Tuning t;
+static u8 isPal;
 
 void player_setRegion(u8 pal)
 {
     t = NTSC;
+    isPal = pal;
     if (!pal) return;
     // 50 Hz: speeds x 6/5, accelerations x 36/25, durations x 5/6. Load-time divisions only.
     t.runMax = NTSC.runMax * 6 / 5;
@@ -79,8 +81,78 @@ void player_init(Player *p, s16 px, s16 py)
     p->attackId = 0;
     p->maxHp = p->hp = 6;
     p->invulnerable = p->hurtTimer = 0;
-    p->light = t.lightMax;
+    p->light = p->lightMax = t.lightMax;
     p->corrupted = 0;
+    p->runBonus = p->jumpBonus = 0;
+    p->reachBonus = p->airJumps = p->airJumpsLeft = 0;
+    p->lightDrain = 1;
+    p->damageBonus = 0;
+}
+
+void player_place(Player *p, s16 px, s16 py)
+{
+    p->x = (s32) px << 8;
+    p->y = (s32) py << 8;
+    p->vx = p->vy = 0;
+    p->onGround = p->crouching = p->jumpHeld = 0;
+    p->coyote = p->jumpBuffer = p->dropTimer = p->attackTimer = 0;
+    p->hurtTimer = 0;
+    p->light = p->lightMax;
+    p->corrupted = 0;
+}
+
+static s16 scaleSpeed(s16 v)
+{
+    return isPal ? v * 6 / 5 : v;
+}
+
+void player_takeItem(Player *p, u8 item)
+{
+    switch (item)
+    {
+        case ITEM_HEART:
+            p->hp += 2;
+            break;
+        case ITEM_STONE_HEART:
+            p->maxHp += 2;
+            p->hp += 2;
+            break;
+        case ITEM_WIND_BOOTS:
+            p->runBonus += scaleSpeed(112);
+            break;
+        case ITEM_RAVEN_WINGS:
+            p->airJumps = 1;
+            break;
+        case ITEM_LONG_BLADE:
+            p->reachBonus += 10;
+            break;
+        case ITEM_LANTERN:
+            p->lightMax += t.lightMax / 2;
+            p->light = p->lightMax;
+            break;
+        case ITEM_GLASS_HEART:
+            if (p->maxHp > 2) p->maxHp -= 2;
+            p->damageBonus++;
+            break;
+        case ITEM_LEAD_BOOTS:
+            p->runBonus -= scaleSpeed(112);
+            break;
+        case ITEM_VOID_BLOOD:
+            p->lightDrain = 2;
+            break;
+    }
+    if (p->hp > p->maxHp) p->hp = p->maxHp;
+}
+
+const char *player_itemName(u8 item)
+{
+    static const char *const NAMES[ITEM_COUNT] =
+    {
+        "", "COEUR",
+        "COEUR DE PIERRE", "BOTTES DE VENT", "AILES DE CORBEAU", "LAME LONGUE",
+        "LANTERNE", "COEUR DE VERRE", "BOTTES DE PLOMB", "SANG DU NEANT",
+    };
+    return item < ITEM_COUNT ? NAMES[item] : "";
 }
 
 static u8 solidAt(const Room *r, s16 px, s16 py)
@@ -185,7 +257,11 @@ void player_update(Player *p, const Room *r, u16 pad)
     if (p->attackTimer) p->attackTimer--;
     if (p->jumpBuffer) p->jumpBuffer--;
     if (p->coyote) p->coyote--;
-    if (p->onGround) p->coyote = t.coyote;
+    if (p->onGround)
+    {
+        p->coyote = t.coyote;
+        p->airJumpsLeft = p->airJumps;
+    }
 
     if (pressed & PAD_ATTACK && !p->attackTimer)
     {
@@ -218,9 +294,11 @@ void player_update(Player *p, const Room *r, u16 pad)
             p->crouching = 0;
         }
     }
-    if (p->jumpBuffer && (p->onGround || p->coyote) && !p->crouching)
+    u8 grounded = p->onGround || p->coyote;
+    if (p->jumpBuffer && !p->crouching && (grounded || p->airJumpsLeft))
     {
-        p->vy = -t.jumpVel;
+        if (!grounded) p->airJumpsLeft--;   // Raven wings: a second jump in the air
+        p->vy = -(t.jumpVel + p->jumpBonus);
         p->jumpBuffer = 0;
         p->coyote = 0;
         p->onGround = 0;
@@ -244,7 +322,8 @@ void player_update(Player *p, const Room *r, u16 pad)
     {
         p->facingLeft = dir < 0;
         s16 a = p->onGround ? ((p->vx && (p->vx < 0) != (dir < 0)) ? t.turn : t.accel) : t.airAccel;
-        p->vx = approach(p->vx, dir * t.runMax, a);
+        s16 runMax = t.runMax + p->runBonus;
+        p->vx = approach(p->vx, dir * runMax, a);
     }
     else p->vx = approach(p->vx, 0, p->onGround ? t.decel : t.airDecel);
 
@@ -290,8 +369,8 @@ void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
     {
         *y0 = py - (p->crouching ? 16 : 24);
         *y1 = *y0 + 11;
-        *x0 = p->facingLeft ? px - 20 : px + 4;
-        *x1 = *x0 + 15;
+        *x0 = p->facingLeft ? px - 20 - p->reachBonus : px + 4;
+        *x1 = *x0 + 15 + p->reachBonus;
     }
 }
 void player_boostUp(Player *p)
@@ -321,28 +400,26 @@ void player_hurt(Player *p, u8 damage, u8 fromRight)
     p->crouching = 0;
     p->attackTimer = 0;
 }
-u16 player_lightMax(void)
-{
-    return t.lightMax;
-}
+
 
 void player_updateLight(Player *p, u8 inVoid)
 {
     if (inVoid)
     {
-        if (p->light) p->light--;
+        p->light = p->light > p->lightDrain ? p->light - p->lightDrain : 0;
         if (!p->light) p->corrupted = 1;
     }
     else
     {
         // Refills twice as fast as it drains; the Void lets go once a quarter is back.
         p->light += 2;
-        if (p->light > t.lightMax) p->light = t.lightMax;
-        if (p->light >= t.lightMax / 4) p->corrupted = 0;
+        if (p->light > p->lightMax) p->light = p->lightMax;
+        if (p->light >= p->lightMax / 4) p->corrupted = 0;
     }
 }
 
 u8 player_slashDamage(const Player *p)
 {
-    return p->corrupted ? 2 : 1;
+    s8 d = (p->corrupted ? 2 : 1) + p->damageBonus;
+    return d < 1 ? 1 : d;
 }

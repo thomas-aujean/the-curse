@@ -21,11 +21,23 @@ extern const RoomTemplate ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT];
 
 typedef struct
 {
+    s16 x0, y0, x1, y1;   // room pixels, inclusive
+    u8 dir;               // DOOR_* of the hidden passage
+} Cracked;
+
+typedef struct
+{
     Floor floor;
     Room room;
     u8 cellX, cellY;                   // current room on the floor map
     u8 visited[FLOOR_H][FLOOR_W];
     u8 cleared[FLOOR_H][FLOOR_W];      // all enemies killed: the room stays empty
+    u8 opened[FLOOR_H][FLOOR_W];       // hidden passages broken open (DOOR_* bits, both sides)
+    u8 taken[FLOOR_H][FLOOR_W];        // the room's item was picked up
+    Cracked cracked[4];                // cracked walls of the current room
+    u8 crackedCount;
+    u8 itemId, lastItem;               // item on the altar of the current room (ITEM_*)
+    s16 itemX, itemY;                  // room pixels, y = floor under the item
     EnemySet enemies;
     s16 voidCX, voidCY;                // Void circle centre, castle pixels (the boss room centre)
     u32 voidRadiusFx;                  // safe-zone radius, 1/256 px
@@ -46,8 +58,10 @@ typedef struct
 // level_update result bits
 #define LEVEL_REDRAW 1      // new room, or the doors just locked: redraw the room
 #define LEVEL_GEM    2      // the gem was picked up: the floor is won
+#define LEVEL_ITEM   4      // an item was picked up (lastItem): show its name
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);
+void level_enter(Level *lv, Player *p, u8 x, u8 y);   // jump straight into a room (tests, debug)
 
 // Builds a room from a template; doors is the DOOR_* mask of open doors. Exposed for tests.
 void level_buildRoom(Room *r, const RoomTemplate *t, u8 doors);
@@ -66,5 +80,7 @@ u8 level_update(Level *lv, Player *p);
 void level_setRegion(u8 pal);
 u8 level_pointInVoid(const Level *lv, s16 px, s16 py);   // room pixels, current room
 u8 level_cellInVoid(const Level *lv, u8 x, u8 y);        // room centre, for the map
+u8 level_doors(const Level *lv, u8 x, u8 y);             // visible doors + secret passages opened
+u8 level_crackedAt(const Level *lv, s16 px, s16 py);     // inside a cracked wall (drawing)
 
 #endif

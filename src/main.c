@@ -33,14 +33,14 @@ static void drawCell(u8 x, u8 y)
 {
     u8 t = lv.floor.type[y][x];
     u8 secret = t == ROOM_SECRET || t == ROOM_SUPER_SECRET;
-    if (t == ROOM_NONE || (secret && !showSecrets)) return;
+    if (t == ROOM_NONE || (secret && !showSecrets && !lv.visited[y][x])) return;
 
     // Like Isaac: visited rooms are known, rooms behind a visible door of a visited room are guessed.
     u8 known = showSecrets || lv.visited[y][x];
-    u8 guessed = (x > 0 && lv.visited[y][x - 1] && (lv.floor.doors[y][x - 1] & DOOR_RIGHT))
-        || (x < FLOOR_W - 1 && lv.visited[y][x + 1] && (lv.floor.doors[y][x + 1] & DOOR_LEFT))
-        || (y > 0 && lv.visited[y - 1][x] && (lv.floor.doors[y - 1][x] & DOOR_DOWN))
-        || (y < FLOOR_H - 1 && lv.visited[y + 1][x] && (lv.floor.doors[y + 1][x] & DOOR_UP));
+    u8 guessed = (x > 0 && lv.visited[y][x - 1] && (level_doors(&lv, x - 1, y) & DOOR_RIGHT))
+        || (x < FLOOR_W - 1 && lv.visited[y][x + 1] && (level_doors(&lv, x + 1, y) & DOOR_LEFT))
+        || (y > 0 && lv.visited[y - 1][x] && (level_doors(&lv, x, y - 1) & DOOR_DOWN))
+        || (y < FLOOR_H - 1 && lv.visited[y + 1][x] && (level_doors(&lv, x, y + 1) & DOOR_UP));
     if (!known && !guessed) return;
 
     u16 px = MAP_X + x * 4, py = MAP_Y + y * 3;
@@ -55,7 +55,7 @@ static void drawCell(u8 x, u8 y)
     VDP_drawText(cell, px, py);
 
     // Doors are drawn by the room on their left/top side only.
-    u8 doors = lv.floor.doors[y][x], hidden = showSecrets ? lv.floor.hidden[y][x] : 0;
+    u8 doors = level_doors(&lv, x, y), hidden = showSecrets ? lv.floor.hidden[y][x] & ~lv.opened[y][x] : 0;
     if (!known)   // only the doors leading back to visited rooms
     {
         if (!(x < FLOOR_W - 1 && lv.visited[y][x + 1])) doors &= ~DOOR_RIGHT;
@@ -132,6 +132,8 @@ static void drawTileState(s16 tx, s16 ty, u8 inVoid)
     u16 tile;
     if (inVoid) tile = t == TILE_SOLID ? GFX_TILE_SOLID_VOID : t == TILE_PLATFORM ? GFX_TILE_PLATFORM_VOID : GFX_TILE_VOID;
     else tile = t == TILE_SOLID ? GFX_TILE_SOLID : t == TILE_PLATFORM ? GFX_TILE_PLATFORM : 0;
+    if (t == TILE_SOLID && lv.crackedCount && level_crackedAt(&lv, tx * 8 + 4, ty * 8 + 4))
+        tile = inVoid ? GFX_TILE_CRACKED_VOID : GFX_TILE_CRACKED;   // a secret room behind
     u8 cx = tx & 63, cy = ty & 31;
     VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(inVoid ? PAL3 : PAL0, 0, 0, 0, tile), cx, cy);
     if (inVoid) drawnVoid[cy][cx >> 3] |= 1 << (cx & 7);
@@ -221,7 +223,8 @@ static void drawRoom(void)
 #define SPRITE_BOSS_LOW (2 + MAX_ENEMIES)
 #define SPRITE_SHOTS (SPRITE_BOSS_LOW + 1)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
-#define SPRITE_COUNT (SPRITE_GEM + 1)
+#define SPRITE_ITEM (SPRITE_GEM + 1)
+#define SPRITE_COUNT (SPRITE_ITEM + 1)
 
 static void drawSprites(void)
 {
@@ -311,7 +314,16 @@ static void drawSprites(void)
     }
     s16 gy = lv.gemActive ? (lv.gemY >> 8) - camY - 8 : -64;
     VDP_setSpriteFull(SPRITE_GEM, (lv.gemX >> 8) - camX - 4, gy, SPRITE_SIZE(1, 1),
-                      TILE_ATTR_FULL(PAL3, 1, 0, 0, GFX_TILE_GEM), 0);
+                      TILE_ATTR_FULL(PAL3, 1, 0, 0, GFX_TILE_GEM), SPRITE_ITEM);
+
+    // Item on its altar, bobbing gently.
+    s16 bob = ((vtimer >> 3) & 7) < 4 ? 0 : 1;
+    if (lv.itemId == ITEM_HEART)
+        VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 4, lv.itemY - camY - 12 - bob, SPRITE_SIZE(1, 1),
+                          TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), 0);
+    else
+        VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 8, lv.itemId ? lv.itemY - camY - 20 - bob : -64,
+                          SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), 0);
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
 
@@ -321,28 +333,87 @@ static void hideSprites(void)
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
 
-static void drawHud(void)
+// HUD on plane A (does not scroll): hearts and light bar top left, minimap of the rooms around
+// top right. Each part is redrawn only when what it shows has changed.
+static u8 hudHp = 0xFF, hudMaxHp = 0xFF, hudLight = 0xFF, hudCell = 0xFF, hudCorrupted = 0xFF;
+static u16 itemMessage;   // frames left showing the name of the item just taken
+
+static void hudTile(u16 x, u16 y, u16 pal, u16 tile)
 {
-    static u8 wasCorrupted = 0xFF;
-    char line[32];
-    // Light protection as a 10-step bar; redraw only every 8 frames, the text costs VDP writes.
-    if (!(vtimer & 7))
-    {
-        u16 steps = (u32) player.light * 10 / player_lightMax();
-        char bar[11];
-        for (u8 i = 0; i < 10; i++) bar[i] = i < steps ? '=' : '.';
-        bar[10] = 0;
-        sprintf(line, "VIE %d/%d  LUM %s ", player.hp, player.maxHp, bar);
-        VDP_setTextPalette(player.corrupted ? PAL3 : PAL0);
-        VDP_drawText(line, 1, 0);
-    }
-    if (player.corrupted != wasCorrupted)
-    {
-        wasCorrupted = player.corrupted;
-        gfx_setPlayerCorrupted(player.corrupted);
-    }
+    VDP_setTileMapXY(BG_A, TILE_ATTR_FULL(pal, 1, 0, 0, tile), x, y);
 }
 
+static void drawMinimap(void)
+{
+    // 5 x 3 rooms around the current one, Isaac-style: filled = here, outline = known.
+    for (s8 dy = -1; dy <= 1; dy++)
+        for (s8 dx = -2; dx <= 2; dx++)
+        {
+            s16 x = lv.cellX + dx, y = lv.cellY + dy;
+            u16 tile = 0, pal = PAL0;
+            if (x >= 0 && y >= 0 && x < FLOOR_W && y < FLOOR_H && lv.visited[y][x])
+            {
+                u8 t = lv.floor.type[y][x];
+                tile = (dx == 0 && dy == 0) ? GFX_TILE_MAP_FILLED : GFX_TILE_MAP_OUTLINE;
+                if (t == ROOM_BOSS) pal = PAL1;
+                else if (t >= ROOM_UPGRADE) pal = PAL2;
+                if (level_cellInVoid(&lv, x, y) && t != ROOM_SECRET && t != ROOM_SUPER_SECRET) pal = PAL3;
+            }
+            hudTile(36 + dx, 1 + dy, pal, tile);
+        }
+}
+
+static void drawHud(void)
+{
+    if (player.hp != hudHp || player.maxHp != hudMaxHp)
+    {
+        hudHp = player.hp;
+        hudMaxHp = player.maxHp;
+        for (u8 i = 0; i < 12; i++)   // one heart = 2 hit points
+        {
+            u16 tile = 0;
+            if (i * 2 < player.maxHp)
+                tile = player.hp >= i * 2 + 2 ? GFX_TILE_HEART : player.hp == i * 2 + 1 ? GFX_TILE_HEART_HALF : GFX_TILE_HEART_EMPTY;
+            hudTile(1 + i, 0, PAL1, tile);
+        }
+    }
+    u8 steps = (u32) player.light * 10 / player.lightMax;
+    if (steps != hudLight || player.corrupted != hudCorrupted)
+    {
+        hudLight = steps;
+        for (u8 i = 0; i < 10; i++)
+            hudTile(1 + i, 1, player.corrupted ? PAL3 : PAL2, i < steps ? GFX_TILE_LIGHT : GFX_TILE_LIGHT_EMPTY);
+    }
+    if (player.corrupted != hudCorrupted)
+    {
+        hudCorrupted = player.corrupted;
+        gfx_setPlayerCorrupted(player.corrupted);
+    }
+    // Minimap: on a room change, and once a second for the Void colours.
+    u8 cell = lv.cellY * FLOOR_W + lv.cellX;
+    if (cell != hudCell || !(vtimer & 63))
+    {
+        hudCell = cell;
+        drawMinimap();
+    }
+    if (itemMessage && --itemMessage == 0) VDP_clearTextArea(0, 4, 40, 1);
+}
+
+static void showItemName(u8 item)
+{
+    const char *name = player_itemName(item);
+    u16 len = 0;
+    while (name[len]) len++;
+    VDP_clearTextArea(0, 4, 40, 1);
+    VDP_setTextPalette(PAL0);
+    VDP_drawText(name, 20 - len / 2, 4);
+    itemMessage = IS_PAL_SYSTEM ? 100 : 120;
+}
+
+static void forceHud(void)
+{
+    hudHp = hudMaxHp = hudLight = hudCell = hudCorrupted = 0xFF;
+}
 #ifdef DEBUG_HUD
 static void drawDebug(void)
 {
@@ -360,8 +431,8 @@ static void enterRoom(void)
     mode = MODE_ROOM;
     VDP_clearPlane(BG_A, TRUE);
     drawRoom();
-    VDP_setTextPalette(PAL0);
-    VDP_drawText("START carte", 28, 0);
+    forceHud();
+    itemMessage = 0;
 }
 
 static void enterMap(void)
@@ -447,11 +518,8 @@ static void updateFloorWon(void)
     }
     else if (wonFrames >= total)
     {
-        s8 hp = player.hp, maxHp = player.maxHp;
         if (depth < 7) depth++;
-        newFloor(random() ^ vtimer);
-        player.hp = hp;
-        player.maxHp = maxHp;
+        newFloor(random() ^ vtimer);   // health and upgrades are kept
         wonFrames = 0;
         enterRoom();
         return;
@@ -470,6 +538,8 @@ static void updateRoom(u16 pad, u16 pressed)
         // Dead: the message stays two seconds, then a new floor starts.
         if (--deathFrames == 0)
         {
+            player_init(&player, 0, 0);   // new run: full health, no upgrades
+            depth = 1;
             newFloor(random() ^ vtimer);
             enterRoom();
         }
@@ -483,6 +553,7 @@ static void updateRoom(u16 pad, u16 pressed)
     player_update(&player, &lv.room, pad);
     u8 events = level_update(&lv, &player);
     if (events & LEVEL_REDRAW) drawRoom();
+    if (events & LEVEL_ITEM) showItemName(lv.lastItem);
     if (events & LEVEL_GEM)
     {
         startFloorWon();
@@ -514,6 +585,7 @@ int main(bool hardReset)
     enemies_setRegion(IS_PAL_SYSTEM);
     level_setRegion(IS_PAL_SYSTEM);
 
+    player_init(&player, 0, 0);
     newFloor(0x1234);
     enterRoom();
 

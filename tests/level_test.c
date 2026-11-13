@@ -42,6 +42,7 @@ int main(void)
     enemies_setRegion(0);
     static Level lv;
     Player p;
+    player_init(&p, 0, 0);
     int moves = 0;
     for (unsigned seed = 1; seed < 2000; seed += 13)
     {
@@ -73,7 +74,7 @@ int main(void)
                     for (int f = 0; f < 120 && !settled; f++)
                     {
                         player_update(&p, &lv.room, 0);
-                        CHECK(!level_update(&lv, &p), "seed %u (%d,%d) dir %d: bounced back", seed, x, y, d);
+                        CHECK(!(level_update(&lv, &p) & LEVEL_REDRAW), "seed %u (%d,%d) dir %d: bounced back", seed, x, y, d);
                         settled = p.onGround;
                     }
                     CHECK(settled, "seed %u (%d,%d) dir %d: never landed", seed, x, y, d);
@@ -137,6 +138,55 @@ int main(void)
         p.invulnerable = 255;
         CHECK(level_update(&lv, &p) & LEVEL_GEM, "seed %u: gem picked up", seed);
     }
-    printf("%d door crossings, %d failures\n", moves, failures);
+    // Secret rooms: a slash breaks the cracked wall, the passage opens on both sides and leads to
+    // the secret room and its item.
+    int secretsOpened = 0;
+    for (unsigned seed = 3; seed < 600; seed += 9)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        for (int y = 0; y < FLOOR_H; y++)
+            for (int x = 0; x < FLOOR_W; x++)
+            {
+                u8 t = lv.floor.type[y][x];
+                if (!lv.floor.hidden[y][x] || t == ROOM_SECRET || t == ROOM_SUPER_SECRET) continue;
+                level_enter(&lv, &p, x, y);
+                enemies_clear(&lv.enemies);   // nobody in the way
+                CHECK(lv.crackedCount > 0, "seed %u (%d,%d): no cracked wall", seed, x, y);
+                if (!lv.crackedCount) continue;
+                Cracked c = lv.cracked[0];
+                s16 cx = (c.x0 + c.x1) / 2;
+                u16 pad = PAD_ATTACK;
+                if (c.dir == DOOR_LEFT) player_place(&p, c.x1 + 12, c.y1 + 1);
+                else if (c.dir == DOOR_RIGHT) player_place(&p, c.x0 - 12, c.y1 + 1);
+                else if (c.dir == DOOR_UP) { player_place(&p, cx, c.y1 + 35); pad |= PAD_UP; }
+                else { player_place(&p, cx, c.y0 - 10); pad |= PAD_DOWN; }
+                p.facingLeft = c.dir == DOOR_LEFT;
+                int redraw = 0;
+                for (int f = 0; f < 6; f++)
+                {
+                    player_update(&p, &lv.room, f ? pad : (pad & ~PAD_ATTACK));
+                    p.facingLeft = c.dir == DOOR_LEFT;
+                    if (level_update(&lv, &p) & LEVEL_REDRAW) redraw = 1;
+                    if (lv.cellX != x || lv.cellY != y) break;
+                }
+                CHECK(redraw && (lv.opened[y][x] & c.dir), "seed %u (%d,%d) dir %d: wall not broken", seed, x, y, c.dir);
+                if (!(lv.opened[y][x] & c.dir)) continue;
+                int sx = x + (c.dir == DOOR_RIGHT) - (c.dir == DOOR_LEFT), sy = y + (c.dir == DOOR_DOWN) - (c.dir == DOOR_UP);
+                // Walk through the opening.
+                level_enter(&lv, &p, x, y);
+                s16 w = lv.room.w * 8, h = lv.room.h * 8;
+                player_place(&p, c.dir == DOOR_LEFT ? -1 : c.dir == DOOR_RIGHT ? w : cx,
+                             c.dir == DOOR_UP ? 0 : c.dir == DOOR_DOWN ? h + PLAYER_H : c.y1 + 1);
+                level_update(&lv, &p);
+                CHECK(lv.cellX == sx && lv.cellY == sy, "seed %u: did not reach the secret room", seed);
+                u8 st = lv.floor.type[sy][sx];
+                CHECK(st == ROOM_SECRET ? lv.itemId == ITEM_HEART : lv.itemId >= ITEM_FIRST_UPGRADE,
+                      "seed %u: secret room item %d", seed, lv.itemId);
+                secretsOpened++;
+            }
+    }
+    CHECK(secretsOpened > 50, "only %d secret passages tested", secretsOpened);
+
+    printf("%d door crossings, %d secret passages, %d failures\n", moves, secretsOpened, failures);
     return failures != 0;
 }
