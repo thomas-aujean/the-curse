@@ -63,6 +63,9 @@ int main(void)
     p.facingLeft = 0;
     step(&p, PAD_ATTACK, 14);
     CHECK(set.e[0].hp == 1, "one slash = one hit (hp %d)", set.e[0].hp);
+    // The blow is felt: freeze frames requested, a spark on the enemy, the enemy flashing.
+    CHECK(set.hitStop && set.hitX > 120 && set.hitX < 150 && set.hitY > 160 && set.hitY < 200,
+          "hit feedback: stop %d spark at %d,%d", set.hitStop, set.hitX, set.hitY);
     step(&p, 0, 100);   // let invulnerability from any contact pass
     p.x = set.e[0].x - (16 << 8);   // keep attackId: a new slash, not a reset player
     p.y = 200 << 8;

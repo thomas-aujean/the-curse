@@ -46,6 +46,7 @@ typedef struct
     u16 stateTimer;
     u8 pose;             // ENEMY_POSE_*: what the body is doing, for the display
     u8 attackTimer;      // soldier, guard: blow in progress then rest; archer: bow just released
+    u8 flashTimer;       // just hit: shown in the other palette for a few frames, before the blinking
 } Enemy;
 
 // Poses every enemy shares; the display maps them to drawings (main.c).
@@ -70,6 +71,13 @@ typedef struct
     Enemy e[MAX_ENEMIES];
     Shot shots[MAX_SHOTS];
     u8 blocked;
+    // Feedback of the player's blows, for the display: where the last one landed (room pixels) and
+    // how long its spark still shows; hitStop = frames the whole game should freeze on the impact
+    // (the caller takes them and puts the field back to 0).
+    s16 hitX, hitY;
+    u8 hitTimer;
+    u8 hitBlocked;       // the spark is a shield block, not a wound
+    u8 hitStop;
 } EnemySet;
 
 void enemies_setRegion(u8 pal);

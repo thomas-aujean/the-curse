@@ -27,6 +27,7 @@ static u8 hurtFrames, deathFrames, bossIdle, bossWarn;
 static u8 archerDelay, archerVoidDelay, ninjaDelay, ninjaVoidDelay, jellyDelay;
 static s16 ninjaJump, jellyJump, homingAccel;
 static u8 guardTurn;
+static u8 flashFrames, sparkFrames, hitStopFrames, killStopFrames;
 static u8 meleeWindup, meleeStrike, meleeRest, aimFrames, releaseFrames, ninjaWarn;
 static u16 sporeLife;
 
@@ -54,6 +55,10 @@ void enemies_setRegion(u8 isPal)
     homingAccel = isPal ? 24 * 36 / 25 : 24;
     sporeLife = isPal ? 240 * 5 / 6 : 240;
     guardTurn = isPal ? 40 * 5 / 6 : 40;
+    flashFrames = 3;
+    sparkFrames = isPal ? 7 : 8;
+    hitStopFrames = isPal ? 3 : 4;
+    killStopFrames = isPal ? 6 : 7;
     meleeWindup = isPal ? 24 * 5 / 6 : 24;
     meleeStrike = isPal ? 10 * 5 / 6 : 10;
     meleeRest = isPal ? 30 * 5 / 6 : 30;
@@ -82,6 +87,7 @@ void enemies_clear(EnemySet *s)
 {
     for (u8 i = 0; i < MAX_ENEMIES; i++) s->e[i].type = ENEMY_NONE;
     for (u8 i = 0; i < MAX_SHOTS; i++) s->shots[i].active = 0;
+    s->hitTimer = s->hitStop = s->hitBlocked = 0;
 }
 
 Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
@@ -105,6 +111,7 @@ Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
         e->voidForm = 0;
         e->pose = ENEMY_POSE_A;
         e->attackTimer = 0;
+        e->flashTimer = 0;
         e->hp = STATS[type][0].hp;
         if (voidForm) enemy_setVoidForm(e, 1);
         return e;
@@ -582,6 +589,7 @@ static void updateShots(EnemySet *s, const Room *r, Player *p, s16 px0, s16 py0,
 void enemies_update(EnemySet *s, const Room *r, Player *p)
 {
     s->blocked = 0;
+    if (s->hitTimer) s->hitTimer--;
     s16 ax0 = 0, ay0 = 0, ax1 = 0, ay1 = 0;
     u8 slashing = player_attackActive(p);
     if (slashing) player_attackBox(p, &ax0, &ay0, &ax1, &ay1);
@@ -603,6 +611,7 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
         const EnemyStats *st = &STATS[e->type][e->voidForm];
         e->timer++;
         if (e->hurtTimer) e->hurtTimer--;
+        if (e->flashTimer) e->flashTimer--;
         if (e->type == ENEMY_WALKER) updateWalker(e, st, r, p);
         else if (e->type == ENEMY_FLYER) updateFlyer(e, st, p);
         else if (e->type == ENEMY_BOSS) updateBoss(s, e, st, r, p);
@@ -626,6 +635,11 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
         if (slashing && e->lastHitId != p->attackId && overlap(ax0, ay0, ax1, ay1, x0, y0, x1, y1))
         {
             e->lastHitId = p->attackId;
+            // The spark goes where the blade meets the body.
+            s->hitX = ((ax0 > x0 ? ax0 : x0) + (ax1 < x1 ? ax1 : x1)) / 2;
+            s->hitY = ((ay0 > y0 ? ay0 : y0) + (ay1 < y1 ? ay1 : y1)) / 2;
+            s->hitTimer = sparkFrames;
+            s->hitBlocked = 0;
             if (e->type == ENEMY_GUARD)
             {
                 // The shield covers the front against side slashes; the Void colossus also shrugs
@@ -634,11 +648,14 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
                 if (playerInFront && (p->attackDir == ATTACK_SIDE || e->voidForm))
                 {
                     s->blocked = 1;
+                    s->hitBlocked = 1;
                     p->vx = p->x < e->x ? -knockback : knockback;   // pushed back by the shield
                     continue;
                 }
             }
             e->hurtTimer = hurtFrames;
+            e->flashTimer = flashFrames;
+            s->hitStop = hitStopFrames;
             // A hit breaks the blow being prepared, and the enemy needs a moment to try again.
             if (meleeReach(e->type))
             {
@@ -653,7 +670,11 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             }
             if (p->attackDir == ATTACK_DOWN) player_bounce(p);
             e->hp -= player_slashDamage(p);
-            if (e->hp <= 0) e->deathTimer = e->type == ENEMY_BOSS ? deathFrames * 4 : deathFrames;
+            if (e->hp <= 0)
+            {
+                e->deathTimer = e->type == ENEMY_BOSS ? deathFrames * 4 : deathFrames;
+                s->hitStop = killStopFrames;   // the killing blow lands harder
+            }
             else if (e->type == ENEMY_JELLY)
             {
                 // Splits into small jellies (three in the Void) that jump apart.

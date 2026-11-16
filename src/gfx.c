@@ -164,6 +164,27 @@ static const u32 COIN_TILE[8] =
 };
 
 // Down arrow over a trapdoor: gold with a dark outline.
+// Spark of a blow: a four-pointed star, pale core (2) and gold rim (5). Mirrored from frame to frame.
+static const char *const HIT_SPARK[16] =
+{
+    ".......5........",
+    ".......5......5.",
+    "..5....25....5..",
+    "...5...25...5...",
+    "....5..22..5....",
+    ".....5.22.5.....",
+    "......2222......",
+    "555222222222255.",
+    ".55222222222555.",
+    "......2222......",
+    ".....5.22.5.....",
+    "....5..22..5....",
+    "...5...52...5...",
+    "..5....52....5..",
+    ".5......5.......",
+    "........5.......",
+};
+
 static const char *const TRAP_ARROW[16] =
 {
     "................",
@@ -345,6 +366,8 @@ void gfx_load(void)
     VDP_loadTileData(COIN_TILE, GFX_TILE_COIN, 1, CPU);
     artToTiles(JAR, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_JAR, 4, CPU);
+    artToTiles(HIT_SPARK, plainPixel, 2, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_HIT, 4, CPU);
     artToTiles(TRAP_ARROW, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_TRAP_ARROW, 4, CPU);
     // Enemies, coins, props and chests share PAL2. PAL3 holds the same slots swallowed by the Void:

@@ -35,6 +35,7 @@
 #define GFX_TILE_SHURIKEN      (TILE_USER_INDEX + 125)
 #define GFX_TILE_COIN          (TILE_USER_INDEX + 126)  // PAL2 gold
 #define GFX_TILE_JAR           (TILE_USER_INDEX + 127)  // 2 x 2 (PAL2), bottom on row 15
+#define GFX_TILE_HIT           (TILE_USER_INDEX + 135)  // 2 x 2 (PAL2), spark of a blow that lands
 #define GFX_TILE_TRAP_ARROW    (TILE_USER_INDEX + 131)  // 2 x 2 (PAL2), gold arrow shown over a trapdoor
 
 

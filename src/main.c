@@ -309,7 +309,8 @@ static void drawRoom(void)
 #define SPRITE_PICKUPS (SPRITE_PROPS + MAX_PROPS)
 #define SPRITE_EXT2 (SPRITE_PICKUPS + MAX_PICKUPS)   // second extension cell of the hero
 #define SPRITE_BODY_LOW (SPRITE_EXT2 + 1)   // hero below row 32 (hardware sprites are 4 x 4 tiles max)
-#define SPRITE_COUNT (SPRITE_BODY_LOW + 1)
+#define SPRITE_HIT (SPRITE_BODY_LOW + 1)    // spark of a blow; chained right after the hero, over the enemies
+#define SPRITE_COUNT (SPRITE_HIT + 1)
 
 // Animation frame from the player's state. Running advances one frame every 7 px travelled,
 // so the legs match the ground speed (and the upgrades that change it).
@@ -450,7 +451,18 @@ static void drawSprites(void)
         s16 ex = flip ? bx - ext->x[k] : bx + ext->x[k];
         s16 ey = (k < ext->count && !hidden) ? by + ext->y[k] : -64;
         VDP_setSpriteFull(index, ex, ey, SPRITE_SIZE(4, 4),
-                          TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA_EXT + k * 16), k ? SPRITE_BODY_LOW : 2);
+                          TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA_EXT + k * 16), k ? SPRITE_BODY_LOW : SPRITE_HIT);
+    }
+
+    // Spark where the last blow landed: big for two frames, then mirrored each frame so it flickers.
+    // A blocked blow gives the same spark in the Void's cold colours.
+    {
+        const EnemySet *s = &lv.enemies;
+        s16 hx = s->hitX - camX - 8, hy = s->hitY - camY - 8;
+        if (!s->hitTimer || offScreen(hx, hy)) hy = -64;
+        VDP_setSpriteFull(SPRITE_HIT, hx, hy, SPRITE_SIZE(2, 2),
+                          TILE_ATTR_FULL(s->hitBlocked ? PAL3 : PAL2, 1, s->hitTimer & 1, (s->hitTimer >> 1) & 1, GFX_TILE_HIT),
+                          SPRITE_ENEMIES);
     }
 
     // Enemies, from the pool of sprites. Flashing when hurt, fast blinking while the death puff plays.
@@ -460,12 +472,13 @@ static void drawSprites(void)
         const Enemy *e = &lv.enemies.e[i];
         s16 ex = (e->x >> 8) - camX, ey = (e->y >> 8) - camY;
         // The widest pose reaches 48 px from the centre, on either side once mirrored.
-        if (e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (e->hurtTimer & 2)
+        if (e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (!e->flashTimer && (e->hurtTimer & 2))
             || (e->type == ENEMY_BOSS && e->state == BOSS_DASH_WARN && (e->stateTimer & 4))
             || ex < -48 || ex > 368 || ey < 0 || ey > 272)
             continue;
         // Void form: the same tiles with PAL3 (the enemies' colours swallowed by the Void).
-        u16 base = TILE_ATTR_FULL(e->voidForm ? PAL3 : PAL2, 1, 0, e->facingLeft, 0);
+        // Just hit: the other palette for a few frames, a flash of colour that cannot be missed.
+        u16 base = TILE_ATTR_FULL((e->voidForm != 0) != (e->flashTimer != 0) ? PAL3 : PAL2, 1, 0, e->facingLeft, 0);
         if (e->type == ENEMY_JELLY_SMALL)
         {
             if (n < SPRITE_ENEMIES + ENEMY_SPRITES)
@@ -818,8 +831,18 @@ static void updateRoom(u16 pad, u16 pressed)
         enterMap();
         return;
     }
+    // A blow that lands freezes everything for a few frames: the eye gets the time to see it.
+    static u8 hitStop;
+    if (hitStop)
+    {
+        hitStop--;
+        drawSprites();
+        return;
+    }
     player_update(&player, &lv.room, pad);
     u8 events = level_update(&lv, &player);
+    hitStop = lv.enemies.hitStop;
+    lv.enemies.hitStop = 0;
     if (events & LEVEL_REDRAW) drawRoom();
     if (events & LEVEL_ITEM) showText(player_itemName(lv.lastItem));
     if (events & LEVEL_MESSAGE) showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : "PAS ASSEZ DE PIECES");
