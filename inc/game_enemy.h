@@ -7,7 +7,7 @@
 // Each enemy has two forms: normal inside the safe zone, "Void" form (faster, tougher, meaner)
 // when its room has been swallowed by the Void.
 
-#define MAX_ENEMIES 8
+#define MAX_ENEMIES 12   // the largest rooms (4 x 3 screens) need that many
 
 enum
 {

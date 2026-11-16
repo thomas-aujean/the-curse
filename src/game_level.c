@@ -32,7 +32,9 @@ const RoomTemplate *level_templateFor(const Level *lv, u8 x, u8 y)
     u16 h = lv->floor.seed ^ (u16) ((x * 31 + y * 17) * 0x9E37);
     h ^= h >> 7;
     h ^= h << 5;
-    return &ROOM_TEMPLATES[h % ROOM_TEMPLATE_RANDOM];
+    // Medium rooms are the most common; the 4 x 3 keep is the rare landmark of a floor.
+    static const u8 PICK[16] = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 6, 6, 7 };
+    return &ROOM_TEMPLATES[PICK[h & 15]];
 }
 
 u8 level_doors(const Level *lv, u8 x, u8 y)
@@ -210,7 +212,7 @@ void level_setRegion(u8 pal)
     fps = pal ? 50 : 60;
 }
 
-// Each cell of the floor map owns a 2 x 2 screen slot of the castle (the largest room size):
+// Each cell of the floor map owns a 4 x 3 screen slot of the castle (the largest room size):
 // the Void circle lives in these world coordinates.
 static s16 cellOriginX(u8 x) { return x * CELL_W_PX; }
 static s16 cellOriginY(u8 y) { return y * CELL_H_PX; }

@@ -178,6 +178,13 @@ Proposition (à valider) :
 - **Équilibre** : le Néant de la zone en cours continue d'avancer pendant qu'on revient en arrière. Le
   détour est donc un pari, ce qui garde la tension.
 
+**Fait le 2026-11-16 (grandes salles seulement)** : quatre gabarits ajoutés dans `src/rooms.c` — galerie 3×1,
+puits 1×3, grand hall 3×2 à deux étages, donjon 4×3 à trois étages. Une salle reste une seule case de la
+carte d'étage, avec une porte par côté. La salle est gardée tuile par tuile (13 Ko de RAM, 17 Ko utilisés
+sur 64) plutôt qu'en blocs : le code de collision la lit telle quelle. 12 ennemis et 8 objets au plus par
+salle. `tests/level_test.c` vérifie que chaque gabarit est franchissable (toutes les portes reliées, coffres
+à portée) ; lancer `wsl sh tools/test.sh`. Le retour en arrière et le Néant v2 restent à faire.
+
 ## À décider
 - Histoire, type de sauvegarde (SRAM à pile ou FRAM ; mots de passe exclus), périmètre v1 (classes, coop 2 ou 4), graphismes et musique.
 - Nombre d'étages, taille de la grille, ce qui ouvre un mur secret (arme normale, bombe, pouvoir).

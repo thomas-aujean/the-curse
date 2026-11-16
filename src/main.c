@@ -334,6 +334,14 @@ typedef struct
     u8 count, first;
     s8 x[2], y[2];
 } HeroExt;
+
+// Rooms are several screens wide and the VDP's sprite coordinates wrap around every 512 pixels: what
+// is far from the camera must be hidden, or it shows up again as a ghost on screen. (x, y) = top-left
+// of a sprite of 32 x 48 at most, in screen pixels.
+static u8 offScreen(s16 x, s16 y)
+{
+    return x < -32 || x > 320 || y < -48 || y > 224;
+}
 static const HeroExt HERO_EXT[NINJA_FRAME_COUNT] = NINJA_EXT_TABLE;
 
 static void drawSprites(void)
@@ -384,7 +392,8 @@ static void drawSprites(void)
         s16 ex = (e->x >> 8) - camX - 16, ey = -64, lowY = -64;
         u16 attr = 0, lowAttr = 0, esize = SPRITE_SIZE(4, 4);
         u8 hidden = e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (e->hurtTimer & 2)
-            || (e->type == ENEMY_BOSS && e->state == BOSS_DASH_WARN && (e->stateTimer & 4));
+            || (e->type == ENEMY_BOSS && e->state == BOSS_DASH_WARN && (e->stateTimer & 4))
+            || offScreen(ex, (e->y >> 8) - camY - GFX_HERO_FEET - 1);
         if (!hidden)
         {
             // Void form: the same tiles with PAL3 (the enemies' colours swallowed by the Void).
@@ -428,31 +437,35 @@ static void drawSprites(void)
     for (u8 i = 0; i < MAX_SHOTS; i++)
     {
         const Shot *sh = &lv.enemies.shots[i];
-        s16 y = sh->active ? (sh->y >> 8) - camY - 4 : -64;
+        s16 sx = (sh->x >> 8) - camX - 4, y = (sh->y >> 8) - camY - 4;
+        if (!sh->active || offScreen(sx, y)) y = -64;
         u16 tile = sh->kind == SHOT_ARROW ? GFX_TILE_ARROW : sh->kind == SHOT_SHURIKEN ? GFX_TILE_SHURIKEN : GFX_TILE_SHOT;
         u16 spal = sh->kind == SHOT_SPORE ? PAL3 : PAL2;
         u16 hflip = sh->vx < 0, vflip = sh->kind == SHOT_SHURIKEN && (vtimer & 4);   // shurikens spin
-        VDP_setSpriteFull(SPRITE_SHOTS + i, (sh->x >> 8) - camX - 4, y, SPRITE_SIZE(1, 1),
+        VDP_setSpriteFull(SPRITE_SHOTS + i, sx, y, SPRITE_SIZE(1, 1),
                           TILE_ATTR_FULL(spal, 1, vflip, hflip, tile), SPRITE_SHOTS + i + 1);
     }
-    s16 gy = lv.gemActive ? (lv.gemY >> 8) - camY - 8 : -64;
-    VDP_setSpriteFull(SPRITE_GEM, (lv.gemX >> 8) - camX - 4, gy, SPRITE_SIZE(1, 1),
+    s16 gx = (lv.gemX >> 8) - camX - 4, gy = (lv.gemY >> 8) - camY - 8;
+    if (!lv.gemActive || offScreen(gx, gy)) gy = -64;
+    VDP_setSpriteFull(SPRITE_GEM, gx, gy, SPRITE_SIZE(1, 1),
                       TILE_ATTR_FULL(PAL3, 1, 0, 0, GFX_TILE_GEM), SPRITE_ITEM);
 
     // Item on its altar, bobbing gently.
     s16 bob = ((vtimer >> 3) & 7) < 4 ? 0 : 1;
+    u8 itemShown = lv.itemId && !offScreen(lv.itemX - camX - 8, lv.itemY - camY - 20);
     if (lv.itemId == ITEM_HEART)
-        VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 4, lv.itemY - camY - 12 - bob, SPRITE_SIZE(1, 1),
-                          TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), 0);
+        VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 4, itemShown ? lv.itemY - camY - 12 - bob : -64,
+                          SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), 0);
     else
-        VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 8, lv.itemId ? lv.itemY - camY - 20 - bob : -64,
+        VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 8, itemShown ? lv.itemY - camY - 20 - bob : -64,
                           SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), SPRITE_PROPS);
 
     for (u8 i = 0; i < MAX_PROPS; i++)
     {
         const Prop *pr = &lv.props[i];
         u8 chest = pr->type >= PROP_CHEST_BRONZE;
-        u8 shown = i < lv.propCount && (pr->alive || chest);   // opened chests stay, open
+        u8 shown = i < lv.propCount && (pr->alive || chest)   // opened chests stay, open
+            && !offScreen(pr->x - camX - 8, pr->y - camY - 16);
         u16 frame = chest ? PROP_CHEST_BRONZE + (pr->type - PROP_CHEST_BRONZE) * 2 + !pr->alive : pr->type;
         u16 flicker = pr->type == PROP_CANDLE && ((vtimer >> 3) & 1);   // candle flame wavers
         VDP_setSpriteFull(SPRITE_PROPS + i, pr->x - camX - 8, shown ? pr->y - camY - 16 : -64, SPRITE_SIZE(2, 2),
@@ -462,7 +475,9 @@ static void drawSprites(void)
         const Pickup *pk = &lv.pickups[i];
         u8 index = SPRITE_PICKUPS + i, link = i + 1 < MAX_PICKUPS ? index + 1 : SPRITE_EXT2;
         s16 x = (pk->x >> 8) - camX, y = (pk->y >> 8) - camY;
-        if (pk->type == PICKUP_COIN)
+        if (pk->type == PICKUP_NONE || offScreen(x - 8, y - 20))
+            VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
+        else if (pk->type == PICKUP_COIN)
             VDP_setSpriteFull(index, x - 4, y - 7, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL2, 1, 0, (vtimer >> 3) & 1, GFX_TILE_COIN), link);
         else if (pk->type == PICKUP_HEART || (pk->type == PICKUP_ITEM && pk->itemId == ITEM_HEART))
             VDP_setSpriteFull(index, x - 4, y - 12, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), link);

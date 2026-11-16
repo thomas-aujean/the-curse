@@ -16,6 +16,115 @@ static int bodyFree(const Room *r, const Player *p)
     return 1;
 }
 
+// ---- Can the hero get around a template? Block-level model of the climbing rule (rooms.c), on the
+// safe side of what the engine allows: a jump climbs 4 blocks at most (64 of the 96 px) and carries
+// 5 blocks sideways (3 on the highest jumps, about half of the real reach); stepping off a ledge
+// drifts 5 blocks at most.
+#define TW 80
+#define TH 42
+static const RoomTemplate *rt;
+static char reach[TH][TW];
+
+static char blockAt(int x, int y)
+{
+    if (x < 0 || y < 0 || x >= rt->wBlocks || y >= rt->hBlocks) return '#';
+    return rt->rows[y][x];
+}
+
+static int solid(int x, int y) { return blockAt(x, y) == '#'; }
+
+static int surface(int x, int y)   // something to stand on: stone, a plank, the plank over a floor hole
+{
+    char c = blockAt(x, y);
+    return c == '#' || c == '-' || (c == 'D' && blockAt(x, y - 1) != 'D');
+}
+
+// The body (40 px) takes the feet block and the two above.
+static int bodyFits(int x, int y) { return !solid(x, y) && !solid(x, y - 1) && !solid(x, y - 2); }
+static int standable(int x, int y) { return bodyFits(x, y) && surface(x, y + 1) && blockAt(x, y) != 'D'; }
+
+static void visit(int x, int y);
+
+// From the air at (x, y): falls to the first block where it can stand.
+static void fall(int x, int y)
+{
+    while (y < rt->hBlocks && bodyFits(x, y))
+    {
+        if (standable(x, y)) { visit(x, y); return; }
+        y++;
+    }
+}
+
+static void visit(int x, int y)
+{
+    if (reach[y][x]) return;
+    reach[y][x] = 1;
+    for (int dir = -1; dir <= 1; dir += 2)
+    {
+        // Walk, or step off the ledge and drift.
+        for (int dx = 1; dx <= 5 && bodyFits(x + dir * dx, y); dx++) fall(x + dir * dx, y);
+        // Jump: the body passes one block under the landing height on its way across.
+        for (int dy = 1; dy <= 4 && bodyFits(x, y - dy + 1); dy++)
+            for (int dx = 0; dx <= (dy == 4 ? 3 : 5); dx++)
+            {
+                if (standable(x + dir * dx, y - dy)) visit(x + dir * dx, y - dy);
+                if (!bodyFits(x + dir * dx, y - dy + 1)) break;
+            }
+    }
+    // DOWN + C: through the plank underfoot.
+    if (blockAt(x, y + 1) == '-') fall(x, y + 1);
+}
+
+static void checkReach(int index)
+{
+    rt = &ROOM_TEMPLATES[index];
+    int x0[4], y0[4], x1[4], y1[4];
+    for (int d = 0; d < 4; d++) { x0[d] = y0[d] = 999; x1[d] = y1[d] = -1; }
+    for (int y = 0; y < rt->hBlocks; y++)
+        for (int x = 0; x < rt->wBlocks; x++)
+        {
+            const char *m = strchr("LRUD", rt->rows[y][x]);
+            if (!m) continue;
+            int d = (int) (m - "LRUD");
+            if (x < x0[d]) x0[d] = x;
+            if (y < y0[d]) y0[d] = y;
+            if (x > x1[d]) x1[d] = x;
+            if (y > y1[d]) y1[d] = y;
+        }
+    static const char *const NAME[4] = { "left", "right", "up", "down" };
+    for (int from = 0; from < 4; from++)
+    {
+        memset(reach, 0, sizeof(reach));
+        if (from == 0) fall(1, y1[0]);
+        else if (from == 1) fall(rt->wBlocks - 2, y1[1]);
+        else if (from == 2) fall(x0[2], 3);
+        else fall(x0[3], y0[3] - 1);
+        int ok[4] = { reach[y1[0]][1], reach[y1[1]][rt->wBlocks - 2], 0, reach[y0[3] - 1][x0[3]] };
+        // The ceiling door: a foothold right under it, close enough to jump out.
+        for (int y = 2; y <= 3; y++)
+            for (int x = x0[2] - 1; x <= x1[2] + 1; x++) ok[2] |= reach[y][x];
+        for (int to = 0; to < 4; to++)
+            CHECK(ok[to], "template %d: no way from the %s door to the %s door", index, NAME[from], NAME[to]);
+        if (from) continue;
+        int enemies = 0, props = 0;
+        for (int y = 0; y < rt->hBlocks; y++)
+            for (int x = 0; x < rt->wBlocks; x++)
+            {
+                char c = rt->rows[y][x];
+                if (c == 'o' || c == 'c')
+                {
+                    props++;
+                    // Close enough for a slash (under a low ceiling the hero cannot stand on the spot).
+                    CHECK(reach[y][x] || reach[y][x - 1] || reach[y][x + 1],
+                          "template %d: prop at (%d,%d) out of reach", index, x, y);
+                }
+                if (c && strchr("wfBangj", c)) enemies++;
+                if (c && strchr("wBangj", c)) CHECK(standable(x, y), "template %d: enemy at (%d,%d) in the air", index, x, y);
+            }
+        CHECK(enemies <= MAX_ENEMIES && props <= MAX_PROPS, "template %d: %d enemies, %d props", index, enemies, props);
+    }
+}
+
 int main(void)
 {
     // Template shapes: every row the right length, every door marker present.
@@ -34,6 +143,8 @@ int main(void)
             }
         }
         CHECK(doors[0] && doors[1] && doors[2] && doors[3], "template %d misses a door marker", i);
+        CHECK(t->wBlocks <= TW && t->hBlocks <= TH, "template %d larger than the test's grid", i);
+        checkReach(i);
     }
 
     // Walk through every door of many floors: the player must arrive inside the new room, free of

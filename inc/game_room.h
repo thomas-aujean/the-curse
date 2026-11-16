@@ -4,8 +4,10 @@
 #include "game_floor.h"   // integer types (SGDK or PC)
 
 // A room can be larger than the screen (40 x 28 tiles in H40): the camera scrolls inside it.
-#define ROOM_MAX_W 80
-#define ROOM_MAX_H 56
+// Up to 4 x 3 screens. One byte per tile (13 KB of the 64 KB of RAM): the collision code reads it
+// directly, several times per frame and per character.
+#define ROOM_MAX_W 160
+#define ROOM_MAX_H 84
 #define ROOM_TILE 8
 #define SCREEN_W_TILES 40
 #define SCREEN_H_TILES 28

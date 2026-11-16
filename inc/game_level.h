@@ -7,7 +7,7 @@
 #include "game_enemy.h"
 
 // A level = a generated floor whose cells are filled with hand-made room templates.
-// The floor map only knows which cell connects to which; each room can be 1 to 2 x 2 screens.
+// The floor map only knows which cell connects to which; each room can be 1 to 4 x 3 screens.
 
 typedef struct
 {
@@ -15,14 +15,14 @@ typedef struct
     const char *const *rows;
 } RoomTemplate;
 
-#define ROOM_TEMPLATE_COUNT 5
-#define ROOM_TEMPLATE_RANDOM 4   // the first ones fill ordinary rooms; the last is the boss arena
+#define ROOM_TEMPLATE_COUNT 9
+#define ROOM_TEMPLATE_RANDOM 8   // the first ones fill ordinary rooms; the last is the boss arena
 extern const RoomTemplate ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT];
 
 #define MAX_PICKUPS 10
 #define SHOP_HEART_PRICE 3
 #define SHOP_ITEM_PRICE 12
-#define MAX_PROPS 6
+#define MAX_PROPS 8        // one bit each in propsBroken
 
 enum { PICKUP_NONE, PICKUP_COIN, PICKUP_HEART, PICKUP_ITEM };
 
@@ -108,8 +108,8 @@ const RoomTemplate *level_templateFor(const Level *lv, u8 x, u8 y);
 // left through a door. Returns 1 when the room changed (the screen must be redrawn).
 u8 level_update(Level *lv, Player *p);
 
-#define CELL_W_PX 640     // each map cell owns a 2 x 2 screen slot of the castle
-#define CELL_H_PX 448
+#define CELL_W_PX 1280    // each map cell owns a 4 x 3 screen slot of the castle (the largest room)
+#define CELL_H_PX 672
 #ifndef VOID_SECONDS     // tools/replay.ps1 -Flags "-DVOID_SECONDS=20" to watch it quickly
 #define VOID_SECONDS 300  // from the first room to a circle closed on the boss
 #endif
