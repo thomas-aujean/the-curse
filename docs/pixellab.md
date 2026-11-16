@@ -24,6 +24,31 @@ Aperçu sans lancer le jeu : `wsl python3 tools/art/preview.py knight OUT.png 2 
 | Garde (vue plongeante) | `7dfee3ab-6d2a-40cc-8a43-50c3d55da636` |
 | Tileset château | `dfb2409a-ca35-4c54-87e1-cf55ece5258c` |
 
+## Refonte en vue de côté (2026-11-16, en cours — à reprendre)
+Les personnages en vue plongeante ont les pieds à des hauteurs différentes : tout est recréé en `view: side`.
+Rien n'est encore importé dans le jeu (`tools/art/knight.py` et `enemies.py` lisent toujours les anciens).
+
+| Quoi | Identifiant | État |
+|---|---|---|
+| Chevalier de côté, épée au fourreau (48×48) | `8e68e397-22bb-4c4f-8c52-3eba742dd967` | référence validée (cape gardée) ; animations `east` lancées : idle (`breathing-idle`), run, jump, flip (`front-flip`, squelette v3), crouch, hurt |
+| Chevalier de côté, épée en main (64×64) | `e417bd96-234e-442f-ab30-4d1a297a06ab` | animations `east` lancées : slash, up, down (en l'air, lame vers le bas), air, crouch_slash |
+| Soldat de côté | `1de605bc-2a9d-4b48-adbe-1445cbf23edd` | créé, pas vérifié, pas animé |
+| Archer de côté | `3cf21de7-f386-4ef4-a6f3-e41309f7344f` | créé, pas vérifié, pas animé |
+| Garde de côté | `a56d4251-bcf6-42c7-b67a-5c1421fbdbda` | créé, pas vérifié, pas animé |
+| Chauve-souris (objet 1 direction, 32×32) | `f40d4984-5658-4beb-b58a-1f64504aa476` | 64 candidats à trier (`get_object` puis `select_object_frames`) |
+
+Reste à faire :
+- regarder chaque animation du chevalier, relancer les mauvaises, télécharger, mettre à jour `FRAMES` ;
+- ennemis : marche (ou vol), attaque, touché, saut pour chacun (soldat, archer, garde, ninja rival, spectre,
+  gelée, chauve-souris), puis les brancher dans le moteur. Attention à la VRAM : aujourd'hui une seule image
+  par ennemi est chargée (24 tuiles par humain) ; des animations demandent soit un chargement par salle,
+  soit un flux d'images comme pour le héros ;
+- supprimer les anciens en vue plongeante une fois les nouveaux en jeu (chevalier `229a6c03…`/`5febe386…`,
+  garde `7dfee3ab…`, soldat et archers `a7cb6b5f…`, `863d0ab9…`, `659e2501…`) ;
+- objets (candélabres, coffres, table, chaise, caisses) : pas commencé.
+
+Limite du Tier 1 : 8 générations en même temps.
+
 ## Héros (`tools/art/knight.py`)
 - Source : `art_in/knight/<état>/<animation>/frame_NNN.png`, personnage tourné vers la droite.
   Deux états du même chevalier : `sheathed` (épée au fourreau) et `sword` (épée en main).
