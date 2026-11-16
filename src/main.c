@@ -515,9 +515,9 @@ static void drawSprites(void)
                           SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), SPRITE_TRAP);
 
     // Arrow over the trapdoor, dipping towards it.
-    s16 ax = trapX - camX - 4, ay = trapY - camY - 14 + ((vtimer >> 3) & 3);
+    s16 ax = trapX - camX - 8, ay = trapY - camY - 22 + ((vtimer >> 3) & 3);
     if (trapX < 0 || offScreen(ax, ay)) ay = -64;
-    VDP_setSpriteFull(SPRITE_TRAP, ax, ay, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_TRAP_ARROW),
+    VDP_setSpriteFull(SPRITE_TRAP, ax, ay, SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_TRAP_ARROW),
                       SPRITE_PROPS);
 
     for (u8 i = 0; i < MAX_PROPS; i++)

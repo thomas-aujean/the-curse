@@ -164,9 +164,24 @@ static const u32 COIN_TILE[8] =
 };
 
 // Down arrow over a trapdoor: gold with a dark outline.
-static const u32 TRAP_ARROW_TILE[8] =
+static const char *const TRAP_ARROW[16] =
 {
-    0x00111100, 0x00155100, 0x11155111, 0x15555551, 0x01566510, 0x00156100, 0x00011000, 0x00000000,
+    "................",
+    ".....111111.....",
+    ".....155561.....",
+    ".....155561.....",
+    ".....155561.....",
+    ".....155561.....",
+    ".....155561.....",
+    ".1111155561111..",
+    ".1555555555661..",
+    "..15555555661...",
+    "...155555661....",
+    "....1555661.....",
+    ".....15661......",
+    "......161.......",
+    ".......1........",
+    "................",
 };
 
 static const char *const JAR[16] =
@@ -330,7 +345,8 @@ void gfx_load(void)
     VDP_loadTileData(COIN_TILE, GFX_TILE_COIN, 1, CPU);
     artToTiles(JAR, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_JAR, 4, CPU);
-    VDP_loadTileData(TRAP_ARROW_TILE, GFX_TILE_TRAP_ARROW, 1, CPU);
+    artToTiles(TRAP_ARROW, plainPixel, 2, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_TRAP_ARROW, 4, CPU);
     // Enemies, coins, props and chests share PAL2. PAL3 holds the same slots swallowed by the Void:
     // an enemy in Void form is the same tiles shown with PAL3 (15 = map colour, set above).
     PAL_setColors(32, pal_props.data, 16, CPU);
