@@ -31,7 +31,8 @@ static char blockAt(int x, int y)
     return rt->rows[y][x];
 }
 
-static int solid(int x, int y) { return blockAt(x, y) == '#'; }
+// A ceiling door may be closed (no room above): it counts as wall for the body.
+static int solid(int x, int y) { char c = blockAt(x, y); return c == '#' || c == 'U'; }
 
 static int surface(int x, int y)   // something to stand on: stone, a plank, the plank over a floor hole
 {
