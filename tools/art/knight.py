@@ -20,36 +20,34 @@ PW, PH = 96, 96   # preview cell: the body cell with its surroundings
 # Default anchor: the animation's ground line goes on row FEET. "air": the image's own lowest pixel
 # does (the engine moves the hero during a jump, the drawing must not rise a second time).
 FRAMES = {
+    # Side view (view: side, 2026-11-16 evening): every animation comes from PixelLab, no borrowed pose.
     "rise": ("sheathed/jump", 3, "air"),
     "fall": ("sheathed/jump", 5, "air"),
-    "land": ("sheathed/jump", 7),
+    "land": ("sheathed/jump", 8),
     "slash0": ("sword/slash", 1),
     "slash1": ("sword/slash", 2),
-    "slash2": ("sword/slash", 2),
+    "slash2": ("sword/slash", 3),
     "slash3": ("sword/slash", 4),
     "slash4": ("sword/slash", 5),
-    "up0": ("sword/up", 0),
-    "up1": ("sword/up", 1),
-    "up2": ("sword/up", 2),
-    "air0": ("sword/jump", 3, "air"),
-    "air1": ("sword/down", 1, "air"),
-    "air2": ("sword/down", 2, "air"),
-    "air3": ("sword/jump", 5, "air"),
-    "down0": ("sword/jump", 4, "air"),
-    "down1": ("sword/down", 1, "air"),
-    "down2": ("sword/down", 2, "air"),
-    "crouch": ("sheathed/jump", 2),
-    "crouch_slash0": ("sword/jump", 2),
-    "crouch_slash1": ("sword/jump", 2),
+    "up0": ("sword/up", 1),
+    "up1": ("sword/up", 2),
+    "up2": ("sword/up", 3),
+    "air0": ("sword/air", 2, "air"),
+    "air1": ("sword/air", 3, "air"),
+    "air2": ("sword/air", 4, "air"),
+    "air3": ("sword/air", 5, "air"),
+    "down0": ("sword/down", 1, "air"),
+    "down1": ("sword/down", 2, "air"),
+    "down2": ("sword/down", 3, "air"),
+    "crouch": ("sheathed/crouch", 4),
+    "crouch_slash0": ("sword/crouch_slash", 3),
+    "crouch_slash1": ("sword/crouch_slash", 4),
     "hurt": ("sheathed/hurt", 2),
 }
-# At rest: the calm standing image, breathing made by sinking the upper body one pixel (PixelLab's
-# fight-stance idle looked like boxing, Thomas 2026-11-16).
-FRAMES.update({"idle%d" % i: ("sheathed/stand", 0, "legs breathe" if i in (1, 2) else "legs") for i in range(4)})
-BREATH_ROW = FEET - 17   # belt line: everything above it moves
+FRAMES.update({"idle%d" % i: ("sheathed/idle", i) for i in range(4)})
+BREATH_ROW = FEET - 17   # belt line: everything above it moves ("breathe" flag)
 FRAMES.update({"run%d" % i: ("sheathed/run", i) for i in range(8)})
-# No somersault yet (the PixelLab front-flip job failed): the tucked jump image holds the peak.
-FRAMES.update({"flip%d" % i: ("sheathed/jump", 4, "air") for i in range(4)})
+FRAMES.update({"flip%d" % i: ("sheathed/flip", i + 1, "air") for i in range(4)})
 TEXT_RED = (0xEE, 0x44, 0x44)
 
 _anims = {}
@@ -170,11 +168,8 @@ def build(ninja):
             if c not in cache:
                 cache[c] = nearest(pal, c)
             px[q] = cache[c]
-        pose = ninja.POSES[name]
-        offsets = [tuple(o) for o in pose.get("ext", [])]
-        if offsets:   # frames with a slash arc: ninja.py's smear layer, behind the knight
-            for q, c in ninja.render(pose)[1].items():
-                px.setdefault(q, arc_color[c])
+        # No more code-drawn slash arcs: the side-view PixelLab strikes show the blade themselves.
+        offsets = []
 
         def lost():
             return [q for q in px if not (0 <= q[0] < W and 0 <= q[1] < H)
