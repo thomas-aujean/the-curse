@@ -39,8 +39,8 @@ static void region(int pal)
     Player p;
     player_setRegion(pal);
 
-    // Standing still: stays grounded on the floor (top at y = 200), no flicker. x = 110 is clear above.
-    player_init(&p, 110, 200);
+    // Standing still: stays grounded on the floor (top at y = 200), no flicker. x = 196 is clear above.
+    player_init(&p, 196, 200);
     int flicker = 0;
     for (int i = 0; i < fps; i++) { player_update(&p, &room, 0); if (!p.onGround) flicker++; }
     CHECK(flicker == 0 && py(&p) == 200, "%s standing: flicker %d, y %d", name, flicker, py(&p));
@@ -50,7 +50,7 @@ static void region(int pal)
     player_update(&p, &room, PAD_JUMP);
     while (!p.onGround && air < 200) { player_update(&p, &room, PAD_JUMP); air++; if (py(&p) < minY) minY = py(&p); }
     printf("%s full jump: %d px, %.2f s\n", name, 200 - minY, (air + 1) / (double) fps);
-    CHECK(200 - minY >= 76 && 200 - minY <= 84, "%s jump height %d", name, 200 - minY);
+    CHECK(200 - minY >= 94 && 200 - minY <= 104, "%s jump height %d", name, 200 - minY);
 
     // Short hop when C is tapped.
     run(&p, 0, 5);
@@ -72,7 +72,8 @@ static void region(int pal)
     CHECK(px(&p) + PLAYER_W / 2 == 216, "%s step wall: right edge %d", name, px(&p) + PLAYER_W / 2);
 
     // Climb the step, then jump to the high ledge (top y = 112) from its left part.
-    run(&p, PAD_RIGHT | PAD_JUMP, 20);
+    run(&p, PAD_RIGHT | PAD_JUMP, 5);   // a short hop: a full jump now reaches the high ledge
+    run(&p, PAD_RIGHT, 20);
     run(&p, 0, fps);
     CHECK(py(&p) == 176 && p.onGround, "%s on step: y %d", name, py(&p));
     player_init(&p, 222, 176);
@@ -121,7 +122,7 @@ static void upgrades(void)
     player_setRegion(0);
 
     // Raven wings: a second jump in the air, once.
-    player_init(&p, 110, 200);
+    player_init(&p, 196, 200);
     player_takeItem(&p, ITEM_RAVEN_WINGS);
     run(&p, 0, 2);
     run(&p, PAD_JUMP, 30);         // full first jump, now falling
@@ -146,7 +147,7 @@ static void upgrades(void)
     player_init(&p, 60, 200);
     player_takeItem(&p, ITEM_LEAD_BOOTS);
     run(&p, PAD_RIGHT, 30);
-    CHECK(p.vx < 704, "lead boots: vx %d", p.vx);
+    CHECK(p.vx < 880, "lead boots: vx %d", p.vx);
 
     // Hearts: stone adds one, glass removes one but hits harder; health never exceeds the max.
     player_init(&p, 60, 200);
