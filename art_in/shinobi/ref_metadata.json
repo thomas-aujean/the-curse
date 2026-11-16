@@ -1,0 +1,36 @@
+{
+  "group_id": "43c60627-94c0-4a9f-8c70-3c4937728d19",
+  "states": [
+    {
+      "character": {
+        "id": "fa8108d4-a058-4722-b34d-c7701c5e923a",
+        "name": "Idle",
+        "prompt": "A lean ninja warrior, dark realistic 16-bit Sega Genesis pixel art style. Dark navy blue fitted suit with subtle\n  \u258e folds, red headband with two long tails flowing behind, dark cloth mask covering the lower face, only the eyes\n  \u258e visible, katana in a dark scabbard strapped diagonally across his back with the grip sticking out above his right\n  \u258e shoulder, light bronze armour plates on forearms and shins, red belt, wrapped dark boots. Warm dusk lighting from\n  \u258e lower left, crisp 1-pixel dark outline, limited palette of about 15 colours, no anti-aliasing.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-16T09:40:16.952844+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {}
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-16T09:45:31.212727"
+}

@@ -148,6 +148,9 @@ Inspiré des cœurs gris et des salles ange/diable d'Isaac, mais propre au jeu (
   pouvoirs de boss ; on garde une partie de l'or pour des améliorations permanentes.
 - **Déblocages au fil des parties, à la Isaac** : de nouveaux objets, personnages, salles et modes
   s'ajoutent quand on réussit des défis.
+- **Personnages (Thomas, 2026-11-16)** : on commence avec un **guerrier**. Le **shinobi** (le ninja actuel,
+  référence PixelLab dans `art_in/shinobi/ref.png`) est un personnage à débloquer. Même moteur et mêmes
+  animations pour tous ; chacun a son style de coup et ses statistiques.
 - **Tableau des récompenses** : un écran montre ce qui a été gagné, avec des marques par personnage
   (fini en normal, fini en difficile, boss rush, forme Maudit, aucune vie perdue, etc.), comme les notes de
   fin d'Isaac. Chaque marque débloque quelque chose.
