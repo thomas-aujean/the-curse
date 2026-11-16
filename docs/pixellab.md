@@ -112,7 +112,9 @@ Les animations d'action PixelLab (squelette) sont moches et changent la taille :
 clés, une par state, sur la toile de 48 x 48 du personnage. Lames coupées par la toile : prolongées
 dans `tools/art/knight.py` (`BLADES`).
 
-Chevalier (`art_in/knight/poses/`) : windup 3e842b31, strike e6b7264c, up cb4a2521, down 0e74bd52,
+Chevalier (`art_in/knight/poses/`) : windup 3e842b31, strike e6b7264c (remplacés en jeu par `windup_wide`
+39809e8c et `strike_wide` 8b57c446 : mêmes poses refaites sur une toile de 80 x 80 avec `override_width` /
+`override_height`, le personnage garde sa taille et la cape et l épée ne sont plus coupées par le bord), up cb4a2521, down 0e74bd52,
 down2 50c15218 (coup vers le bas refait : genoux pliés, deux mains sur la garde, lame prolongée sous les pieds),
 rise 223250ef, tuck e11895e6, fall 1015321f, land 3ee48d23, crouch faab12ec, crouch_strike 6d08e946.
 

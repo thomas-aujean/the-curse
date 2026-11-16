@@ -25,17 +25,17 @@ FRAMES = {
     "rise": ("poses/rise", 0, "air legs"),
     "fall": ("poses/fall", 0, "air legs"),
     "land": ("poses/land", 0, "legs"),
-    "slash0": ("poses/windup", 0, "legs"),
-    "slash1": ("poses/strike", 0, "legs"),
-    "slash2": ("poses/strike", 0, "legs"),
-    "slash3": ("poses/strike", 0, "legs"),
-    "slash4": ("poses/windup", 0, "legs"),
-    "up0": ("poses/windup", 0, "legs"),
+    "slash0": ("poses/windup_wide", 0, "feet"),
+    "slash1": ("poses/strike_wide", 0, "legs"),
+    "slash2": ("poses/strike_wide", 0, "legs"),
+    "slash3": ("poses/strike_wide", 0, "legs"),
+    "slash4": ("poses/windup_wide", 0, "feet"),
+    "up0": ("poses/windup_wide", 0, "feet"),
     "up1": ("poses/up", 0, "legs"),
     "up2": ("poses/up", 0, "legs"),
-    "air0": ("poses/windup", 0, "air legs"),
-    "air1": ("poses/strike", 0, "air legs"),
-    "air2": ("poses/strike", 0, "air legs"),
+    "air0": ("poses/windup_wide", 0, "air feet"),
+    "air1": ("poses/strike_wide", 0, "air legs"),
+    "air2": ("poses/strike_wide", 0, "air legs"),
     "air3": ("poses/tuck", 0, "air legs"),
     "down0": ("poses/tuck", 0, "air legs"),
     "down1": ("poses/down2", 0, "air"),
@@ -59,7 +59,6 @@ FRAMES.update({"flip%d" % i: ("poses/tuck", 0, "air legs") for i in range(4)})
 #   ("up", x0, y, length): a vertical blade above row y, columns x0..x0+3 (outline, light, mid, outline).
 #   ("down", x0, y, length): the same below row y (outline, mid, light, outline, as the plunging pose is lit).
 BLADES = {
-    "poses/strike": ("right", 48, 16, 18),   # the canvas edge shows the gold grip: steel starts here
     "poses/crouch_strike": ("copy", 47, 29, 32, 1, 0.34, 10),
     "poses/up": ("up", 26, 0, 18),
     "poses/down2": ("down", 31, 47, 8),
@@ -132,8 +131,11 @@ def _pixels(name):
     flags = spec[2] if len(spec) > 2 else ""
     if "air" in flags:
         ground = max(y for y, r in enumerate(fr) if any(p[3] > 127 for p in r))
-    if "legs" in flags:   # a rotation image is not centred on its canvas: centre it on the legs
-        xs = [x for r in fr[ground - 12:ground + 1] for x, p in enumerate(r) if p[3] > 127]
+    if "legs" in flags or "feet" in flags:
+        # A rotation image is not centred on its canvas: centre it on the legs ("feet": on the boots
+        # alone, when a cape hangs as low as the knees).
+        rows = 12 if "legs" in flags else 6
+        xs = [x for r in fr[ground - rows:ground + 1] for x, p in enumerate(r) if p[3] > 127]
         cx = (min(xs) + max(xs) + 1) // 2
     src = {(x, y): p[:3] for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
     src.update(_blade(spec[0], fr))
@@ -228,6 +230,21 @@ def _auto_cell(lost):
     return where
 
 
+def _auto_pair(lost):
+    """The two extension cells that together cover the most lost pixels."""
+    spots = [(ex, ey) for ex in range(-48, W + 17, 8) for ey in range(-40, H, 8)]
+    covers = [frozenset(q for q in lost if ex <= q[0] < ex + EXT and ey <= q[1] < ey + EXT) for ex, ey in spots]
+    spots = [s for s, c in zip(spots, covers) if c]
+    covers = [c for c in covers if c]
+    best, pair = -1, [spots[0], spots[0]]
+    for i in range(len(spots)):
+        for j in range(i, len(spots)):
+            n = len(covers[i] | covers[j])
+            if n > best:
+                best, pair = n, [spots[i], spots[j]]
+    return pair
+
+
 def build(ninja):
     """Every engine frame as indexed pixels: {name: (body cell, [extension cells], [their offsets],
     lost pixel count, {(x, y): index})}, plus the palette."""
@@ -248,9 +265,12 @@ def build(ninja):
             return [q for q in px if not (0 <= q[0] < W and 0 <= q[1] < H)
                     and not any(ex <= q[0] < ex + EXT and ey <= q[1] < ey + EXT for ex, ey in offsets)]
 
-        # The engine draws at most two extension sprites per frame.
-        while len(offsets) < 2 and len(lost()) > 2:
+        # The engine draws at most two extension sprites per frame. One cell where it covers the most;
+        # if that is not enough, the best pair of cells (one after the other can leave two remnants).
+        if len(lost()) > 2:
             offsets.append(_auto_cell(lost()))
+            if len(lost()) > 2:
+                offsets[:] = _auto_pair([q for q in px if not (0 <= q[0] < W and 0 <= q[1] < H)])
         body = [[px.get((x, y), 0) for x in range(W)] for y in range(H)]
         cells = [[[px.get((ex + x, ey + y), 0) for x in range(EXT)] for y in range(EXT)] for ex, ey in offsets]
         out[name] = (body, cells, offsets, len(lost()), px)
