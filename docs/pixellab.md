@@ -81,3 +81,22 @@ Limite du Tier 1 : 8 générations en même temps.
   pas d'anticrénelage, lumière du couchant venant de gauche-bas.
 - Animations en direction `east` seulement.
 - Ne jamais demander « comme Shinobi » ou « comme Muramasa » : on décrit, on ne copie pas.
+
+## Poses clés (2026-11-16 soir)
+Les animations d'action PixelLab (squelette) sont moches et changent la taille : on fait des poses
+clés, une par state, sur la toile de 48 x 48 du personnage. Lames coupées par la toile : prolongées
+dans `tools/art/knight.py` (`BLADES`).
+
+Chevalier (`art_in/knight/poses/`) : windup 3e842b31, strike e6b7264c, up cb4a2521, down 0e74bd52,
+rise 223250ef, tuck e11895e6, fall 1015321f, land 3ee48d23, crouch faab12ec, crouch_strike 6d08e946.
+
+Ennemis (états de profil, même méthode) :
+- soldat 1de605bc : walk A 8150c291, walk B 140eef1f, windup 6634db2d, strike c8604fef
+- archer 3cf21de7 : walk A ec82f5f3, walk B 186673a5, aim d87c7854, release e988ebc2
+- garde a56d4251 : walk A bbd1f395, walk B 1828e1b8, brace 6c81a9b8, thrust bb2552c9
+- ninja rival 7b728d8a : run A 6ca70115, run B 57d6b441, throw windup f38a1de3, throw 3cdcdf17
+- spectre 0e6df884 : float A d043e820, float B f2c379a5, lunge ed11326a
+- gelée 5555eafc : squash e1b1df96, stretch a814944c
+
+Téléchargement d'une pose : `https://backblaze.pixellab.ai/file/pixellab-characters/1f4ad84c-b4e4-40e6-9923-41b6cf028790/<id complet>/rotations/east.png`
+(l'id complet est donné par `get_character`).
