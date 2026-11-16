@@ -59,19 +59,25 @@ def _median_cut(counts, n):
 
 
 def _crop(frames, keep, cx, bottom):
+    """Per frame: (32 x 48 body cell, [(32 x 32 extension cell, x, y)]). Pixels left of the body cell
+    (the scarf trailing behind) go into one extension cell placed against its left edge."""
     out = []
     for i in keep:
         fr = frames[i]
-        cell = [[None] * W for _ in range(H)]
-        for y in range(H):
-            sy = y + bottom - FEET
-            if not 0 <= sy < len(fr):
-                continue
-            for x in range(W):
-                sx = x + cx - W // 2
-                if 0 <= sx < len(fr[0]) and fr[sy][sx][3] > 127:
-                    cell[y][x] = fr[sy][sx][:3]
-        out.append(cell)
+
+        def px(x, y):   # pixel at body-cell coordinates, None if empty
+            sy, sx = y + bottom - FEET, x + cx - W // 2
+            if 0 <= sy < len(fr) and 0 <= sx < len(fr[0]) and fr[sy][sx][3] > 127:
+                return fr[sy][sx][:3]
+            return None
+
+        cell = [[px(x, y) for x in range(W)] for y in range(H)]
+        left = [(x, y) for y in range(H) for x in range(-32, 0) if px(x, y)]
+        exts = []
+        if left:
+            top = max(0, min(min(y for _, y in left), H - 32))
+            exts.append(([[px(x - 32, y + top) for x in range(32)] for y in range(32)], -32, top))
+        out.append((cell, exts))
     return out
 
 
@@ -95,11 +101,12 @@ def load():
 
 def palette(cells):
     counts = {}
-    for cell in cells.values():
-        for row in cell:
-            for c in row:
-                if c:
-                    counts[c] = counts.get(c, 0) + 1
+    for body, exts in cells.values():
+        for cell in [body] + [e[0] for e in exts]:
+            for row in cell:
+                for c in row:
+                    if c:
+                        counts[c] = counts.get(c, 0) + 1
     pal = _median_cut(counts, 13)
     pal.sort(key=lambda c: sum(c))
     darkest = pal.pop(0)
@@ -121,19 +128,29 @@ def nearest(pal, c):
     return min(range(1, 16), key=lambda i: _dist(pal[i], c))
 
 
-def apply(sheet, ext, old_pal, order):
-    """Replaces the knight's frames in the generated sheet, recolours everything to his palette."""
+def apply(ninja):
+    """Builds the hero sheets from the generated ninja (ninja.py) with the knight's frames swapped in.
+    Returns (body sheet, extension sheet, palette, {frame: [(x, y)] extension offsets}, knight frames)."""
     cells = load()
     pal = palette(cells)
-    remap = [0] + [nearest(pal, old_pal[i]) for i in range(1, 16)]
-    sheet = [[remap[v] for v in row] for row in sheet]
-    ext = [[remap[v] for v in row] for row in ext]
-    for name, cell in cells.items():
-        if name not in order:
-            continue
-        ox = order.index(name) * W
-        for y in range(H):
-            for x in range(W):
-                c = cell[y][x]
-                sheet[y][ox + x] = nearest(pal, c) if c else 0
-    return sheet, ext, pal, sorted(cells)
+    remap = [0] + [nearest(pal, ninja.PAL1[i]) for i in range(1, 16)]
+
+    def index(cell):
+        return [[nearest(pal, c) if c else 0 for c in row] for row in cell]
+
+    bodies, ext_cells, offsets = [], [], {}
+    for name in ninja.ORDER:
+        if name in cells:
+            body, exts = cells[name]
+            bodies.append(index(body))
+            ext_cells += [index(e[0]) for e in exts]
+            offsets[name] = [(e[1], e[2]) for e in exts]
+        else:
+            body, exts = ninja.frame(name)[:2]
+            bodies.append([[remap[v] for v in row] for row in body])
+            ext_cells += [[[remap[v] for v in row] for row in e] for e in exts]
+            offsets[name] = [tuple(o[:2]) for o in ninja.POSES[name].get("ext", [])]
+    if not ext_cells:
+        ext_cells = [[[0] * 32 for _ in range(32)]]
+    return (ninja.side_by_side(bodies, W), ninja.side_by_side(ext_cells, 32), pal, offsets,
+            sorted(n for n in cells if n in ninja.ORDER))

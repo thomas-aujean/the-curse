@@ -246,14 +246,14 @@ def main():
     tiles, count = castle_tileset()
     write_indexed(os.path.join(RES, "castle.png"), tiles, PAL0)
     write_indexed(os.path.join(RES, "far.png"), far_background(), PAL0)
-    hero, hero_fx, hero_pal = ninja.sheet(), ninja.ext_sheet(), ninja.PAL1
+    hero, hero_fx, hero_pal, offsets = ninja.sheet(), ninja.ext_sheet(), ninja.PAL1, None
     if knight.available():   # PixelLab knight frames replace the generated ones (tools/art/knight.py)
-        hero, hero_fx, hero_pal, done = knight.apply(hero, hero_fx, ninja.PAL1, ninja.ORDER)
+        hero, hero_fx, hero_pal, offsets, done = knight.apply(ninja)
         print("knight frames: %s" % " ".join(done))
     write_indexed(os.path.join(RES, "ninja.png"), hero, hero_pal)
     write_indexed(os.path.join(RES, "ninja_fx.png"), hero_fx, hero_pal)
     with open(os.path.join(ROOT, "inc", "ninja_frames.h"), "w", newline=chr(10)) as f:
-        f.write(ninja.header())
+        f.write(ninja.header(offsets))
     for name, lost in ninja.lost_pixels().items():
         print("warning: %s has %d pixels outside its cells" % (name, lost))
     write_indexed(os.path.join(RES, "props.png"), props.sheet(), props.PAL2)
