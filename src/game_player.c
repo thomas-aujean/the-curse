@@ -291,6 +291,17 @@ void player_update(Player *p, const Room *r, u16 pad)
     if (p->jumpBuffer && (pad & PAD_DOWN) && p->onGround)
     {
         s16 px = p->x >> 8, py = p->y >> 8;
+        // Standing half on the plank, half on the stone beside it (a trapdoor is only 32 px wide):
+        // slide onto the plank instead of refusing the drop.
+        if (room_tileAt(r, px, py) == TILE_PLATFORM)
+            for (s16 shift = 1; shift <= PLAYER_W / 2 && rowBlocks(r, px - PLAYER_W / 2, px + PLAYER_W / 2 - 1, py, 0); shift++)
+            {
+                if (!rowBlocks(r, px - shift - PLAYER_W / 2, px - shift + PLAYER_W / 2 - 1, py, 0)) px -= shift;
+                else if (!rowBlocks(r, px + shift - PLAYER_W / 2, px + shift + PLAYER_W / 2 - 1, py, 0)) px += shift;
+                else continue;
+                p->x = (s32) px << 8;
+                p->vx = 0;
+            }
         if (!rowBlocks(r, px - PLAYER_W / 2, px + PLAYER_W / 2 - 1, py, 0))
         {
             p->dropTimer = t.dropFrames;

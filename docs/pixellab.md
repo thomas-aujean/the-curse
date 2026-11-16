@@ -61,7 +61,6 @@ Limite du Tier 1 : 8 générations en même temps.
 À refaire dans PixelLab :
 - **salto** (`front-flip`, squelette v3, état `sheathed`) : la génération a échoué, la pose groupée du saut
   le remplace ;
-- **coup vers le bas** : l'épée pointe vers l'avant au lieu du bas ;
 - **coup en l'air** : pas d'animation propre, images empruntées au saut ;
 - **accroupi** : PixelLab remplit sa toile quelle que soit la pose, donc sa pose à genoux était aussi
   haute que le chevalier debout. On prend l'image 4 de l'animation `sheathed/crouch` (bonne taille), et le
@@ -114,6 +113,7 @@ clés, une par state, sur la toile de 48 x 48 du personnage. Lames coupées par 
 dans `tools/art/knight.py` (`BLADES`).
 
 Chevalier (`art_in/knight/poses/`) : windup 3e842b31, strike e6b7264c, up cb4a2521, down 0e74bd52,
+down2 50c15218 (coup vers le bas refait : genoux pliés, deux mains sur la garde, lame prolongée sous les pieds),
 rise 223250ef, tuck e11895e6, fall 1015321f, land 3ee48d23, crouch faab12ec, crouch_strike 6d08e946.
 
 Ennemis (états de profil, même méthode) :

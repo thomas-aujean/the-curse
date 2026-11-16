@@ -38,8 +38,8 @@ FRAMES = {
     "air2": ("poses/strike", 0, "air legs"),
     "air3": ("poses/tuck", 0, "air legs"),
     "down0": ("poses/tuck", 0, "air legs"),
-    "down1": ("poses/down", 0, "air legs"),
-    "down2": ("poses/down", 0, "air legs"),
+    "down1": ("poses/down2", 0, "air"),
+    "down2": ("poses/down2", 0, "air"),
     # PixelLab fills its canvas whatever the pose: its kneeling knight is as tall as the standing one.
     # The crouch comes from the crouch animation (drawn at the right size, head lowered); the low
     # strike is brought back to that height ("low": scaled around the feet).
@@ -57,10 +57,12 @@ FRAMES.update({"flip%d" % i: ("poses/tuck", 0, "air legs") for i in range(4)})
 # Blades cut by the 48 px canvas, continued here (source image coordinates).
 #   ("copy", x, y0, y1, dx, dy, length): repeat column x (rows y0..y1) along (dx, dy), tapering at the tip.
 #   ("up", x0, y, length): a vertical blade above row y, columns x0..x0+3 (outline, light, mid, outline).
+#   ("down", x0, y, length): the same below row y (outline, mid, light, outline, as the plunging pose is lit).
 BLADES = {
     "poses/strike": ("right", 48, 16, 18),   # the canvas edge shows the gold grip: steel starts here
     "poses/crouch_strike": ("copy", 47, 29, 32, 1, 0.34, 10),
     "poses/up": ("up", 26, 0, 18),
+    "poses/down2": ("down", 31, 47, 8),
 }
 STEEL = [(0x05, 0x05, 0x0A), (0xC9, 0xDC, 0xE1), (0x80, 0x94, 0xA4), (0x05, 0x05, 0x0A)]
 
@@ -86,6 +88,14 @@ def _blade(path, fr):
             for i, c in enumerate(STEEL):
                 if trim <= i < len(STEEL) - trim:
                     out[(x + k, y0 + i)] = c
+    elif spec[0] == "down":
+        _, x0, y, length = spec
+        steel = [STEEL[0], STEEL[2], STEEL[1], STEEL[3]]
+        for k in range(1, length + 1):
+            trim = max(0, k - (length - 2))
+            for i, c in enumerate(steel):
+                if trim <= i < len(steel) - trim:
+                    out[(x0 + i, y + k)] = c
     else:
         _, x0, y, length = spec
         for k in range(1, length + 1):

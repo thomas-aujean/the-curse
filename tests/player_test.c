@@ -100,6 +100,19 @@ static void region(int pal)
     run(&p, 0, fps);
     CHECK(py(&p) == 200 && p.onGround, "%s drop through: y %d", name, py(&p));
 
+    // Half on the plank, half past its end (the hole under it is only as wide as the plank when it
+    // is a trapdoor in a stone floor): DOWN + C still drops when the body can slide onto the plank.
+    player_init(&p, 64, 200);
+    run(&p, 0, 2);
+    run(&p, PAD_JUMP, fps * 2);
+    room_fill(&room, 12, 20, 12, 20, TILE_SOLID);   // stone right after the plank (x 96..103)
+    p.x = 93 << 8;
+    run(&p, 0, 2);
+    run(&p, PAD_DOWN | PAD_JUMP, 2);
+    run(&p, 0, fps);
+    CHECK(py(&p) == 200 && p.onGround, "%s drop from the edge of a trapdoor: y %d", name, py(&p));
+    room_fill(&room, 12, 20, 12, 20, TILE_EMPTY);
+
     // Crouch under the low ceiling is allowed, standing up there is not.
     player_init(&p, 100, 200);
     run(&p, 0, 2);
