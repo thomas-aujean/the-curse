@@ -410,17 +410,9 @@ void gfx_load(void)
         VDP_loadTileData(tile, GFX_TILE_CRACKED_VOID, 1, CPU);
         VDP_loadTileData(HUD_TILES[0], GFX_TILE_HEART, 7, CPU);
     }
-    // Castle tiles, then the same tiles with colours 1..9 moved to PAL3 5..13 (the Void's).
+    // Castle tiles. No Void copy: the Void darkens them with the VDP's shadow mode.
     PAL_setColors(0, pal_castle.data, 16, CPU);
     VDP_loadTileSet(&ts_castle, GFX_CASTLE, CPU);
-    {
-        u32 tile[8];
-        for (u16 i = 0; i < ts_castle.numTile; i++)
-        {
-            remapTile(ts_castle.tiles + i * 8, tile);
-            VDP_loadTileData(tile, GFX_CASTLE_VOID + i, 1, CPU);
-        }
-    }
     VDP_loadTileSet(img_far.tileset, GFX_FAR, CPU);
     PAL_setColors(16, pal_ninja.data, 16, CPU);
     VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);

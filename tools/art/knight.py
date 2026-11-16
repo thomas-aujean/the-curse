@@ -78,11 +78,11 @@ def _pixels(name):
             for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
 
 
-def _dist(a, b):
+def dist(a, b):
     return (a[0] - b[0]) ** 2 * 3 + (a[1] - b[1]) ** 2 * 4 + (a[2] - b[2]) ** 2 * 2
 
 
-def _median_cut(counts, n):
+def median_cut(counts, n):
     boxes = [list(counts.items())]
     while len(boxes) < n:
         best, axis, spread = None, 0, -1
@@ -116,7 +116,7 @@ def palette(frames):
     for px in frames.values():
         for c in px.values():
             counts[c] = counts.get(c, 0) + 1
-    pal = _median_cut(counts, 13)
+    pal = median_cut(counts, 13)
     pal.sort(key=lambda c: sum(c))
     darkest = pal.pop(0)
     red = max(pal, key=lambda c: c[0] - (c[1] + c[2]) / 2)
@@ -134,7 +134,7 @@ def palette(frames):
 
 
 def nearest(pal, c):
-    return min(range(1, 15), key=lambda i: _dist(pal[i], c))
+    return min(range(1, 15), key=lambda i: dist(pal[i], c))
 
 
 def _auto_cell(lost):

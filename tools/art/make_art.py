@@ -14,6 +14,7 @@ from png import write_indexed  # noqa: E402
 import ninja  # noqa: E402
 import knight  # noqa: E402
 import props  # noqa: E402
+import castle  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 RES = os.path.join(ROOT, "res")
@@ -46,116 +47,6 @@ def h(*v):
         x = ((x ^ (n & 0xFFFFFFFF)) * 16777619) & 0xFFFFFFFF
     x ^= x >> 13
     return x & 0xFF
-
-
-# ---------------------------------------------------------------- castle tiles
-
-def brick_pixel(gx, gy):
-    """Bricks 16 x 8 px, every other row shifted by 8: lit top, dark bottom, mortar lines."""
-    row = gy // 8
-    sx = gx + (row % 2) * 8
-    bx, x, y = sx // 16, sx % 16, gy % 8
-    brick = h(bx, row)
-    if y == 7 or x == 0:
-        return 1 if (x + y) % 3 else 2          # mortar, a little broken
-    if y == 0:
-        return 5 if brick % 3 else 4             # lit upper edge
-    if y == 6:
-        return 2                                 # shadow under the brick
-    tone = 4 if brick % 4 else 3
-    speck = h(gx, gy, 7)
-    if speck < 18:
-        return 3 if tone == 4 else 2             # pits and chips
-    if speck > 245:
-        return 5
-    return tone
-
-
-def stone_tile(parity, mask):
-    """mask bits: 1 top open, 2 bottom open, 4 left open, 8 right open (edges facing air)."""
-    px = []
-    for y in range(8):
-        row = []
-        for x in range(8):
-            gx, gy = parity * 8 + x, y
-            c = brick_pixel(gx, gy)
-            if mask & 1:                          # sunlit top edge, with moss tufts
-                if y == 0:
-                    c = 9 if h(gx, 11, parity) < 70 else 6
-                elif y == 1:
-                    c = 9 if h(gx, 12, parity) < 40 else 5
-            if mask & 2:                          # underside in shadow
-                if y == 7:
-                    c = 1
-                elif y == 6:
-                    c = 2
-            if mask & 4:                          # left face catches the low sun
-                if x == 0:
-                    c = 1 if (mask & 2 and y == 7) else 5
-            if mask & 8:                          # right face in shade
-                if x == 7:
-                    c = 1
-                elif x == 6 and c > 2:
-                    c = 2
-            row.append(c)
-        px.append(row)
-    return px
-
-
-def cracked_tile(parity):
-    t = stone_tile(parity, 0)
-    # A thin dark crack running down the brick: "slightly different", learnable.
-    for y, x in enumerate([3, 3, 4, 4, 3, 4, 5, 5]):
-        t[y][x] = 1
-    t[2][5] = 2
-    t[5][2] = 2
-    return t
-
-
-def plank_tile(left_end, right_end):
-    rows = []
-    for y in range(8):
-        row = []
-        for x in range(8):
-            if y == 0:
-                c = 6 if 0 < x < 7 or not (left_end or right_end) else 8
-            elif y in (1, 2, 3):
-                c = 8 if (x + y * 3) % 7 else 7      # grain
-            elif y == 4:
-                c = 7
-            elif y == 5:
-                c = 1
-            else:
-                c = 0
-            if (left_end and x == 0) or (right_end and x == 7):
-                c = 1 if y <= 5 else 0
-            # Iron bracket under the plank ends.
-            if y >= 5 and y <= 7 and ((left_end and x in (1, 2)) or (right_end and x in (5, 6))):
-                c = 1 if y < 7 else 0
-            row.append(c)
-        rows.append(row)
-    return rows
-
-
-def castle_tileset():
-    """Tile order is the engine's contract (gfx.h): 0 empty, 1..32 stone [parity*16 + mask],
-    33..34 cracked [parity], 35 plank alone, 36 left end, 37 middle, 38 right end."""
-    tiles = [[[0] * 8 for _ in range(8)]]
-    for parity in (0, 1):
-        for mask in range(16):
-            tiles.append(stone_tile(parity, mask))
-    tiles += [cracked_tile(0), cracked_tile(1)]
-    tiles += [plank_tile(True, True), plank_tile(True, False), plank_tile(False, False), plank_tile(False, True)]
-    while len(tiles) % 16:
-        tiles.append([[0] * 8 for _ in range(8)])
-    width = 16
-    img = [[0] * (width * 8) for _ in range(len(tiles) // width * 8)]
-    for i, t in enumerate(tiles):
-        ox, oy = (i % width) * 8, (i // width) * 8
-        for y in range(8):
-            for x in range(8):
-                img[oy + y][ox + x] = t[y][x]
-    return img, 39
 
 
 # ---------------------------------------------------------------- dusk sky (plane B)
@@ -243,9 +134,11 @@ def far_background():
 
 def main():
     os.makedirs(RES, exist_ok=True)
-    tiles, count = castle_tileset()
-    write_indexed(os.path.join(RES, "castle.png"), tiles, PAL0)
-    write_indexed(os.path.join(RES, "far.png"), far_background(), PAL0)
+    # Room tiles come from PixelLab (tools/art/castle.py) and bring their own colours for slots 1..9.
+    tiles, count, stone = castle.tileset(PAL0)
+    pal0 = PAL0[:1] + stone + PAL0[10:]
+    write_indexed(os.path.join(RES, "castle.png"), tiles, pal0)
+    write_indexed(os.path.join(RES, "far.png"), far_background(), pal0)
     if knight.available():   # the PixelLab knight replaces the generated ninja (tools/art/knight.py)
         hero, hero_fx, hero_pal, offsets, lost = knight.apply(ninja)
     else:

@@ -47,14 +47,13 @@
 
 #define GFX_FEET_ROW 29   // last pixel row of the feet in the 32-row ninja art
 
-// Zone-1 castle tiles (res/castle.png): stone autotiles [parity * 16 + open-edges mask], cracked
-// walls, plank pieces. The Void copy uses the same layout in PAL3.
-#define GFX_CASTLE         (TILE_USER_INDEX + 140)
-#define GFX_CASTLE_VOID    (TILE_USER_INDEX + 180)
+// Zone-1 castle tiles (res/castle.png, tools/art/castle.py): every map tile is a quarter of a 16 x 16
+// block, drawn from the solid neighbours around the nearest block corner. Then cracked walls and planks.
+#define GFX_CASTLE         (TILE_USER_INDEX + 140)   // 73 tiles
 #define GFX_FAR            (TILE_USER_INDEX + 230)   // dusk sky on plane B (parallax, low priority)
-#define CASTLE_STONE       1     // + parity * 16 + mask (1 top, 2 bottom, 4 left, 8 right open)
-#define CASTLE_CRACKED     33    // + parity
-#define CASTLE_PLANK       35    // alone; 36 left end, 37 middle, 38 right end
+#define CASTLE_STONE       1     // + quarter * 16 + bits (1 horizontal neighbour solid, 2 vertical, 4 diagonal, 8 self)
+#define CASTLE_CRACKED     65    // + quarter
+#define CASTLE_PLANK       69    // alone; 70 left end, 71 middle, 72 right end
 
 // Hero frames (res/ninja.png, tools/art/ninja.py): 32 x 48 (4 x 6 tiles), body centred on x 16, soles on
 // row GFX_HERO_FEET. Too many frames for VRAM: only the current one is streamed (DMA) to GFX_NINJA, its
