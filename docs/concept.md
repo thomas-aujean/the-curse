@@ -104,6 +104,27 @@ Piste de réponse à « que faire si jeu fini rapidement ». Principe : on peut 
   rares, avec leurs propres règles d'apparition.
 - Graine (seed) affichable et saisissable, ce qui permet aussi de partager une partie ou de cacher des codes.
 
+## Grandes salles et retour en arrière (Thomas, 2026-11-16)
+Demande : de grandes salles type Metroid, et pouvoir revenir dans une zone déjà finie pour récupérer un
+artefact qui était inaccessible avant.
+
+Proposition (à valider) :
+- **Grandes salles** : jusqu'à 4×3 écrans (aujourd'hui 2×2 au maximum), avec de longs couloirs, des puits
+  verticaux et des halls à plusieurs étages. C'est nécessaire de toute façon avec le héros en 32×48, qui
+  rend les salles actuelles exiguës. Côté technique, on stocke la salle en blocs de 16×16 (1 octet par bloc) :
+  une salle de 4×3 écrans tient en environ 5 Ko de RAM.
+- **Retour en arrière cohérent avec le Néant** : quand le boss tombe, la zone redevient normale. On peut donc
+  y retourner sans le chrono ; c'est la récompense du nettoyage.
+- **Ce qui débloque l'accès** : les pouvoirs des boss (façon Mega Man / Metroid). Exemples : double saut,
+  accroche aux murs, glissade sous les passages bas, ruée qui brise certains blocs. Chaque zone contient
+  1 ou 2 artefacts visibles mais hors d'atteinte, prévus pour un pouvoir obtenu plus tard.
+- **Passage entre zones** : la salle de départ d'une zone a une porte vers la salle du boss de la zone
+  précédente. La minicarte marque les artefacts repérés et non pris.
+- **Mémoire** : une zone déjà faite est régénérée à l'identique à partir de sa graine, plus quelques bits
+  d'état (salles visitées, objets pris, murs cassés). Rien de lourd à garder.
+- **Équilibre** : le Néant de la zone en cours continue d'avancer pendant qu'on revient en arrière. Le
+  détour est donc un pari, ce qui garde la tension.
+
 ## À décider
 - Histoire, sauvegarde (SRAM/FRAM ou mots de passe), périmètre v1 (classes, coop 2 ou 4), graphismes et musique.
 - Nombre d'étages, taille de la grille, ce qui ouvre un mur secret (arme normale, bombe, pouvoir).
