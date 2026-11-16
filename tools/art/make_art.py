@@ -12,6 +12,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from png import write_indexed  # noqa: E402
 import ninja  # noqa: E402
+import knight  # noqa: E402
 import props  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
@@ -245,8 +246,12 @@ def main():
     tiles, count = castle_tileset()
     write_indexed(os.path.join(RES, "castle.png"), tiles, PAL0)
     write_indexed(os.path.join(RES, "far.png"), far_background(), PAL0)
-    write_indexed(os.path.join(RES, "ninja.png"), ninja.sheet(), ninja.PAL1)
-    write_indexed(os.path.join(RES, "ninja_fx.png"), ninja.ext_sheet(), ninja.PAL1)
+    hero, hero_fx, hero_pal = ninja.sheet(), ninja.ext_sheet(), ninja.PAL1
+    if knight.available():   # PixelLab knight frames replace the generated ones (tools/art/knight.py)
+        hero, hero_fx, hero_pal, done = knight.apply(hero, hero_fx, ninja.PAL1, ninja.ORDER)
+        print("knight frames: %s" % " ".join(done))
+    write_indexed(os.path.join(RES, "ninja.png"), hero, hero_pal)
+    write_indexed(os.path.join(RES, "ninja_fx.png"), hero_fx, hero_pal)
     with open(os.path.join(ROOT, "inc", "ninja_frames.h"), "w", newline=chr(10)) as f:
         f.write(ninja.header())
     for name, lost in ninja.lost_pixels().items():
