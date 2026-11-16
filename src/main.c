@@ -267,8 +267,28 @@ static void refreshVoid(void)
         rowIn1[cy] = in1;
     }
 }
+// Middle of the open trapdoor of the room, room pixels (trapX < 0: none). Its plank looks like any
+// other, so an arrow floats over it. Templates keep their two bottom rows of blocks for the floor: a
+// plank there can only be the cover of the hole. Looked up again each time the room is drawn, so the
+// arrow goes when the boss locks the doors.
+static s16 trapX, trapY;
+
+static void findTrapdoor(void)
+{
+    s16 ty = lv.room.h - 4, first = -1, last = -1;
+    for (s16 tx = 0; tx < lv.room.w; tx++)
+        if (lv.room.tiles[ty][tx] == TILE_PLATFORM)
+        {
+            if (first < 0) first = tx;
+            last = tx;
+        }
+    trapX = first < 0 ? -1 : (first + last + 1) * 4;
+    trapY = ty * 8;
+}
+
 static void drawRoom(void)
 {
+    findTrapdoor();
     updateCamera();
     drawnTX = camX >> 3;
     drawnTY = camY >> 3;
@@ -284,7 +304,8 @@ static void drawRoom(void)
 #define SPRITE_SHOTS (SPRITE_ENEMIES + ENEMY_SPRITES)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
 #define SPRITE_ITEM (SPRITE_GEM + 1)
-#define SPRITE_PROPS (SPRITE_ITEM + 1)
+#define SPRITE_TRAP (SPRITE_ITEM + 1)     // arrow over the trapdoor
+#define SPRITE_PROPS (SPRITE_TRAP + 1)
 #define SPRITE_PICKUPS (SPRITE_PROPS + MAX_PROPS)
 #define SPRITE_EXT2 (SPRITE_PICKUPS + MAX_PICKUPS)   // second extension cell of the hero
 #define SPRITE_BODY_LOW (SPRITE_EXT2 + 1)   // hero below row 32 (hardware sprites are 4 x 4 tiles max)
@@ -488,10 +509,16 @@ static void drawSprites(void)
     u8 itemShown = lv.itemId && !offScreen(lv.itemX - camX - 8, lv.itemY - camY - 20);
     if (lv.itemId == ITEM_HEART)
         VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 4, itemShown ? lv.itemY - camY - 12 - bob : -64,
-                          SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), 0);
+                          SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), SPRITE_TRAP);
     else
         VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 8, itemShown ? lv.itemY - camY - 20 - bob : -64,
-                          SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), SPRITE_PROPS);
+                          SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), SPRITE_TRAP);
+
+    // Arrow over the trapdoor, dipping towards it.
+    s16 ax = trapX - camX - 4, ay = trapY - camY - 14 + ((vtimer >> 3) & 3);
+    if (trapX < 0 || offScreen(ax, ay)) ay = -64;
+    VDP_setSpriteFull(SPRITE_TRAP, ax, ay, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_TRAP_ARROW),
+                      SPRITE_PROPS);
 
     for (u8 i = 0; i < MAX_PROPS; i++)
     {

@@ -35,6 +35,7 @@
 #define GFX_TILE_SHURIKEN      (TILE_USER_INDEX + 125)
 #define GFX_TILE_COIN          (TILE_USER_INDEX + 126)  // PAL2 gold
 #define GFX_TILE_JAR           (TILE_USER_INDEX + 127)  // 2 x 2 (PAL2), bottom on row 15
+#define GFX_TILE_TRAP_ARROW    (TILE_USER_INDEX + 131)  // PAL2 gold arrow shown over a trapdoor
 
 
 #define GFX_FEET_ROW 29   // last pixel row of the feet in the 32-row ninja art
