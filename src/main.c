@@ -280,7 +280,8 @@ static void drawRoom(void)
 #define SPRITE_PROPS (SPRITE_ITEM + 1)
 #define SPRITE_PICKUPS (SPRITE_PROPS + MAX_PROPS)
 #define SPRITE_EXT2 (SPRITE_PICKUPS + MAX_PICKUPS)   // second extension cell of the hero
-#define SPRITE_COUNT (SPRITE_EXT2 + 1)
+#define SPRITE_BODY_LOW (SPRITE_EXT2 + 1)   // hero below row 32 (hardware sprites are 4 x 4 tiles max)
+#define SPRITE_COUNT (SPRITE_BODY_LOW + 1)
 
 // Animation frame from the player's state. Running advances one frame every 7 px travelled,
 // so the legs match the ground speed (and the upgrades that change it).
@@ -342,7 +343,14 @@ static void drawSprites(void)
     {
         // Stream the frame's tiles (and its slash arcs) into VRAM during the next vblank.
         loadedFrame = f;
-        VDP_loadTileData(ts_ninja.tiles + (u32) f * 24 * 8, GFX_NINJA, 24, DMA_QUEUE);
+        // The sheet stores each frame as 4 columns of 6 tiles: split them into a 4 x 4 top sprite
+        // (GFX_NINJA) and a 4 x 2 bottom one (GFX_NINJA + 16), both in hardware column order.
+        const u32 *src = ts_ninja.tiles + (u32) f * 24 * 8;
+        for (u8 c = 0; c < 4; c++)
+        {
+            VDP_loadTileData(src + c * 6 * 8, GFX_NINJA + c * 4, 4, DMA_QUEUE);
+            VDP_loadTileData(src + (c * 6 + 4) * 8, GFX_NINJA + 16 + c * 2, 2, DMA_QUEUE);
+        }
         if (ext->count)
             VDP_loadTileData(ts_ninja_fx.tiles + (u32) ext->first * 16 * 8, GFX_NINJA_EXT, ext->count * 16,
                              DMA_QUEUE);
@@ -350,7 +358,9 @@ static void drawSprites(void)
     // Sprite 0: hero (32 x 48, body centred on x 16, soles on row GFX_HERO_FEET); blinks while invulnerable.
     u8 hidden = (player.invulnerable & 4) != 0;
     s16 bx = px - 16, by = py - GFX_HERO_FEET - 1;
-    VDP_setSpriteFull(0, bx, hidden ? -64 : by, SPRITE_SIZE(4, 6), TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA), 1);
+    VDP_setSpriteFull(0, bx, hidden ? -64 : by, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA), 1);
+    VDP_setSpriteFull(SPRITE_BODY_LOW, bx, hidden ? -64 : by + 32, SPRITE_SIZE(4, 2),
+                      TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA + 16), 0);
 
     // Sprite 1 and SPRITE_EXT2: 32 x 32 extension cells (slash arcs), mirrored with the body.
     for (u8 k = 0; k < 2; k++)
@@ -359,7 +369,7 @@ static void drawSprites(void)
         s16 ex = flip ? bx - ext->x[k] : bx + ext->x[k];
         s16 ey = (k < ext->count && !hidden) ? by + ext->y[k] : -64;
         VDP_setSpriteFull(index, ex, ey, SPRITE_SIZE(4, 4),
-                          TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA_EXT + k * 16), k ? 0 : 2);
+                          TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA_EXT + k * 16), k ? SPRITE_BODY_LOW : 2);
     }
 
     // Sprites 2..: enemies. Flashing when hurt, fast blinking while the death puff plays.
