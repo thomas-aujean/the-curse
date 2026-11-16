@@ -422,7 +422,6 @@ void gfx_load(void)
         }
     }
     VDP_loadTileSet(img_far.tileset, GFX_FAR, CPU);
-    VDP_loadTileSet(&ts_ninja, GFX_NINJA, CPU);
     PAL_setColors(16, pal_ninja.data, 16, CPU);
     VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);
     // The Void's colours (PAL3 5..14): the castle's, drained and frozen.
@@ -495,9 +494,14 @@ void gfx_setRoomPalette(u8 inVoid)
 }
 void gfx_setPlayerCorrupted(u8 corrupted)
 {
-    PAL_setColor(16 + 2, RGB24_TO_VDPCOLOR(corrupted ? 0x440066 : 0x222266));
-    PAL_setColor(16 + 3, RGB24_TO_VDPCOLOR(corrupted ? 0x8822CC : 0x4444AA));
-    PAL_setColor(16 + 5, RGB24_TO_VDPCOLOR(corrupted ? 0x44EEEE : 0xEE2222));
+    if (!corrupted)
+    {
+        PAL_setColors(16, pal_ninja.data, 16, CPU);
+        return;
+    }
+    PAL_setColor(16 + 2, RGB24_TO_VDPCOLOR(0x440066));
+    PAL_setColor(16 + 3, RGB24_TO_VDPCOLOR(0x8822CC));
+    PAL_setColor(16 + 5, RGB24_TO_VDPCOLOR(0x44EEEE));
 }
 void gfx_drawFar(void)
 {

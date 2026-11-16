@@ -56,17 +56,13 @@
 #define CASTLE_CRACKED     33    // + parity
 #define CASTLE_PLANK       35    // alone; 36 left end, 37 middle, 38 right end
 
-// Ninja frames (res/ninja.png, tools/art/ninja.py): 3 x 4 tiles each (24 px wide: room for the
-// headband tails), body centred on x 12, feet on row GFX_FEET_ROW.
+// Hero frames (res/ninja.png, tools/art/ninja.py): 32 x 48 (4 x 6 tiles), body centred on x 16, soles on
+// row GFX_HERO_FEET. Too many frames for VRAM: only the current one is streamed (DMA) to GFX_NINJA, its
+// 32 x 32 extension cells (slash arcs, res/ninja_fx.png) to GFX_NINJA_EXT.
 #define GFX_NINJA          (TILE_USER_INDEX + 400)
-enum
-{
-    NINJA_IDLE0, NINJA_IDLE3 = NINJA_IDLE0 + 3,   // fighting stance, breathing
-    NINJA_RUN0, NINJA_RUN7 = NINJA_RUN0 + 7,
-    NINJA_RISE, NINJA_PEAK, NINJA_FALL,
-    NINJA_SLASH0, NINJA_SLASH1, NINJA_SLASH2,
-    NINJA_CROUCH, NINJA_HURT,
-};
+#define GFX_NINJA_EXT      (GFX_NINJA + 24)
+#define GFX_HERO_FEET 46
+#include "ninja_frames.h"
 
 // Props and chests (res/props.png, tools/art/props.py): 2 x 2 tiles each, order of PROP_* (game_level.h)
 // with each chest followed by its open frame.
