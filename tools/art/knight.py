@@ -43,7 +43,10 @@ FRAMES = {
     "crouch_slash1": ("sword/jump", 2),
     "hurt": ("sheathed/hurt", 2),
 }
-FRAMES.update({"idle%d" % i: ("sheathed/idle", i * 2) for i in range(4)})
+# At rest: the calm standing image, breathing made by sinking the upper body one pixel (PixelLab's
+# fight-stance idle looked like boxing, Thomas 2026-11-16).
+FRAMES.update({"idle%d" % i: ("sheathed/stand", 0, "legs breathe" if i in (1, 2) else "legs") for i in range(4)})
+BREATH_ROW = FEET - 17   # belt line: everything above it moves
 FRAMES.update({"run%d" % i: ("sheathed/run", i) for i in range(8)})
 # No somersault yet (the PixelLab front-flip job failed): the tucked jump image holds the peak.
 FRAMES.update({"flip%d" % i: ("sheathed/jump", 4, "air") for i in range(4)})
@@ -72,10 +75,18 @@ def _pixels(name):
     spec = FRAMES[name]
     frames, cx, ground = _anim(spec[0])
     fr = frames[spec[1]]
-    if len(spec) > 2:
+    flags = spec[2] if len(spec) > 2 else ""
+    if "air" in flags:
         ground = max(y for y, r in enumerate(fr) if any(p[3] > 127 for p in r))
-    return {(x - cx + W // 2, y - ground + FEET): p[:3]
-            for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
+    if "legs" in flags:   # a rotation image is not centred on its canvas: centre it on the legs
+        xs = [x for r in fr[ground - 12:ground + 1] for x, p in enumerate(r) if p[3] > 127]
+        cx = (min(xs) + max(xs) + 1) // 2
+    px = {(x - cx + W // 2, y - ground + FEET): p[:3]
+          for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
+    if "breathe" in flags:   # chest and head sink by one pixel, the legs stay planted
+        px = {(x, y + 1 if y < BREATH_ROW else y): c for (x, y), c in sorted(px.items(), key=lambda e: -e[0][1])
+              if y != BREATH_ROW - 1 or (x, BREATH_ROW) not in px}
+    return px
 
 
 def dist(a, b):
