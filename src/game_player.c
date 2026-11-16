@@ -237,7 +237,11 @@ static void moveY(Player *p, const Room *r, s16 h)
         s16 head = py - h;
         if (rowBlocks(r, left, right, head, 0))
         {
-            p->y = (s32) (((head & ~7) + ROOM_TILE + h)) << 8;
+            // A PAL jump starts above 8 px per frame: the head may be more than one tile into the
+            // ceiling, so step down tile by tile until it is out (2 steps at most).
+            head = (head & ~7) + ROOM_TILE;
+            while (head < py && rowBlocks(r, left, right, head, 0)) head += ROOM_TILE;
+            p->y = (s32) (head + h) << 8;
             p->vy = 0;
         }
     }
@@ -354,27 +358,28 @@ void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
 {
     s16 px = p->x >> 8, py = p->y >> 8;
     s16 top = py - (p->crouching ? PLAYER_CROUCH_H : PLAYER_H);
+    // Boxes follow the drawn arcs (tools/art/ninja.py): 32 x 48 hero, 17 px blade at arm's length.
     if (p->attackDir == ATTACK_UP)
     {
-        *x0 = px - 12;
-        *x1 = px + 11;
-        *y0 = top - 24;
+        *x0 = px - 16;
+        *x1 = px + 15;
+        *y0 = top - 26;
         *y1 = top + 8;
     }
     else if (p->attackDir == ATTACK_DOWN)
     {
-        *x0 = px - 10;
-        *x1 = px + 9;
-        *y0 = py - 6;
-        *y1 = py + 22;
+        *x0 = px - 12;
+        *x1 = px + 11;
+        *y0 = py - 10;
+        *y1 = py + 14;
     }
     else
     {
-        // Standing, the blade sweeps from above the chest down to the knees (low enemies get hit).
-        *y0 = py - (p->crouching ? 18 : 28);
+        // Standing, the blade sweeps from above the head down to the shins (low enemies get hit).
+        *y0 = py - (p->crouching ? 26 : 44);
         *y1 = p->crouching ? py - 2 : py - 4;
-        *x0 = p->facingLeft ? px - 22 - p->reachBonus : px - 4;
-        *x1 = p->facingLeft ? px + 3 : px + 21 + p->reachBonus;
+        *x0 = p->facingLeft ? px - 34 - p->reachBonus : px - 4;
+        *x1 = p->facingLeft ? px + 3 : px + 33 + p->reachBonus;
     }
 }
 void player_boostUp(Player *p)
@@ -431,4 +436,12 @@ u8 player_attackPhase(const Player *p)
 {
     u8 elapsed = t.attackFrames - p->attackTimer;
     return elapsed < t.attackFrom ? 0 : elapsed < t.attackTo ? 1 : 2;
+}
+
+u8 player_attackStep(const Player *p)
+{
+    u8 elapsed = t.attackFrames - p->attackTimer;
+    if (elapsed < t.attackFrom) return 0;
+    if (elapsed < t.attackTo) return elapsed < (t.attackFrom + t.attackTo) / 2 ? 1 : 2;
+    return elapsed < (t.attackTo + t.attackFrames) / 2 ? 3 : 4;
 }

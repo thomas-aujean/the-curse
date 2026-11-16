@@ -48,9 +48,10 @@ enum
 };
 #define UPGRADE_COUNT (ITEM_COUNT - ITEM_FIRST_UPGRADE)
 
+// The hero is drawn 32 x 48; his box is slimmer and lower than the drawing, as in most action games.
 #define PLAYER_W 12
-#define PLAYER_H 28
-#define PLAYER_CROUCH_H 18
+#define PLAYER_H 40
+#define PLAYER_CROUCH_H 24
 
 // Positions in 1/256 pixel, speeds in 1/256 pixel per frame (no FPU on the 68000).
 typedef struct
@@ -93,6 +94,7 @@ u8 player_slashDamage(const Player *p);   // full-jump speed upwards, e.g. when 
 u8 player_attackActive(const Player *p);
 u8 player_attackTimer(const Player *p);
 u8 player_attackPhase(const Player *p);   // 0 wind-up, 1 strike, 2 recovery (animation)
+u8 player_attackStep(const Player *p);    // 0 wind-up, 1-2 strike, 3-4 recovery (animation frames)
 
 // Slash hitbox in room pixels (inclusive), valid while player_attackActive().
 void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1);

@@ -172,7 +172,7 @@ static void upgrades(void)
     run(&p, PAD_ATTACK, 3);
     s16 x0, y0, x1, y1;
     player_attackBox(&p, &x0, &y0, &x1, &y1);
-    CHECK(x1 - x0 == 25 + 10, "long blade box %d", x1 - x0);
+    CHECK(x1 - x0 == 37 + 10, "long blade box %d", x1 - x0);
     player_place(&p, 50, 200);
     CHECK(p.reachBonus == 10 && p.hp == p.maxHp, "upgrades kept on a new floor");
 }

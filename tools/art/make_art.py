@@ -246,6 +246,11 @@ def main():
     write_indexed(os.path.join(RES, "castle.png"), tiles, PAL0)
     write_indexed(os.path.join(RES, "far.png"), far_background(), PAL0)
     write_indexed(os.path.join(RES, "ninja.png"), ninja.sheet(), ninja.PAL1)
+    write_indexed(os.path.join(RES, "ninja_fx.png"), ninja.ext_sheet(), ninja.PAL1)
+    with open(os.path.join(ROOT, "inc", "ninja_frames.h"), "w", newline=chr(10)) as f:
+        f.write(ninja.header())
+    for name, lost in ninja.lost_pixels().items():
+        print("warning: %s has %d pixels outside its cells" % (name, lost))
     write_indexed(os.path.join(RES, "props.png"), props.sheet(), props.PAL2)
     print("castle.png: %d tiles, far.png: 512x256, ninja.png: %d frames" % (count, len(ninja.ORDER)))
 

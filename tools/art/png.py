@@ -8,14 +8,14 @@ def _chunk(kind, data):
     return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
 
 
-def write_indexed(path, pixels, palette):
+def write_indexed(path, pixels, palette, opaque=False):
     """pixels: list of rows of palette indices; palette: list of (r, g, b), at most 256."""
     height = len(pixels)
     width = len(pixels[0])
     raw = b"".join(b"\x00" + bytes(row) for row in pixels)
     plte = b"".join(bytes(c) for c in palette)
-    # tRNS: index 0 is transparent, like on the Mega Drive.
-    trns = b"\x00" + b"\xff" * (len(palette) - 1)
+    # tRNS: index 0 is transparent, like on the Mega Drive (opaque for previews on a background).
+    trns = (b"\xff" if opaque else b"\x00") + b"\xff" * (len(palette) - 1)
     data = (b"\x89PNG\r\n\x1a\n"
             + _chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 3, 0, 0, 0))
             + _chunk(b"PLTE", plte)
