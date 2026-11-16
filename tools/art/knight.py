@@ -1,28 +1,81 @@
-"""Imports the PixelLab knight (art_in/knight/*.gif) into the hero sheet.
+"""Imports the PixelLab knight (art_in/knight/<state>/<animation>/frame_NNN.png) into the hero sheet.
 
-The knight's animations replace the matching frames of the generated sheet (ninja.py); frames not yet
-drawn in PixelLab keep the generated pose, recoloured with the knight's palette so the sheet shares
-one 15-colour palette (PAL1). Reserved PAL1 slots: 1 darkest (outline), 2-3 tunic blues (tinted by the
-Void corruption, gfx.c), 5 red (HUD hearts), 15 light red (HUD text).
+Two PixelLab states of the same character: "sheathed" (sword at the hip) for moving around, "sword"
+(sword in hand) for the strikes. Every engine frame (ninja.ORDER) is mapped to one exported image;
+the slash arcs still come from ninja.py (smear layer only), drawn behind the knight.
+
+One 15-colour palette for the whole hero (PAL1). Reserved slots: 1 darkest (outline), 2-3 tunic blues
+(tinted by the Void corruption, gfx.c), 5 red (HUD hearts), 15 light red (HUD text).
 """
 import os
 
-from gif import read_gif
+from pngread import read_png
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 SRC = os.path.join(ROOT, "art_in", "knight")
-W, H, FEET = 32, 48, 46
+W, H, FEET, EXT = 32, 48, 46, 32
+PW, PH = 96, 96   # preview cell: the body cell with its surroundings
 
-# Sheet frame name prefix -> (gif file, frames to keep from it).
-ANIMS = {
-    "idle": ("idle.gif", [0, 2, 4, 6]),
-    "run": ("run.gif", list(range(8))),
+# Engine frame -> (animation folder, image index[, "air"]).
+# Default anchor: the animation's ground line goes on row FEET. "air": the image's own lowest pixel
+# does (the engine moves the hero during a jump, the drawing must not rise a second time).
+FRAMES = {
+    "rise": ("sheathed/jump", 3, "air"),
+    "fall": ("sheathed/jump", 5, "air"),
+    "land": ("sheathed/jump", 7),
+    "slash0": ("sword/slash", 1),
+    "slash1": ("sword/slash", 2),
+    "slash2": ("sword/slash", 2),
+    "slash3": ("sword/slash", 4),
+    "slash4": ("sword/slash", 5),
+    "up0": ("sword/up", 0),
+    "up1": ("sword/up", 1),
+    "up2": ("sword/up", 2),
+    "air0": ("sword/jump", 3, "air"),
+    "air1": ("sword/down", 1, "air"),
+    "air2": ("sword/down", 2, "air"),
+    "air3": ("sword/jump", 5, "air"),
+    "down0": ("sword/jump", 4, "air"),
+    "down1": ("sword/down", 1, "air"),
+    "down2": ("sword/down", 2, "air"),
+    "crouch": ("sheathed/jump", 2),
+    "crouch_slash0": ("sword/jump", 2),
+    "crouch_slash1": ("sword/jump", 2),
+    "hurt": ("sheathed/hurt", 2),
 }
+FRAMES.update({"idle%d" % i: ("sheathed/idle", i * 2) for i in range(4)})
+FRAMES.update({"run%d" % i: ("sheathed/run", i) for i in range(8)})
+# No somersault yet (the PixelLab front-flip job failed): the tucked jump image holds the peak.
+FRAMES.update({"flip%d" % i: ("sheathed/jump", 4, "air") for i in range(4)})
 TEXT_RED = (0xEE, 0x44, 0x44)
+
+_anims = {}
 
 
 def available():
-    return any(os.path.exists(os.path.join(SRC, f)) for f, _ in ANIMS.values())
+    return os.path.isdir(os.path.join(SRC, "sheathed", "idle"))
+
+
+def _anim(path):
+    """([frames as rows of RGBA], centre column, ground row) of one exported animation."""
+    if path not in _anims:
+        d = os.path.join(SRC, *path.split("/"))
+        frames = [read_png(os.path.join(d, f))[0] for f in sorted(os.listdir(d)) if f.endswith(".png")]
+        ground = max(y for fr in frames for y, r in enumerate(fr) if any(p[3] > 127 for p in r))
+        # PixelLab centres the character on its canvas (80 or 64 px wide depending on the animation).
+        _anims[path] = (frames, len(frames[0][0]) // 2, ground)
+    return _anims[path]
+
+
+def _pixels(name):
+    """{(x, y): rgb} of one engine frame, in body-cell coordinates (centre x 16, soles row FEET)."""
+    spec = FRAMES[name]
+    frames, cx, ground = _anim(spec[0])
+    fr = frames[spec[1]]
+    if len(spec) > 2:
+        ground = max(y for y, r in enumerate(fr) if any(p[3] > 127 for p in r))
+    return {(x - cx + W // 2, y - ground + FEET): p[:3]
+            for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
 
 
 def _dist(a, b):
@@ -58,55 +111,11 @@ def _median_cut(counts, n):
     return pal
 
 
-def _crop(frames, keep, cx, bottom):
-    """Per frame: (32 x 48 body cell, [(32 x 32 extension cell, x, y)]). Pixels left of the body cell
-    (the scarf trailing behind) go into one extension cell placed against its left edge."""
-    out = []
-    for i in keep:
-        fr = frames[i]
-
-        def px(x, y):   # pixel at body-cell coordinates, None if empty
-            sy, sx = y + bottom - FEET, x + cx - W // 2
-            if 0 <= sy < len(fr) and 0 <= sx < len(fr[0]) and fr[sy][sx][3] > 127:
-                return fr[sy][sx][:3]
-            return None
-
-        cell = [[px(x, y) for x in range(W)] for y in range(H)]
-        left = [(x, y) for y in range(H) for x in range(-32, 0) if px(x, y)]
-        exts = []
-        if left:
-            top = max(0, min(min(y for _, y in left), H - 32))
-            exts.append(([[px(x - 32, y + top) for x in range(32)] for y in range(32)], -32, top))
-        out.append((cell, exts))
-    return out
-
-
-def load():
-    """Returns {frame name: 32 x 48 cell of RGB or None}, already aligned (centre x 16, soles row 46)."""
-    gifs = {k: read_gif(os.path.join(SRC, f))[0] for k, (f, _) in ANIMS.items()
-            if os.path.exists(os.path.join(SRC, f))}
-    ref = gifs.get("idle") or next(iter(gifs.values()))
-    # Body centre: middle of the legs (lower third) of the first idle frame; soles: lowest pixel.
-    rows = [r for r in ref[0] if any(p[3] for p in r)]
-    legs = rows[len(rows) * 2 // 3:]
-    xs = [x for r in legs for x, p in enumerate(r) if p[3] > 127]
-    cx = (min(xs) + max(xs) + 1) // 2
-    cells = {}
-    for name, frames in gifs.items():
-        bottom = max(y for fr in frames for y, r in enumerate(fr) if any(p[3] > 127 for p in r))
-        for k, cell in enumerate(_crop(frames, ANIMS[name][1], cx, bottom)):
-            cells["%s%d" % (name, k)] = cell
-    return cells
-
-
-def palette(cells):
+def palette(frames):
     counts = {}
-    for body, exts in cells.values():
-        for cell in [body] + [e[0] for e in exts]:
-            for row in cell:
-                for c in row:
-                    if c:
-                        counts[c] = counts.get(c, 0) + 1
+    for px in frames.values():
+        for c in px.values():
+            counts[c] = counts.get(c, 0) + 1
     pal = _median_cut(counts, 13)
     pal.sort(key=lambda c: sum(c))
     darkest = pal.pop(0)
@@ -125,32 +134,70 @@ def palette(cells):
 
 
 def nearest(pal, c):
-    return min(range(1, 16), key=lambda i: _dist(pal[i], c))
+    return min(range(1, 15), key=lambda i: _dist(pal[i], c))
+
+
+def _auto_cell(lost):
+    """Where to put one more 32 x 32 extension cell: on the side that loses the most pixels."""
+    groups = {"left": [q for q in lost if q[0] < 0], "right": [q for q in lost if q[0] >= W],
+              "top": [q for q in lost if 0 <= q[0] < W and q[1] < 0]}
+    side = max(groups, key=lambda k: len(groups[k]))
+    top = min(y for _, y in groups[side])
+    return {"left": (-EXT, top), "right": (W, top), "top": (0, -EXT)}[side]
+
+
+def build(ninja):
+    """Every engine frame as indexed pixels: {name: (body cell, [extension cells], [their offsets],
+    lost pixel count, {(x, y): index})}, plus the palette."""
+    rgb = {name: _pixels(name) for name in ninja.ORDER}
+    pal = palette(rgb)
+    arc_color = [0] + [nearest(pal, ninja.PAL1[i]) for i in range(1, 16)]
+    cache, out = {}, {}
+    for name in ninja.ORDER:
+        px = {}
+        for q, c in rgb[name].items():
+            if c not in cache:
+                cache[c] = nearest(pal, c)
+            px[q] = cache[c]
+        pose = ninja.POSES[name]
+        offsets = [tuple(o) for o in pose.get("ext", [])]
+        if offsets:   # frames with a slash arc: ninja.py's smear layer, behind the knight
+            for q, c in ninja.render(pose)[1].items():
+                px.setdefault(q, arc_color[c])
+
+        def lost():
+            return [q for q in px if not (0 <= q[0] < W and 0 <= q[1] < H)
+                    and not any(ex <= q[0] < ex + EXT and ey <= q[1] < ey + EXT for ex, ey in offsets)]
+
+        # The engine draws at most two extension sprites per frame.
+        while len(offsets) < 2 and len(lost()) > 2:
+            offsets.append(_auto_cell(lost()))
+        body = [[px.get((x, y), 0) for x in range(W)] for y in range(H)]
+        cells = [[[px.get((ex + x, ey + y), 0) for x in range(EXT)] for y in range(EXT)] for ex, ey in offsets]
+        out[name] = (body, cells, offsets, len(lost()), px)
+    return out, pal
 
 
 def apply(ninja):
-    """Builds the hero sheets from the generated ninja (ninja.py) with the knight's frames swapped in.
-    Returns (body sheet, extension sheet, palette, {frame: [(x, y)] extension offsets}, knight frames)."""
-    cells = load()
-    pal = palette(cells)
-    remap = [0] + [nearest(pal, ninja.PAL1[i]) for i in range(1, 16)]
+    """Returns (body sheet, extension sheet, palette, {frame: [(x, y)] extension offsets}, {frame: lost})."""
+    frames, pal = build(ninja)
+    bodies = [frames[n][0] for n in ninja.ORDER]
+    cells = [c for n in ninja.ORDER for c in frames[n][1]] or [[[0] * EXT for _ in range(EXT)]]
+    return (ninja.side_by_side(bodies, W), ninja.side_by_side(cells, EXT), pal,
+            {n: frames[n][2] for n in ninja.ORDER}, {n: frames[n][3] for n in ninja.ORDER if frames[n][3]})
 
-    def index(cell):
-        return [[nearest(pal, c) if c else 0 for c in row] for row in cell]
 
-    bodies, ext_cells, offsets = [], [], {}
+def preview_sheet(ninja):
+    """Every frame as seen in game: what the body cell and the extension cells really show."""
+    frames, pal = build(ninja)
+    cells = []
     for name in ninja.ORDER:
-        if name in cells:
-            body, exts = cells[name]
-            bodies.append(index(body))
-            ext_cells += [index(e[0]) for e in exts]
-            offsets[name] = [(e[1], e[2]) for e in exts]
-        else:
-            body, exts = ninja.frame(name)[:2]
-            bodies.append([[remap[v] for v in row] for row in body])
-            ext_cells += [[[remap[v] for v in row] for row in e] for e in exts]
-            offsets[name] = [tuple(o[:2]) for o in ninja.POSES[name].get("ext", [])]
-    if not ext_cells:
-        ext_cells = [[[0] * 32 for _ in range(32)]]
-    return (ninja.side_by_side(bodies, W), ninja.side_by_side(ext_cells, 32), pal, offsets,
-            sorted(n for n in cells if n in ninja.ORDER))
+        body, exts, offsets, _, _ = frames[name]
+        cell = [[0] * PW for _ in range(PH)]
+        for (ox, oy), src in [((0, 0), body)] + list(zip(offsets, exts)):
+            for y, row in enumerate(src):
+                for x, c in enumerate(row):
+                    if c and 0 <= x + ox + 32 < PW and 0 <= y + oy + 40 < PH:
+                        cell[y + oy + 40][x + ox + 32] = c
+        cells.append(cell)
+    return ninja.side_by_side(cells, PW), pal

@@ -246,16 +246,16 @@ def main():
     tiles, count = castle_tileset()
     write_indexed(os.path.join(RES, "castle.png"), tiles, PAL0)
     write_indexed(os.path.join(RES, "far.png"), far_background(), PAL0)
-    hero, hero_fx, hero_pal, offsets = ninja.sheet(), ninja.ext_sheet(), ninja.PAL1, None
-    if knight.available():   # PixelLab knight frames replace the generated ones (tools/art/knight.py)
-        hero, hero_fx, hero_pal, offsets, done = knight.apply(ninja)
-        print("knight frames: %s" % " ".join(done))
+    if knight.available():   # the PixelLab knight replaces the generated ninja (tools/art/knight.py)
+        hero, hero_fx, hero_pal, offsets, lost = knight.apply(ninja)
+    else:
+        hero, hero_fx, hero_pal, offsets, lost = ninja.sheet(), ninja.ext_sheet(), ninja.PAL1, None, ninja.lost_pixels()
     write_indexed(os.path.join(RES, "ninja.png"), hero, hero_pal)
     write_indexed(os.path.join(RES, "ninja_fx.png"), hero_fx, hero_pal)
     with open(os.path.join(ROOT, "inc", "ninja_frames.h"), "w", newline=chr(10)) as f:
         f.write(ninja.header(offsets))
-    for name, lost in ninja.lost_pixels().items():
-        print("warning: %s has %d pixels outside its cells" % (name, lost))
+    for name, missing in lost.items():
+        print("warning: %s has %d pixels outside its cells" % (name, missing))
     write_indexed(os.path.join(RES, "props.png"), props.sheet(), props.PAL2)
     print("castle.png: %d tiles, far.png: 512x256, ninja.png: %d frames" % (count, len(ninja.ORDER)))
 

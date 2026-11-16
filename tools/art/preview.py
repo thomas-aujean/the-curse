@@ -1,7 +1,8 @@
 """Scaled preview of a generated sheet, on a dusk-coloured background:
 
-    wsl python3 tools/art/preview.py hero|ninja|props OUT.png [scale] [frames per row] [first] [count]
+    wsl python3 tools/art/preview.py knight|hero|ninja|props OUT.png [scale] [frames per row] [first] [count]
 
+knight = every frame of the PixelLab knight with its extension cells, as seen in game (96 x 96 cells)
 hero  = every frame of the ninja with its slash arcs around it (80 x 88 cells), as seen in game
 ninja = the raw 32 x 48 body cells of res/ninja.png
 """
@@ -17,7 +18,11 @@ per_row = int(sys.argv[4]) if len(sys.argv) > 4 else 9
 first = int(sys.argv[5]) if len(sys.argv) > 5 else 0
 count = int(sys.argv[6]) if len(sys.argv) > 6 else 999
 
-if which == "hero":
+if which == "knight":
+    import knight
+    import ninja
+    (img, pal), fw = knight.preview_sheet(ninja), knight.PW
+elif which == "hero":
     import ninja
     img, fw, pal = ninja.preview_sheet(), ninja.PW, list(ninja.PAL1)
     for name, lost in ninja.lost_pixels().items():

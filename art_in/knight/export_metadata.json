@@ -1,0 +1,187 @@
+{
+  "group_id": "36332316-430f-44bd-b9c3-e7b6a1f826f4",
+  "states": [
+    {
+      "character": {
+        "id": "229a6c03-6cf6-4292-95ac-021f07cddc4c",
+        "name": "Idle",
+        "prompt": "  \u258e A young knight hero, simple clean design with few details: light steel breastplate over a deep blue tunic, long red\n  \u258e scarf flowing behind, no helmet, short brown hair, determined face, longsword held in a ready stance, plain leather\n  \u258e gloves and boots. Strong readable silhouette, minimal ornaments. Dark realistic 16-bit Sega Genesis pixel art style,\n  \u258e warm dusk lighting from lower left, crisp 1-pixel dark outline, limited palette of about 15 colours, no\n  \u258e anti-aliasing.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-16T10:16:50.067448+00:00"
+      },
+      "folder": "Idle",
+      "frames": {
+        "rotations": {
+          "south": "Idle/rotations/south.png",
+          "south-east": "Idle/rotations/south-east.png",
+          "east": "Idle/rotations/east.png",
+          "north-east": "Idle/rotations/north-east.png",
+          "north": "Idle/rotations/north.png",
+          "north-west": "Idle/rotations/north-west.png",
+          "west": "Idle/rotations/west.png",
+          "south-west": "Idle/rotations/south-west.png"
+        },
+        "animations": {
+          "down": {
+            "east": [
+              "Idle/animations/down/east/frame_000.png",
+              "Idle/animations/down/east/frame_001.png",
+              "Idle/animations/down/east/frame_002.png",
+              "Idle/animations/down/east/frame_003.png"
+            ]
+          },
+          "slash": {
+            "east": [
+              "Idle/animations/slash/east/frame_000.png",
+              "Idle/animations/slash/east/frame_001.png",
+              "Idle/animations/slash/east/frame_002.png",
+              "Idle/animations/slash/east/frame_003.png",
+              "Idle/animations/slash/east/frame_004.png",
+              "Idle/animations/slash/east/frame_005.png"
+            ]
+          },
+          "Jumping": {
+            "east": [
+              "Idle/animations/Jumping/east/frame_000.png",
+              "Idle/animations/Jumping/east/frame_001.png",
+              "Idle/animations/Jumping/east/frame_002.png",
+              "Idle/animations/Jumping/east/frame_003.png",
+              "Idle/animations/Jumping/east/frame_004.png",
+              "Idle/animations/Jumping/east/frame_005.png",
+              "Idle/animations/Jumping/east/frame_006.png",
+              "Idle/animations/Jumping/east/frame_007.png",
+              "Idle/animations/Jumping/east/frame_008.png"
+            ]
+          },
+          "up": {
+            "east": [
+              "Idle/animations/up/east/frame_000.png",
+              "Idle/animations/up/east/frame_001.png",
+              "Idle/animations/up/east/frame_002.png",
+              "Idle/animations/up/east/frame_003.png",
+              "Idle/animations/up/east/frame_004.png"
+            ]
+          },
+          "Idle": {
+            "east": [
+              "Idle/animations/Idle/east/frame_000.png",
+              "Idle/animations/Idle/east/frame_001.png",
+              "Idle/animations/Idle/east/frame_002.png",
+              "Idle/animations/Idle/east/frame_003.png",
+              "Idle/animations/Idle/east/frame_004.png",
+              "Idle/animations/Idle/east/frame_005.png",
+              "Idle/animations/Idle/east/frame_006.png",
+              "Idle/animations/Idle/east/frame_007.png"
+            ]
+          },
+          "Running": {
+            "east": [
+              "Idle/animations/Running/east/frame_000.png",
+              "Idle/animations/Running/east/frame_001.png",
+              "Idle/animations/Running/east/frame_002.png",
+              "Idle/animations/Running/east/frame_003.png",
+              "Idle/animations/Running/east/frame_004.png",
+              "Idle/animations/Running/east/frame_005.png",
+              "Idle/animations/Running/east/frame_006.png",
+              "Idle/animations/Running/east/frame_007.png"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "character": {
+        "id": "5febe386-898f-488b-9caf-9c095ae0b930",
+        "name": "Sheathed",
+        "prompt": "\u258e A young knight hero, simple clean design with few details: light steel breastplate over a deep blue tunic, long red\n  \u258e scarf flowing behind, no helmet, short brown hair, determined face, longsword sheathed in a brown leather scabbard at the left hip, empty gloved hands, plain leather\n  \u258e gloves and boots. Strong readable silhouette, minimal ornaments. Dark realistic 16-bit Sega Genesis pixel art style,\n  \u258e warm dusk lighting from lower left, crisp 1-pixel dark outline, limited palette of about 15 colours, no\n  \u258e anti-aliasing.",
+        "size": {
+          "width": 48,
+          "height": 48
+        },
+        "template_id": "mannequin",
+        "directions": 8,
+        "view": "low top-down",
+        "created_at": "2026-11-16T11:01:56.576193+00:00"
+      },
+      "folder": "Sheathed",
+      "frames": {
+        "rotations": {
+          "south": "Sheathed/rotations/south.png",
+          "south-east": "Sheathed/rotations/south-east.png",
+          "east": "Sheathed/rotations/east.png",
+          "north-east": "Sheathed/rotations/north-east.png",
+          "north": "Sheathed/rotations/north.png",
+          "north-west": "Sheathed/rotations/north-west.png",
+          "west": "Sheathed/rotations/west.png",
+          "south-west": "Sheathed/rotations/south-west.png"
+        },
+        "animations": {
+          "hurt": {
+            "east": [
+              "Sheathed/animations/hurt/east/frame_000.png",
+              "Sheathed/animations/hurt/east/frame_001.png",
+              "Sheathed/animations/hurt/east/frame_002.png",
+              "Sheathed/animations/hurt/east/frame_003.png",
+              "Sheathed/animations/hurt/east/frame_004.png",
+              "Sheathed/animations/hurt/east/frame_005.png"
+            ]
+          },
+          "run": {
+            "east": [
+              "Sheathed/animations/run/east/frame_000.png",
+              "Sheathed/animations/run/east/frame_001.png",
+              "Sheathed/animations/run/east/frame_002.png",
+              "Sheathed/animations/run/east/frame_003.png",
+              "Sheathed/animations/run/east/frame_004.png",
+              "Sheathed/animations/run/east/frame_005.png",
+              "Sheathed/animations/run/east/frame_006.png",
+              "Sheathed/animations/run/east/frame_007.png"
+            ]
+          },
+          "crouch": {
+            "east": [
+              "Sheathed/animations/crouch/east/frame_000.png",
+              "Sheathed/animations/crouch/east/frame_001.png",
+              "Sheathed/animations/crouch/east/frame_002.png",
+              "Sheathed/animations/crouch/east/frame_003.png",
+              "Sheathed/animations/crouch/east/frame_004.png"
+            ]
+          },
+          "idle": {
+            "east": [
+              "Sheathed/animations/idle/east/frame_000.png",
+              "Sheathed/animations/idle/east/frame_001.png",
+              "Sheathed/animations/idle/east/frame_002.png",
+              "Sheathed/animations/idle/east/frame_003.png",
+              "Sheathed/animations/idle/east/frame_004.png",
+              "Sheathed/animations/idle/east/frame_005.png",
+              "Sheathed/animations/idle/east/frame_006.png",
+              "Sheathed/animations/idle/east/frame_007.png"
+            ]
+          },
+          "jump": {
+            "east": [
+              "Sheathed/animations/jump/east/frame_000.png",
+              "Sheathed/animations/jump/east/frame_001.png",
+              "Sheathed/animations/jump/east/frame_002.png",
+              "Sheathed/animations/jump/east/frame_003.png",
+              "Sheathed/animations/jump/east/frame_004.png",
+              "Sheathed/animations/jump/east/frame_005.png",
+              "Sheathed/animations/jump/east/frame_006.png",
+              "Sheathed/animations/jump/east/frame_007.png",
+              "Sheathed/animations/jump/east/frame_008.png"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "export_version": "3.1",
+  "export_date": "2026-11-16T13:18:24.140398"
+}
