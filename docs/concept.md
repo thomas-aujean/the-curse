@@ -143,6 +143,17 @@ Inspiré des cœurs gris et des salles ange/diable d'Isaac, mais propre au jeu (
   3 pactes, il se transforme en « Maudit », avec un pouvoir propre ; piste pour une fin alternative.
 - Le choix entre foncer et réveiller le boss décide donc aussi de la salle qu'on obtient après lui.
 
+## Mort et déblocages (Thomas, 2026-11-16)
+- **À la mort** (modèle Rogue Legacy) : le château se régénère ; on perd les gemmes, les objets et les
+  pouvoirs de boss ; on garde une partie de l'or pour des améliorations permanentes.
+- **Déblocages au fil des parties, à la Isaac** : de nouveaux objets, personnages, salles et modes
+  s'ajoutent quand on réussit des défis.
+- **Tableau des récompenses** : un écran montre ce qui a été gagné, avec des marques par personnage
+  (fini en normal, fini en difficile, boss rush, forme Maudit, aucune vie perdue, etc.), comme les notes de
+  fin d'Isaac. Chaque marque débloque quelque chose.
+- **Conséquence technique** : il faut une sauvegarde sur cartouche (SRAM à pile ou FRAM) pour garder les
+  déblocages ; les mots de passe ne suffisent plus.
+
 ## Grandes salles et retour en arrière (Thomas, 2026-11-16)
 Demande : de grandes salles type Metroid, et pouvoir revenir dans une zone déjà finie pour récupérer un
 artefact qui était inaccessible avant.
@@ -165,5 +176,5 @@ Proposition (à valider) :
   détour est donc un pari, ce qui garde la tension.
 
 ## À décider
-- Histoire, sauvegarde (SRAM/FRAM ou mots de passe), périmètre v1 (classes, coop 2 ou 4), graphismes et musique.
+- Histoire, type de sauvegarde (SRAM à pile ou FRAM ; mots de passe exclus), périmètre v1 (classes, coop 2 ou 4), graphismes et musique.
 - Nombre d'étages, taille de la grille, ce qui ouvre un mur secret (arme normale, bombe, pouvoir).
