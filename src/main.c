@@ -276,9 +276,12 @@ static void drawRoom(void)
     scrollCamera();
 }
 
-// Sprites: 0 hero, 1 slash, 2.. enemies (top part), then their legs, shots, gem.
-#define SPRITE_ENEMY_LOW (2 + MAX_ENEMIES)   // legs of the 32 x 48 enemies (4 x 2 sprite each)
-#define SPRITE_SHOTS (SPRITE_ENEMY_LOW + MAX_ENEMIES)
+// Sprites: 0 hero, 1 slash, 2.. enemies, then shots, gem, item, props, pickups, rest of the hero.
+// An enemy pose is 1 to 4 sprites. The console shows 80 sprites in all: the enemies share a pool
+// instead of owning 4 each (12 enemies never show their widest pose on one screen together).
+#define SPRITE_ENEMIES 2
+#define ENEMY_SPRITES 36
+#define SPRITE_SHOTS (SPRITE_ENEMIES + ENEMY_SPRITES)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
 #define SPRITE_ITEM (SPRITE_GEM + 1)
 #define SPRITE_PROPS (SPRITE_ITEM + 1)
@@ -344,6 +347,51 @@ static u8 offScreen(s16 x, s16 y)
 }
 static const HeroExt HERO_EXT[NINJA_FRAME_COUNT] = NINJA_EXT_TABLE;
 
+typedef struct
+{
+    u16 tile;       // first tile, from GFX_ENEMIES
+    s8 dx, dy;      // cell from the enemy's centre (facing right) and from just below its feet
+    u8 parts;       // see enemy_frames.h
+} EnemyFrame;
+
+static const EnemyFrame ENEMY_FRAME[EF_COUNT] = ENEMY_FRAME_TABLE;
+
+// Drawing of each pose (ENEMY_POSE_*) of each enemy; the boss and the small jelly are drawn apart.
+static const u8 POSE_FRAME[ENEMY_TYPES][ENEMY_POSES] =
+{
+    { 0, 0, 0, 0 },
+    { EF_SOLDIER_WALK_A, EF_SOLDIER_WALK_B, EF_SOLDIER_WINDUP, EF_SOLDIER_STRIKE },
+    { EF_SPECTRE_FLOAT_A, EF_SPECTRE_FLOAT_B, EF_SPECTRE_LUNGE, EF_SPECTRE_LUNGE },
+    { 0, 0, 0, 0 },
+    { EF_ARCHER_IDLE, EF_ARCHER_IDLE, EF_ARCHER_AIM, EF_ARCHER_RELEASE },
+    { EF_NINJA_RUN_A, EF_NINJA_RUN_B, EF_NINJA_WINDUP, EF_NINJA_THROW },
+    { EF_GUARD_WALK_A, EF_GUARD_WALK_B, EF_GUARD_BRACE, EF_GUARD_THRUST },
+    { EF_JELLY_SQUASH, EF_JELLY_STRETCH, EF_JELLY_SQUASH, EF_JELLY_STRETCH },
+    { 0, 0, 0, 0 },
+};
+
+// One pose = up to four sprites side by side (tools/art/enemies.py). Mirrored, the cell flips around
+// the enemy's centre, so each part goes to the other side. Returns the next free sprite.
+static u8 drawEnemyFrame(u8 n, const EnemyFrame *f, s16 cx, s16 feetY, u16 base, u8 flip)
+{
+    static const u8 PX[4] = { 0, 32, 0, 32 }, PY[4] = { 0, 0, 32, 32 }, TILES_H[4] = { 4, 4, 2, 2 };
+    u8 strip = (f->parts & 0x10) ? 2 : 1;
+    u16 tile = GFX_ENEMIES + f->tile;
+    for (u8 k = 0; k < 4; k++)
+    {
+        if (!(f->parts & (1 << k))) continue;
+        u8 w = (k & 1) ? strip : 4;
+        if (n < SPRITE_ENEMIES + ENEMY_SPRITES)
+        {
+            s16 x = flip ? cx - f->dx - PX[k] - w * 8 : cx + f->dx + PX[k];
+            VDP_setSpriteFull(n, x, feetY + f->dy + PY[k], SPRITE_SIZE(w, TILES_H[k]), base + tile, n + 1);
+            n++;
+        }
+        tile += w * TILES_H[k];
+    }
+    return n;
+}
+
 static void drawSprites(void)
 {
     static u8 loadedFrame = 0xFF;
@@ -384,56 +432,41 @@ static void drawSprites(void)
                           TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA_EXT + k * 16), k ? SPRITE_BODY_LOW : 2);
     }
 
-    // Sprites 2..: enemies. Flashing when hurt, fast blinking while the death puff plays.
+    // Enemies, from the pool of sprites. Flashing when hurt, fast blinking while the death puff plays.
+    u8 n = SPRITE_ENEMIES;
     for (u8 i = 0; i < MAX_ENEMIES; i++)
     {
         const Enemy *e = &lv.enemies.e[i];
-        u8 index = 2 + i;
-        s16 ex = (e->x >> 8) - camX - 16, ey = -64, lowY = -64;
-        u16 attr = 0, lowAttr = 0, esize = SPRITE_SIZE(4, 4);
-        u8 hidden = e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (e->hurtTimer & 2)
+        s16 ex = (e->x >> 8) - camX, ey = (e->y >> 8) - camY;
+        // The widest pose reaches 48 px from the centre, on either side once mirrored.
+        if (e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (e->hurtTimer & 2)
             || (e->type == ENEMY_BOSS && e->state == BOSS_DASH_WARN && (e->stateTimer & 4))
-            || offScreen(ex, (e->y >> 8) - camY - GFX_HERO_FEET - 1);
-        if (!hidden)
+            || ex < -48 || ex > 368 || ey < 0 || ey > 272)
+            continue;
+        // Void form: the same tiles with PAL3 (the enemies' colours swallowed by the Void).
+        u16 base = TILE_ATTR_FULL(e->voidForm ? PAL3 : PAL2, 1, 0, e->facingLeft, 0);
+        if (e->type == ENEMY_JELLY_SMALL)
         {
-            // Void form: the same tiles with PAL3 (the enemies' colours swallowed by the Void).
-            u16 base = TILE_ATTR_FULL(e->voidForm ? PAL3 : PAL2, 1, 0, e->facingLeft, 0);
-            static const s8 HUMAN[ENEMY_TYPES] =
+            if (n < SPRITE_ENEMIES + ENEMY_SPRITES)
             {
-                -1, GFX_ENEMY_SOLDIER, -1, -1, GFX_ENEMY_ARCHER, GFX_ENEMY_NINJA, GFX_ENEMY_GUARD, -1, -1,
-            };
-            if (HUMAN[e->type] >= 0)
-            {
-                // 32 x 48 in two sprites, soles on the same row as the hero's.
-                ey = (e->y >> 8) - camY - GFX_HERO_FEET - 1;
-                attr = base + GFX_ENEMIES + HUMAN[e->type] * 24;
-                lowY = ey + 32;
-                lowAttr = attr + 16;
-            }
-            else if (e->type == ENEMY_FLYER || e->type == ENEMY_JELLY)
-            {
-                ey = (e->y >> 8) - camY - 32;
-                attr = base + GFX_ENEMIES_SMALL + (e->type == ENEMY_JELLY ? GFX_ENEMY_JELLY : GFX_ENEMY_SPECTRE) * 16;
-            }
-            else if (e->type == ENEMY_JELLY_SMALL)
-            {
-                ex = (e->x >> 8) - camX - 4;
-                ey = (e->y >> 8) - camY - 7;
-                esize = SPRITE_SIZE(1, 1);
-                attr = base + GFX_TILE_JELLY_SMALL;
-            }
-            else
-            {
-                // Boss, 32 x 48 in two sprites: feet on pixel row 45 of the doubled walker art.
-                ey = (e->y >> 8) - camY - 46;
-                attr = base + GFX_TILE_BOSS_TOP;
-                lowY = ey + 32;
-                lowAttr = base + GFX_TILE_BOSS_BOTTOM;
+                VDP_setSpriteFull(n, ex - 4, ey - 7, SPRITE_SIZE(1, 1), base + GFX_TILE_JELLY_SMALL, n + 1);
+                n++;
             }
         }
-        VDP_setSpriteFull(index, ex, ey, esize, attr, index + 1);
-        VDP_setSpriteFull(SPRITE_ENEMY_LOW + i, ex, lowY, SPRITE_SIZE(4, 2), lowAttr, SPRITE_ENEMY_LOW + i + 1);
+        else if (e->type == ENEMY_BOSS)
+        {
+            // 32 x 48 in two sprites: feet on pixel row 45 of the doubled walker art.
+            if (n + 1 < SPRITE_ENEMIES + ENEMY_SPRITES)
+            {
+                VDP_setSpriteFull(n, ex - 16, ey - 46, SPRITE_SIZE(4, 4), base + GFX_TILE_BOSS_TOP, n + 1);
+                VDP_setSpriteFull(n + 1, ex - 16, ey - 14, SPRITE_SIZE(4, 2), base + GFX_TILE_BOSS_BOTTOM, n + 2);
+                n += 2;
+            }
+        }
+        else n = drawEnemyFrame(n, &ENEMY_FRAME[POSE_FRAME[e->type][e->pose]], ex, ey, base, e->facingLeft);
     }
+    // The rest of the pool stays in the chain (the sprites after it are fixed), out of sight.
+    for (; n < SPRITE_ENEMIES + ENEMY_SPRITES; n++) VDP_setSpriteFull(n, 0, -64, SPRITE_SIZE(1, 1), 0, n + 1);
     for (u8 i = 0; i < MAX_SHOTS; i++)
     {
         const Shot *sh = &lv.enemies.shots[i];
@@ -798,6 +831,20 @@ int main(bool hardReset)
 
     player_init(&player, 0, 0);
     newFloor(0x1234);
+#ifdef DEBUG_ENEMIES
+    // Diagnostic build (tools/replay.ps1 -Flags "-DDEBUG_ENEMIES"): one enemy of each kind around the
+    // hero in the first room, to look at their poses.
+    {
+        static const s16 SPAWN[6][2] =
+        {
+            { ENEMY_WALKER, 56 }, { ENEMY_ARCHER, 120 }, { ENEMY_GUARD, -56 }, { ENEMY_NINJA, -110 },
+            { ENEMY_JELLY, 90 }, { ENEMY_FLYER, 0 },
+        };
+        for (u8 i = 0; i < 6; i++)
+            enemies_add(&lv.enemies, SPAWN[i][0], (player.x >> 8) + SPAWN[i][1],
+                        (player.y >> 8) - (SPAWN[i][0] == ENEMY_FLYER ? 70 : 0), 0);
+    }
+#endif
     enterRoom();
 
     u16 prevPad = 0;

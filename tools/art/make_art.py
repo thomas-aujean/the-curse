@@ -151,9 +151,10 @@ def main():
     for name, missing in lost.items():
         print("warning: %s has %d pixels outside its cells" % (name, missing))
     # Enemies and props share PAL2 (tools/art/enemies.py); PAL3 shows the same enemies in Void form.
-    big, small, pal2, pal3 = enemies.build()
-    write_indexed(os.path.join(RES, "enemies.png"), big, pal2)
-    write_indexed(os.path.join(RES, "enemies_small.png"), small, pal2)
+    sheet, pal2, pal3, frames_h = enemies.build()
+    write_indexed(os.path.join(RES, "enemies.png"), sheet, pal2)
+    with open(os.path.join(ROOT, "inc", "enemy_frames.h"), "w", newline=chr(10)) as f:
+        f.write(frames_h)
     write_indexed(os.path.join(RES, "void.png"), [[0] * 8 for _ in range(8)], pal3)
     to_shared = enemies.remap_props(props.PAL2, pal2)
     write_indexed(os.path.join(RES, "props.png"), [[to_shared[c] for c in row] for row in props.sheet()], pal2)

@@ -27,6 +27,7 @@ static u8 hurtFrames, deathFrames, bossIdle, bossWarn;
 static u8 archerDelay, archerVoidDelay, ninjaDelay, ninjaVoidDelay, jellyDelay;
 static s16 ninjaJump, jellyJump, homingAccel;
 static u8 guardTurn;
+static u8 meleeWindup, meleeStrike, meleeRest, aimFrames, releaseFrames, ninjaWarn;
 static u16 sporeLife;
 
 void enemies_setRegion(u8 isPal)
@@ -53,6 +54,12 @@ void enemies_setRegion(u8 isPal)
     homingAccel = isPal ? 24 * 36 / 25 : 24;
     sporeLife = isPal ? 240 * 5 / 6 : 240;
     guardTurn = isPal ? 40 * 5 / 6 : 40;
+    meleeWindup = isPal ? 24 * 5 / 6 : 24;
+    meleeStrike = isPal ? 10 * 5 / 6 : 10;
+    meleeRest = isPal ? 30 * 5 / 6 : 30;
+    aimFrames = isPal ? 30 * 5 / 6 : 30;
+    releaseFrames = isPal ? 12 * 5 / 6 : 12;
+    ninjaWarn = isPal ? 12 * 5 / 6 : 12;
 }
 
 static s16 speedOf(s16 v)
@@ -96,6 +103,8 @@ Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
         e->step = 0;
         e->stateTimer = type == ENEMY_BOSS ? bossIdle : 30 + i * 11;   // staggered first actions
         e->voidForm = 0;
+        e->pose = ENEMY_POSE_A;
+        e->attackTimer = 0;
         e->hp = STATS[type][0].hp;
         if (voidForm) enemy_setVoidForm(e, 1);
         return e;
@@ -182,12 +191,56 @@ static u8 moveBody(Enemy *e, const Room *r, s16 w, s16 h)
     return result;
 }
 
+// Legs follow the ground: the two walking poses swap every 8 px travelled, whatever the speed.
+static u8 stridePose(const Enemy *e)
+{
+    return ((e->x >> 11) & 1) ? ENEMY_POSE_B : ENEMY_POSE_A;
+}
+
+// How far the blow reaches in front of the body's centre, px (0: this enemy has no blow).
+static s16 meleeReach(u8 type)
+{
+    return type == ENEMY_WALKER ? 24 : type == ENEMY_GUARD ? 28 : 0;
+}
+
+// Soldier and guard: when the player stands in front, within reach, the enemy stops, raises its
+// weapon (the player's cue to step back or strike first), hits, then needs a moment before the next
+// blow. Returns 1 while the enemy is busy with it and must not walk.
+static u8 updateMelee(Enemy *e, const Player *p)
+{
+    if (e->attackTimer)
+    {
+        e->attackTimer--;
+        if (e->attackTimer >= meleeRest + meleeStrike) e->pose = ENEMY_POSE_WINDUP;
+        else if (e->attackTimer >= meleeRest) e->pose = ENEMY_POSE_STRIKE;
+        else return 0;
+        return 1;
+    }
+    if (e->hurtTimer) return 0;
+    s32 dx = (p->x - e->x) >> 8, dy = (p->y - e->y) >> 8;
+    if (e->facingLeft) dx = -dx;
+    if (dx > 0 && dx < meleeReach(e->type) + 8 && absS32(dy) < 24)
+    {
+        e->attackTimer = meleeWindup + meleeStrike + meleeRest;
+        e->pose = ENEMY_POSE_WINDUP;
+        return 1;
+    }
+    return 0;
+}
+
 static void updateWalker(Enemy *e, const EnemyStats *st, const Room *r, const Player *p)
 {
     s16 w, h;
     enemy_size(e->type, &w, &h);
     s16 px = e->x >> 8, py = e->y >> 8;
 
+    if (updateMelee(e, p))
+    {
+        e->vx = 0;
+        moveBody(e, r, w, h);
+        return;
+    }
+    e->pose = stridePose(e);
     if (!e->hurtTimer)
     {
         s16 speed = speedOf(st->speed);
@@ -223,6 +276,7 @@ static void updateFlyer(Enemy *e, const EnemyStats *st, const Player *p)
     {
         tx = dx;
         ty = dy;
+        e->pose = ENEMY_POSE_STRIKE;   // lunging at the player
     }
     else
     {
@@ -231,6 +285,7 @@ static void updateFlyer(Enemy *e, const EnemyStats *st, const Player *p)
         s16 bob = phase < 32 ? phase - 16 : 48 - phase;
         tx = (e->homeX - e->x) >> 8;
         ty = ((e->homeY - e->y) >> 8) + bob;
+        e->pose = (e->timer & 16) ? ENEMY_POSE_B : ENEMY_POSE_A;
     }
     if (!e->hurtTimer)
     {
@@ -358,12 +413,23 @@ static void faceAndStand(Enemy *e, const Room *r, const Player *p)
 static void updateArcher(EnemySet *s, Enemy *e, const EnemyStats *st, const Room *r, const Player *p)
 {
     faceAndStand(e, r, p);
+    s32 dx = (p->x - e->x) >> 8, dy = (p->y - e->y) >> 8;
+    u8 inSight = absS32(dx) <= st->range && (e->voidForm || absS32(dy) <= 40);
+    // The bow is drawn a moment before the arrow leaves: the player sees it coming.
+    e->pose = ENEMY_POSE_A;
+    if (e->attackTimer)
+    {
+        e->attackTimer--;
+        e->pose = ENEMY_POSE_STRIKE;
+    }
+    else if (inSight && !e->hurtTimer && e->stateTimer <= aimFrames) e->pose = ENEMY_POSE_WINDUP;
     if (e->hurtTimer || --e->stateTimer) return;
     e->stateTimer = e->voidForm ? archerVoidDelay : archerDelay;
-    s32 dx = (p->x - e->x) >> 8, dy = (p->y - e->y) >> 8;
-    if (absS32(dx) > st->range || (!e->voidForm && absS32(dy) > 40)) return;
+    if (!inSight) return;
     Shot *sh = newShot(s);
     if (!sh) return;
+    e->attackTimer = releaseFrames;
+    e->pose = ENEMY_POSE_STRIKE;
     s16 dir = e->facingLeft ? -1 : 1;
     sh->active = 1;
     sh->x = e->x + ((s32) (dir * 8) << 8);
@@ -412,6 +478,10 @@ static void updateNinja(EnemySet *s, Enemy *e, const EnemyStats *st, const Room 
         else if (!e->stateTimer) e->stateTimer = 20;
     }
     else if (e->hurtTimer) e->vx = approach(e->vx, 0, 32);
+    // Arm raised just before the leap, thrown forward in the air, legs running on the ground.
+    if (!grounded) e->pose = ENEMY_POSE_STRIKE;
+    else if (!e->hurtTimer && e->stateTimer <= ninjaWarn && absS32(dx) < st->range) e->pose = ENEMY_POSE_WINDUP;
+    else e->pose = e->vx ? stridePose(e) : ENEMY_POSE_B;
     moveBody(e, r, w, h);
 }
 
@@ -421,6 +491,13 @@ static void updateGuard(Enemy *e, const EnemyStats *st, const Room *r, const Pla
     s16 w, h;
     enemy_size(e->type, &w, &h);
     s16 px = e->x >> 8, py = e->y >> 8;
+    if (updateMelee(e, p))
+    {
+        e->vx = 0;
+        moveBody(e, r, w, h);
+        return;
+    }
+    e->pose = stridePose(e);
     if (!e->hurtTimer)
     {
         // Turning around takes a moment: that is the window to strike its back.
@@ -458,6 +535,7 @@ static void updateJelly(Enemy *e, const EnemyStats *st, const Room *r, const Pla
             e->vx = (e->facingLeft ? -1 : 1) * speedOf(st->speed);
         }
     }
+    e->pose = grounded ? ENEMY_POSE_A : ENEMY_POSE_B;   // flat on the ground, stretched in the air
     moveBody(e, r, w, h);
 }
 
@@ -561,6 +639,12 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
                 }
             }
             e->hurtTimer = hurtFrames;
+            // A hit breaks the blow being prepared, and the enemy needs a moment to try again.
+            if (meleeReach(e->type))
+            {
+                e->attackTimer = meleeRest;
+                e->pose = ENEMY_POSE_A;
+            }
             if (e->type != ENEMY_BOSS)   // the boss is too heavy to be pushed around
             {
                 e->vx = p->facingLeft ? -knockback : knockback;
@@ -592,6 +676,15 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
         // enemy that is reeling from a hit.
         if (!e->hurtTimer && overlap(px0, py0, px1, py1, x0 + 3, y0 + 4, x1 - 3, y1))
             player_hurt(p, st->damage, ex > ppx);
+        // The blow itself: the weapon reaches further than the body. The soldier swings at chest
+        // height, so crouching dodges it; the guard's spear comes lower and does not miss.
+        s16 reach = meleeReach(e->type);
+        if (reach && e->pose == ENEMY_POSE_STRIKE && !e->hurtTimer)
+        {
+            s16 low = e->type == ENEMY_WALKER ? ey - 20 : ey - 12;
+            if (overlap(px0, py0, px1, py1, e->facingLeft ? ex - reach : ex, ey - 36, e->facingLeft ? ex : ex + reach, low))
+                player_hurt(p, st->damage, e->facingLeft);
+        }
     }
     updateShots(s, r, p, px0, py0, px1, py1);
 }

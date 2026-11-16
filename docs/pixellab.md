@@ -11,7 +11,9 @@ puis passent par `tools/art/` qui les adapte à la Mega Drive. Voir aussi `docs/
 3. `wsl python3 tools/art/make_art.py` régénère `res/*.png` et `inc/ninja_frames.h`.
 4. `build.bat`.
 
-Aperçu sans lancer le jeu : `wsl python3 tools/art/preview.py knight OUT.png 2 10`.
+Aperçu sans lancer le jeu : `wsl python3 tools/art/preview.py knight OUT.png 2 10` (ou `enemies`).
+Voir les ennemis en jeu, un de chaque dans la première salle :
+`.	oolseplay.ps1 -Name poses -Steps "-:50" -Flags "-DDEBUG_ENEMIES"`.
 
 ## Identifiants PixelLab
 | Quoi | Identifiant |
@@ -26,7 +28,7 @@ Aperçu sans lancer le jeu : `wsl python3 tools/art/preview.py knight OUT.png 2 
 
 ## Refonte en vue de côté (2026-11-16, en cours — à reprendre)
 Les personnages en vue plongeante ont les pieds à des hauteurs différentes : tout est recréé en `view: side`.
-Rien n'est encore importé dans le jeu (`tools/art/knight.py` et `enemies.py` lisent toujours les anciens).
+Le chevalier et les ennemis de côté sont en jeu (poses clés).
 
 | Quoi | Identifiant | État |
 |---|---|---|
@@ -39,10 +41,7 @@ Rien n'est encore importé dans le jeu (`tools/art/knight.py` et `enemies.py` li
 
 Reste à faire :
 - regarder chaque animation du chevalier, relancer les mauvaises, télécharger, mettre à jour `FRAMES` ;
-- ennemis : marche (ou vol), attaque, touché, saut pour chacun (soldat, archer, garde, ninja rival, spectre,
-  gelée, chauve-souris), puis les brancher dans le moteur. Attention à la VRAM : aujourd'hui une seule image
-  par ennemi est chargée (24 tuiles par humain) ; des animations demandent soit un chargement par salle,
-  soit un flux d'images comme pour le héros ;
+- ennemis : poses clés branchées (voir « Ennemis ») ; restent touché, saut, chauve-souris ;
 - supprimer les anciens en vue plongeante une fois les nouveaux en jeu (chevalier `229a6c03…`/`5febe386…`,
   garde `7dfee3ab…`, soldat et archers `a7cb6b5f…`, `863d0ab9…`, `659e2501…`) ;
 - objets (candélabres, coffres, table, chaise, caisses) : pas commencé.
@@ -63,13 +62,40 @@ Limite du Tier 1 : 8 générations en même temps.
 - **salto** (`front-flip`, squelette v3, état `sheathed`) : la génération a échoué, la pose groupée du saut
   le remplace ;
 - **coup vers le bas** : l'épée pointe vers l'avant au lieu du bas ;
-- **coup en l'air et coup accroupi** : pas d'animation propre, images empruntées au saut.
+- **coup en l'air** : pas d'animation propre, images empruntées au saut ;
+- **accroupi** : PixelLab remplit sa toile quelle que soit la pose, donc sa pose à genoux était aussi
+  haute que le chevalier debout. On prend l'image 4 de l'animation `sheathed/crouch` (bonne taille), et le
+  coup accroupi est réduit à 84 % (`LOW_SCALE`). Une vraie pose basse dessinée à la bonne taille serait mieux.
 
 ## Ennemis (`tools/art/enemies.py`)
-- Source : `art_in/enemies/*.png`, une image fixe par ennemi, tournée vers la droite.
-- Humains en 32 × 48, spectre et gelée en 32 × 32. Pas encore d'animation.
-- PAL2 est partagée avec les objets : 6 couleurs fixes, 7 tirées des ennemis. La forme Néant montre les
-  mêmes tuiles avec PAL3 (PAL2 teintée en violet), donc un ennemi n'utilise jamais les couleurs 14 et 15.
+- Source : `art_in/enemies/poses/<ennemi>/<pose>.png`, tournés vers la droite (humains sur une toile de
+  48 × 48, spectre et gelée sur 32 × 32). Les images fixes `art_in/enemies/*.png` ne servent plus.
+- Chaque pose est découpée en 1 à 4 sprites (bloc de 32 × 32, jambes de 32 × 16, et une bande à droite
+  de 8 ou 16 px quand une arme dépasse). Seules les parties qui contiennent des pixels prennent des tuiles.
+  `inc/enemy_frames.h` (généré) donne pour chaque pose sa première tuile, sa position autour des pieds et
+  ses parties.
+- Mémoire vidéo : toutes les poses restent chargées (544 tuiles aujourd'hui), après les objets, à partir
+  de `GFX_ENEMIES`. Il reste 120 tuiles avant la police ; `enemies.py` refuse de générer au-delà.
+  L'ancienne place des ennemis (128 tuiles à partir de `TILE_USER_INDEX + 480`) est libre.
+- Sprites : les ennemis se partagent 36 sprites (`ENEMY_SPRITES` dans `main.c`), le jeu en utilise 68
+  sur les 80 de la console.
+- PAL2 est partagée avec les objets : 6 couleurs fixes, 7 tirées des ennemis (toutes poses confondues).
+  La forme Néant montre les mêmes tuiles avec PAL3 (PAL2 teintée en violet), donc un ennemi n'utilise
+  jamais les couleurs 14 et 15.
+- Le moteur choisit parmi 4 poses par ennemi (`ENEMY_POSE_*`, `game_enemy.c`) : deux de déplacement,
+  une d'annonce, une d'attaque. Le tableau `POSE_FRAME` de `main.c` les relie aux dessins.
+
+| Ennemi | Déplacement | Annonce | Attaque |
+|---|---|---|---|
+| Soldat | marche A/B, change tous les 8 px | épée levée | coup d'épée (portée 24 px, esquivé accroupi) |
+| Garde | marche A/B | lance baissée | coup de lance (portée 28 px, touche même accroupi) |
+| Archer | immobile | arc bandé | flèche partie |
+| Ninja | course A/B | bras levé avant le bond | lancer, en l'air |
+| Spectre | flotte A/B | — | fonce quand il poursuit |
+| Gelée | écrasée au sol | — | étirée en l'air |
+
+Manque : une pose d'attente pour le ninja (à l'arrêt il garde une pose de course), une marche pour
+l'archer si on veut qu'il bouge (les images existent : `archer/walk_a` et `walk_b`).
 
 ## Tileset (`tools/art/castle.py`)
 - Source : `art_in/tiles/castle_tileset.png` + `.json` (16 tuiles Wang de 16 × 16).

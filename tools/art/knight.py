@@ -40,12 +40,16 @@ FRAMES = {
     "down0": ("poses/tuck", 0, "air legs"),
     "down1": ("poses/down", 0, "air legs"),
     "down2": ("poses/down", 0, "air legs"),
-    "crouch": ("poses/crouch", 0, "legs"),
-    "crouch_slash0": ("poses/crouch", 0, "legs"),
-    "crouch_slash1": ("poses/crouch_strike", 0, "legs"),
+    # PixelLab fills its canvas whatever the pose: its kneeling knight is as tall as the standing one.
+    # The crouch comes from the crouch animation (drawn at the right size, head lowered); the low
+    # strike is brought back to that height ("low": scaled around the feet).
+    "crouch": ("sheathed/crouch", 4, "air"),
+    "crouch_slash0": ("sheathed/crouch", 4, "air"),
+    "crouch_slash1": ("poses/crouch_strike", 0, "legs low"),
     "hurt": ("sheathed/hurt", 2),
 }
 FRAMES.update({"idle%d" % i: ("sheathed/idle", i) for i in range(4)})
+LOW_SCALE = 84           # percent: the low strike at the height of the crouch (38 px for 45)
 BREATH_ROW = FEET - 17   # belt line: everything above it moves ("breathe" flag)
 FRAMES.update({"run%d" % i: ("sheathed/run", i) for i in range(8)})
 FRAMES.update({"flip%d" % i: ("poses/tuck", 0, "air legs") for i in range(4)})
@@ -124,10 +128,23 @@ def _pixels(name):
     src = {(x, y): p[:3] for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
     src.update(_blade(spec[0], fr))
     px = {(x - cx + W // 2, y - ground + FEET): c for (x, y), c in src.items()}
+    if "low" in flags:
+        px = _scaled(px, LOW_SCALE)
     if "breathe" in flags:   # chest and head sink by one pixel, the legs stay planted
         px = {(x, y + 1 if y < BREATH_ROW else y): c for (x, y), c in sorted(px.items(), key=lambda e: -e[0][1])
               if y != BREATH_ROW - 1 or (x, BREATH_ROW) not in px}
     return px
+
+
+def _scaled(px, percent):
+    """Nearest-pixel reduction around the point between the feet."""
+    out = {}
+    for ty in range(-H, H):
+        for tx in range(-2 * W, 3 * W):
+            src = (W // 2 + round((tx - W // 2) * 100 / percent), FEET - round((FEET - ty) * 100 / percent))
+            if src in px:
+                out[(tx, ty)] = px[src]
+    return out
 
 
 def dist(a, b):

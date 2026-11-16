@@ -329,16 +329,8 @@ void gfx_load(void)
     PAL_setColors(32, pal_props.data, 16, CPU);
     PAL_setColors(48, pal_void.data, 15, CPU);
 
-    // Humans are 32 x 48, stored like the hero as 4 columns of 6 tiles: regroup each one into a
-    // 4 x 4 sprite and a 4 x 2 one (hardware sprites are 4 tiles high at most).
-    for (u16 f = 0; f < 4; f++)
-        for (u16 c = 0; c < 4; c++)
-        {
-            const u32 *src = ts_enemies.tiles + (f * 24 + c * 6) * 8;
-            VDP_loadTileData(src, GFX_ENEMIES + f * 24 + c * 4, 4, CPU);
-            VDP_loadTileData(src + 4 * 8, GFX_ENEMIES + f * 24 + 16 + c * 2, 2, CPU);
-        }
-    VDP_loadTileSet(&ts_enemies_small, GFX_ENEMIES_SMALL, CPU);
+    // Every enemy pose, already in sprite order (tools/art/enemies.py).
+    VDP_loadTileSet(&ts_enemies, GFX_ENEMIES, CPU);
 }
 
 void gfx_setRoomPalette(u8 inVoid)

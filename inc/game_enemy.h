@@ -44,7 +44,14 @@ typedef struct
     u8 state;            // boss: current attack (BOSS_*)
     u8 step;             // boss: position in the attack cycle
     u16 stateTimer;
+    u8 pose;             // ENEMY_POSE_*: what the body is doing, for the display
+    u8 attackTimer;      // soldier, guard: blow in progress then rest; archer: bow just released
 } Enemy;
+
+// Poses every enemy shares; the display maps them to drawings (main.c).
+// Moving: A and B alternate with the distance travelled (flyers: with time; jelly: A on the ground,
+// B in the air). WINDUP announces the attack, STRIKE is the attack itself.
+enum { ENEMY_POSE_A, ENEMY_POSE_B, ENEMY_POSE_WINDUP, ENEMY_POSE_STRIKE, ENEMY_POSES };
 
 enum { BOSS_IDLE, BOSS_DASH_WARN, BOSS_DASH, BOSS_LEAP, BOSS_SHOOT };
 

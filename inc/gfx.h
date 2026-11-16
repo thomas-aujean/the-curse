@@ -55,13 +55,11 @@
 #define GFX_HERO_FEET 46
 #include "ninja_frames.h"
 
-// PixelLab enemies (res/enemies*.png, tools/art/enemies.py), facing right. Humans are 32 x 48 like the
-// hero (centre x 16, soles on row GFX_HERO_FEET): 24 tiles each, a 4 x 4 top sprite then 4 x 2 legs.
-// Small creatures are one 4 x 4 sprite, bottom on row 31.
-#define GFX_ENEMIES        (TILE_USER_INDEX + 480)
-#define GFX_ENEMIES_SMALL  (GFX_ENEMIES + 4 * 24)
-enum { GFX_ENEMY_SOLDIER, GFX_ENEMY_ARCHER, GFX_ENEMY_GUARD, GFX_ENEMY_NINJA };   // order of the humans
-enum { GFX_ENEMY_SPECTRE, GFX_ENEMY_JELLY };                                      // order of the small ones
+// PixelLab enemies (res/enemies.png, tools/art/enemies.py), facing right: every pose of every enemy stays
+// in video memory (ENEMY_TILE_COUNT tiles, after the props and up to the font), cut into 1 to 4 sprites
+// per pose (enemy_frames.h). The old place of the enemies (TILE_USER_INDEX + 480..607) is free.
+#define GFX_ENEMIES        (TILE_USER_INDEX + 760)
+#include "enemy_frames.h"
 
 // Props and chests (res/props.png, tools/art/props.py): 2 x 2 tiles each, order of PROP_* (game_level.h)
 // with each chest followed by its open frame.

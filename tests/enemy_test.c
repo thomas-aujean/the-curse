@@ -252,6 +252,91 @@ int main(void)
     player_updateLight(&p, 0);
     CHECK(!p.corrupted, "released at a quarter of light (light %u)", p.light);
 
+    // Soldier: raises its sword when the player is in front, then strikes further than its body.
+    // Standing in reach = hurt; crouching under the swing = safe; a slash during the wind-up stops it.
+    for (int crouch = 0; crouch < 2; crouch++)
+    {
+        enemies_clear(&set);
+        enemies_add(&set, ENEMY_WALKER, 150, 200, 0);
+        set.e[0].facingLeft = 0;
+        player_init(&p, 172, 200);   // 22 px in front: out of contact, inside the sword's reach
+        int windup = 0, strike = 0, hurtAt = -1;
+        for (int f = 0; f < 60; f++)
+        {
+            if (strike && set.e[0].pose != ENEMY_POSE_STRIKE) break;   // blow over: it walks on, into the player
+            step(&p, crouch ? PAD_DOWN : 0, 1);
+            if (set.e[0].pose == ENEMY_POSE_WINDUP && !strike) windup++;
+            if (set.e[0].pose == ENEMY_POSE_STRIKE) strike++;
+            if (p.hp < p.maxHp && hurtAt < 0) hurtAt = f;
+        }
+        if (crouch) CHECK(strike && p.hp == p.maxHp, "crouching dodges the soldier's swing (hp %d)", p.hp);
+        else CHECK(windup >= 20 && hurtAt >= 20, "soldier: wind-up %d frames, then hurts at frame %d", windup, hurtAt);
+    }
+    enemies_clear(&set);
+    enemies_add(&set, ENEMY_WALKER, 150, 200, 1);   // Void form: 4 hp, survives the slash
+    set.e[0].facingLeft = 0;
+    player_init(&p, 172, 200);
+    p.facingLeft = 1;
+    step(&p, 0, 4);
+    CHECK(set.e[0].pose == ENEMY_POSE_WINDUP, "soldier winds up (pose %d)", set.e[0].pose);
+    step(&p, PAD_ATTACK, 8);
+    CHECK(set.e[0].hp < 4 && set.e[0].pose != ENEMY_POSE_WINDUP && set.e[0].pose != ENEMY_POSE_STRIKE,
+          "a slash breaks the wind-up (hp %d pose %d)", set.e[0].hp, set.e[0].pose);
+    step(&p, 0, 12);
+    CHECK(p.hp == p.maxHp, "no blow after a broken wind-up (hp %d)", p.hp);
+
+    // Guard: same blow with its spear, and crouching does not save from it.
+    enemies_clear(&set);
+    enemies_add(&set, ENEMY_GUARD, 150, 200, 0);
+    set.e[0].facingLeft = 0;
+    player_init(&p, 176, 200);
+    step(&p, PAD_DOWN, 60);
+    CHECK(p.hp < p.maxHp, "the guard's spear reaches a crouching player (hp %d)", p.hp);
+
+    // Poses for the display: walking legs alternate, the archer aims before shooting, the jelly
+    // stretches in the air, the spectre lunges when it chases.
+    enemies_clear(&set);
+    enemies_add(&set, ENEMY_WALKER, 120, 144, 0);
+    player_init(&p, 300, 200);
+    int seenPose[ENEMY_POSES] = { 0 };
+    for (int f = 0; f < 200; f++)
+    {
+        enemies_update(&set, &room, &p);
+        seenPose[set.e[0].pose] = 1;
+    }
+    CHECK(seenPose[ENEMY_POSE_A] && seenPose[ENEMY_POSE_B] && !seenPose[ENEMY_POSE_WINDUP] && !seenPose[ENEMY_POSE_STRIKE],
+          "patrolling soldier only walks");
+    enemies_clear(&set);
+    enemies_add(&set, ENEMY_ARCHER, 100, 200, 0);
+    player_init(&p, 220, 200);
+    int aimed = 0, order = 1, released = 0;
+    for (int f = 0; f < 200; f++)
+    {
+        p.invulnerable = 255;
+        enemies_update(&set, &room, &p);
+        if (set.e[0].pose == ENEMY_POSE_WINDUP) aimed++;
+        if (set.e[0].pose == ENEMY_POSE_STRIKE)
+        {
+            if (!released && aimed < 20) order = 0;
+            released++;
+        }
+    }
+    CHECK(aimed && released && order, "archer aims (%d frames) before releasing (%d)", aimed, released);
+    enemies_clear(&set);
+    enemies_add(&set, ENEMY_JELLY, 100, 200, 0);
+    enemies_add(&set, ENEMY_FLYER, 200, 100, 0);
+    player_init(&p, 220, 200);
+    int flat = 0, tall = 0, lunge = 0;
+    for (int f = 0; f < 200; f++)
+    {
+        p.invulnerable = 255;
+        enemies_update(&set, &room, &p);
+        if (set.e[0].pose == ENEMY_POSE_A) flat++;
+        if (set.e[0].pose == ENEMY_POSE_B) tall++;
+        if (set.e[1].pose == ENEMY_POSE_STRIKE) lunge++;
+    }
+    CHECK(flat && tall && lunge, "jelly flat %d stretched %d, spectre lunging %d", flat, tall, lunge);
+
     printf("%d failures\n", failures);
     return failures != 0;
 }
