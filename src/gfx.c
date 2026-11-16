@@ -89,42 +89,6 @@ static const char *const WALKER[24] =
     "................",
 };
 
-static const char *const FLYER[32] =   // two 16-row frames: wings up, wings down
-{
-    "1..............1",
-    "11............11",
-    "121..........121",
-    "1221........1221",
-    "12221.1111.12221",
-    ".12221222212221.",
-    "..122224422221..",
-    "...1222222221...",
-    "....12222221....",
-    ".....122221.....",
-    "......1221......",
-    ".......11.......",
-    "................",
-    "................",
-    "................",
-    "................",
-    "................",
-    "................",
-    "................",
-    "................",
-    "......1111......",
-    ".....122221.....",
-    "....12244221....",
-    "..112222222211..",
-    ".12222222222221.",
-    "1222111221112221",
-    "1221...11...1221",
-    "121..........121",
-    "11............11",
-    "1..............1",
-    "................",
-    "................",
-};
-
 static const u32 SOLID_TILE[8] =
 {
     0x22222221, 0x23333331, 0x23333331, 0x11111111,
@@ -185,82 +149,6 @@ static const char *const RELIC[16] =   // PAL2: a mysterious chalice (good or ba
     "...1333333331...",
     "...1111111111...",
     "................",
-};
-
-static const char *const ARCHER[24] =
-{
-    "......1111......",
-    ".....122221.....",
-    "....12222221....",
-    "....12442441....",
-    "....12222221....",
-    ".....122221....1",
-    "......1221....1.",
-    "....11222211.1..",
-    "...12222222221..",
-    "...12.1221..1.1.",
-    "...12.1331...11.",
-    "...11.1221....1.",
-    "......1331.....1",
-    "......1221......",
-    ".....122221.....",
-    ".....12..21.....",
-    ".....12..21.....",
-    ".....12..21.....",
-    ".....13..31.....",
-    ".....12..21.....",
-    ".....12..21.....",
-    "....122..221....",
-    "....111..111....",
-    "................",
-};
-
-static const char *const GUARD[24] =   // shield held in front (right side)
-{
-    "......1111......",
-    ".....133331.....",
-    "....13333331....",
-    "....13144131....",
-    "....13333331....",
-    ".....133331.....",
-    "....112222111111",
-    "...1222222213331",
-    "..12222222213431",
-    "..12.12222113431",
-    "..12.12222113431",
-    "..11.12222113331",
-    ".....12222113431",
-    ".....12222113431",
-    ".....12222113331",
-    ".....12..2113431",
-    ".....12..2113331",
-    ".....12..21.111.",
-    ".....13..31.....",
-    ".....12..21.....",
-    ".....12..21.....",
-    "....122..221....",
-    "....111..111....",
-    "................",
-};
-
-static const char *const JELLY[16] =
-{
-    "................",
-    "................",
-    "................",
-    "................",
-    "................",
-    "................",
-    "......1111......",
-    "....11222211....",
-    "...1222222221...",
-    "..122442442221..",
-    "..122442442221..",
-    ".12222222222221.",
-    ".12222222222221.",
-    ".13222222222231.",
-    "..133333333331..",
-    "...1111111111...",
 };
 
 static const u32 SMALL_TILES[3][8] =   // PAL2/PAL3: small jelly, arrow, shuriken
@@ -340,14 +228,6 @@ static u8 rotatedPixel(const char *const *rows, u8 x, u8 y)
     return artPixel(rows[x], 23 - y);
 }
 
-// The player's ninja art in enemy colours (4 colours of PAL2 / PAL3).
-static u8 enemyNinjaPixel(const char *const *rows, u8 x, u8 y)
-{
-    static const u8 MAP[7] = { 0, 1, 3, 2, 2, 4, 2 };
-    u8 v = artPixel(rows[y], x);
-    return v < 7 ? MAP[v] : v;
-}
-
 // Art drawn at double size (placeholder boss).
 static u8 doubledPixel(const char *const *rows, u8 x, u8 y)
 {
@@ -416,12 +296,6 @@ void gfx_load(void)
     VDP_loadTileSet(img_far.tileset, GFX_FAR, CPU);
     PAL_setColors(16, pal_ninja.data, 16, CPU);
     VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);
-    // The Void's colours (PAL3 5..14): the castle's, drained and frozen.
-    static const u32 VOID_ROOM[10] =
-    {
-        0x000000, 0x1A0A2A, 0x2A1A44, 0x443366, 0x665588, 0x9988CC, 0x221133, 0x332255, 0x224444, 0x08040E,
-    };
-    for (u8 i = 0; i < 10; i++) PAL_setColor(48 + 5 + i, RGB24_TO_VDPCOLOR(VOID_ROOM[i]));
 
     artToTiles(NINJA, plainPixel, 2, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_STAND, 8, CPU);
@@ -437,12 +311,6 @@ void gfx_load(void)
     VDP_loadTileData(buffer, GFX_TILE_SLASH_UP, 6, CPU);
     artToTiles(SLASH, rotatedDownPixel, 2, 3, buffer);
     VDP_loadTileData(buffer, GFX_TILE_SLASH_DOWN, 6, CPU);
-    artToTiles(WALKER, plainPixel, 2, 3, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_WALKER, 6, CPU);
-    artToTiles(FLYER, plainPixel, 2, 2, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_FLYER, 4, CPU);
-    artToTiles(FLYER + 16, plainPixel, 2, 2, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_FLYER + 4, 4, CPU);
 
     artToTiles(WALKER, doubledPixel, 4, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_BOSS_TOP, 16, CPU);
@@ -452,29 +320,25 @@ void gfx_load(void)
     VDP_loadTileData(GEM_TILE, GFX_TILE_GEM, 1, CPU);
     artToTiles(RELIC, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_RELIC, 4, CPU);
-    artToTiles(ARCHER, plainPixel, 2, 3, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_ARCHER, 6, CPU);
-    artToTiles(GUARD, plainPixel, 2, 3, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_GUARD, 6, CPU);
-    artToTiles(NINJA, enemyNinjaPixel, 2, 4, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_ENINJA, 8, CPU);
-    artToTiles(JELLY, plainPixel, 2, 2, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_JELLY, 4, CPU);
     VDP_loadTileData(SMALL_TILES[0], GFX_TILE_JELLY_SMALL, 3, CPU);
     VDP_loadTileData(COIN_TILE, GFX_TILE_COIN, 1, CPU);
     artToTiles(JAR, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_JAR, 4, CPU);
-    PAL_setColors(32, pal_props.data, 16, CPU);   // enemies, coins, props and chests share PAL2
+    // Enemies, coins, props and chests share PAL2. PAL3 holds the same slots swallowed by the Void:
+    // an enemy in Void form is the same tiles shown with PAL3 (15 = map colour, set above).
+    PAL_setColors(32, pal_props.data, 16, CPU);
+    PAL_setColors(48, pal_void.data, 15, CPU);
 
-    // Enemies: PAL2 normal form (bone and red eyes), PAL3 Void form (violet and cyan eyes).
-    PAL_setColor(32 + 1, RGB24_TO_VDPCOLOR(0x000000));
-    PAL_setColor(32 + 2, RGB24_TO_VDPCOLOR(0xCCCCAA));
-    PAL_setColor(32 + 3, RGB24_TO_VDPCOLOR(0x888866));
-    PAL_setColor(32 + 4, RGB24_TO_VDPCOLOR(0xEE2222));
-    PAL_setColor(48 + 1, RGB24_TO_VDPCOLOR(0x000000));
-    PAL_setColor(48 + 2, RGB24_TO_VDPCOLOR(0x8844CC));
-    PAL_setColor(48 + 3, RGB24_TO_VDPCOLOR(0x442288));
-    PAL_setColor(48 + 4, RGB24_TO_VDPCOLOR(0x44EEEE));
+    // Humans are 32 x 48, stored like the hero as 4 columns of 6 tiles: regroup each one into a
+    // 4 x 4 sprite and a 4 x 2 one (hardware sprites are 4 tiles high at most).
+    for (u16 f = 0; f < 4; f++)
+        for (u16 c = 0; c < 4; c++)
+        {
+            const u32 *src = ts_enemies.tiles + (f * 24 + c * 6) * 8;
+            VDP_loadTileData(src, GFX_ENEMIES + f * 24 + c * 4, 4, CPU);
+            VDP_loadTileData(src + 4 * 8, GFX_ENEMIES + f * 24 + 16 + c * 2, 2, CPU);
+        }
+    VDP_loadTileSet(&ts_enemies_small, GFX_ENEMIES_SMALL, CPU);
 }
 
 void gfx_setRoomPalette(u8 inVoid)

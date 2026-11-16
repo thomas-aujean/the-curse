@@ -64,7 +64,8 @@ void enemy_size(u8 type, s16 *w, s16 *h)
 {
     static const u8 SIZE[ENEMY_TYPES][2] =
     {
-        { 0, 0 }, { 14, 22 }, { 14, 12 }, { 28, 44 }, { 14, 22 }, { 12, 28 }, { 16, 22 }, { 14, 10 }, { 8, 7 },
+        // Boxes a little slimmer than the drawings (humans 32 x 48, spectre and jelly 32 x 32).
+        { 0, 0 }, { 16, 40 }, { 14, 26 }, { 28, 44 }, { 16, 40 }, { 16, 42 }, { 18, 40 }, { 18, 24 }, { 8, 7 },
     };
     *w = SIZE[type][0];
     *h = SIZE[type][1];
@@ -366,7 +367,7 @@ static void updateArcher(EnemySet *s, Enemy *e, const EnemyStats *st, const Room
     s16 dir = e->facingLeft ? -1 : 1;
     sh->active = 1;
     sh->x = e->x + ((s32) (dir * 8) << 8);
-    sh->y = e->y - (14 << 8);
+    sh->y = e->y - (28 << 8);
     sh->vx = dir * speedOf(st->chase);
     sh->vy = 0;
     sh->damage = st->damage;
@@ -400,7 +401,7 @@ static void updateNinja(EnemySet *s, Enemy *e, const EnemyStats *st, const Room 
                 s32 vy = dy * 3;
                 sh->active = 1;
                 sh->x = e->x;
-                sh->y = e->y - (18 << 8);
+                sh->y = e->y - (28 << 8);
                 sh->vx = dir * speedOf(st->chase);
                 sh->vy = vy > 512 ? 512 : vy < -512 ? -512 : vy;
                 sh->damage = st->damage;

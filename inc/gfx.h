@@ -11,8 +11,6 @@
 #define GFX_TILE_SLASH    (TILE_USER_INDEX + 18)   // 3 x 2 tiles
 #define GFX_TILE_SLASH_UP (TILE_USER_INDEX + 24)   // 2 x 3 tiles
 #define GFX_TILE_SLASH_DOWN (TILE_USER_INDEX + 30) // 2 x 3 tiles
-#define GFX_TILE_WALKER   (TILE_USER_INDEX + 36)   // 2 x 3 tiles
-#define GFX_TILE_FLYER    (TILE_USER_INDEX + 42)   // 2 frames of 2 x 2 tiles
 
 #define GFX_TILE_SOLID_VOID    (TILE_USER_INDEX + 50)   // room tiles outside the circle (PAL3)
 #define GFX_TILE_PLATFORM_VOID (TILE_USER_INDEX + 51)
@@ -32,18 +30,12 @@
 #define GFX_TILE_MAP_FILLED    (TILE_USER_INDEX + 93)   // minimap, colour 15 of the palette
 #define GFX_TILE_MAP_OUTLINE   (TILE_USER_INDEX + 94)
 #define GFX_TILE_RELIC         (TILE_USER_INDEX + 95)   // 2 x 2 tiles (PAL2)
-#define GFX_TILE_ARCHER        (TILE_USER_INDEX + 99)   // 2 x 3, feet on row GFX_WALKER_FEET
-#define GFX_TILE_GUARD         (TILE_USER_INDEX + 105)  // 2 x 3, idem
-#define GFX_TILE_ENINJA        (TILE_USER_INDEX + 111)  // 2 x 4, ninja art in enemy colours
-#define GFX_TILE_JELLY         (TILE_USER_INDEX + 119)  // 2 x 2, bottom on row 15
 #define GFX_TILE_JELLY_SMALL   (TILE_USER_INDEX + 123)  // 1 x 1, bottom on row 6
 #define GFX_TILE_ARROW         (TILE_USER_INDEX + 124)
 #define GFX_TILE_SHURIKEN      (TILE_USER_INDEX + 125)
 #define GFX_TILE_COIN          (TILE_USER_INDEX + 126)  // PAL2 gold
 #define GFX_TILE_JAR           (TILE_USER_INDEX + 127)  // 2 x 2 (PAL2), bottom on row 15
 
-#define GFX_WALKER_FEET 22   // last pixel row of the feet in the 24-row walker art
-#define GFX_FLYER_BOTTOM 13
 
 #define GFX_FEET_ROW 29   // last pixel row of the feet in the 32-row ninja art
 
@@ -62,6 +54,14 @@
 #define GFX_NINJA_EXT      (GFX_NINJA + 24)
 #define GFX_HERO_FEET 46
 #include "ninja_frames.h"
+
+// PixelLab enemies (res/enemies*.png, tools/art/enemies.py), facing right. Humans are 32 x 48 like the
+// hero (centre x 16, soles on row GFX_HERO_FEET): 24 tiles each, a 4 x 4 top sprite then 4 x 2 legs.
+// Small creatures are one 4 x 4 sprite, bottom on row 31.
+#define GFX_ENEMIES        (TILE_USER_INDEX + 480)
+#define GFX_ENEMIES_SMALL  (GFX_ENEMIES + 4 * 24)
+enum { GFX_ENEMY_SOLDIER, GFX_ENEMY_ARCHER, GFX_ENEMY_GUARD, GFX_ENEMY_NINJA };   // order of the humans
+enum { GFX_ENEMY_SPECTRE, GFX_ENEMY_JELLY };                                      // order of the small ones
 
 // Props and chests (res/props.png, tools/art/props.py): 2 x 2 tiles each, order of PROP_* (game_level.h)
 // with each chest followed by its open frame.

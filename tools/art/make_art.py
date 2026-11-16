@@ -15,6 +15,7 @@ import ninja  # noqa: E402
 import knight  # noqa: E402
 import props  # noqa: E402
 import castle  # noqa: E402
+import enemies  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 RES = os.path.join(ROOT, "res")
@@ -149,7 +150,13 @@ def main():
         f.write(ninja.header(offsets))
     for name, missing in lost.items():
         print("warning: %s has %d pixels outside its cells" % (name, missing))
-    write_indexed(os.path.join(RES, "props.png"), props.sheet(), props.PAL2)
+    # Enemies and props share PAL2 (tools/art/enemies.py); PAL3 shows the same enemies in Void form.
+    big, small, pal2, pal3 = enemies.build()
+    write_indexed(os.path.join(RES, "enemies.png"), big, pal2)
+    write_indexed(os.path.join(RES, "enemies_small.png"), small, pal2)
+    write_indexed(os.path.join(RES, "void.png"), [[0] * 8 for _ in range(8)], pal3)
+    to_shared = enemies.remap_props(props.PAL2, pal2)
+    write_indexed(os.path.join(RES, "props.png"), [[to_shared[c] for c in row] for row in props.sheet()], pal2)
     print("castle.png: %d tiles, far.png: 512x256, ninja.png: %d frames" % (count, len(ninja.ORDER)))
 
 

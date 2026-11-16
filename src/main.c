@@ -276,9 +276,9 @@ static void drawRoom(void)
     scrollCamera();
 }
 
-// Sprites: 0 ninja, 1 slash, 2.. enemies (boss top), then boss bottom, shots, gem.
-#define SPRITE_BOSS_LOW (2 + MAX_ENEMIES)
-#define SPRITE_SHOTS (SPRITE_BOSS_LOW + 1)
+// Sprites: 0 hero, 1 slash, 2.. enemies (top part), then their legs, shots, gem.
+#define SPRITE_ENEMY_LOW (2 + MAX_ENEMIES)   // legs of the 32 x 48 enemies (4 x 2 sprite each)
+#define SPRITE_SHOTS (SPRITE_ENEMY_LOW + MAX_ENEMIES)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
 #define SPRITE_ITEM (SPRITE_GEM + 1)
 #define SPRITE_PROPS (SPRITE_ITEM + 1)
@@ -377,70 +377,54 @@ static void drawSprites(void)
     }
 
     // Sprites 2..: enemies. Flashing when hurt, fast blinking while the death puff plays.
-    s16 bossLowX = 0, bossLowY = -64;
-    u16 bossLowAttr = 0;
     for (u8 i = 0; i < MAX_ENEMIES; i++)
     {
         const Enemy *e = &lv.enemies.e[i];
         u8 index = 2 + i;
-        s16 ex = (e->x >> 8) - camX - 8, ey = -64;
-        u16 attr = 0, esize = SPRITE_SIZE(2, 2);
+        s16 ex = (e->x >> 8) - camX - 16, ey = -64, lowY = -64;
+        u16 attr = 0, lowAttr = 0, esize = SPRITE_SIZE(4, 4);
         u8 hidden = e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (e->hurtTimer & 2)
             || (e->type == ENEMY_BOSS && e->state == BOSS_DASH_WARN && (e->stateTimer & 4));
         if (!hidden)
         {
-            u16 epal = e->voidForm ? PAL3 : PAL2;
-            if (e->type == ENEMY_WALKER)
+            // Void form: the same tiles with PAL3 (the enemies' colours swallowed by the Void).
+            u16 base = TILE_ATTR_FULL(e->voidForm ? PAL3 : PAL2, 1, 0, e->facingLeft, 0);
+            static const s8 HUMAN[ENEMY_TYPES] =
             {
-                ey = (e->y >> 8) - camY - GFX_WALKER_FEET - 1;
-                esize = SPRITE_SIZE(2, 3);
-                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_WALKER);
+                -1, GFX_ENEMY_SOLDIER, -1, -1, GFX_ENEMY_ARCHER, GFX_ENEMY_NINJA, GFX_ENEMY_GUARD, -1, -1,
+            };
+            if (HUMAN[e->type] >= 0)
+            {
+                // 32 x 48 in two sprites, soles on the same row as the hero's.
+                ey = (e->y >> 8) - camY - GFX_HERO_FEET - 1;
+                attr = base + GFX_ENEMIES + HUMAN[e->type] * 24;
+                lowY = ey + 32;
+                lowAttr = attr + 16;
             }
-            else if (e->type == ENEMY_FLYER)
+            else if (e->type == ENEMY_FLYER || e->type == ENEMY_JELLY)
             {
-                ey = (e->y >> 8) - camY - GFX_FLYER_BOTTOM - 1;
-                u16 wing = (e->timer >> 3) & 1 ? 4 : 0;
-                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_FLYER + wing);
-            }
-            else if (e->type == ENEMY_ARCHER || e->type == ENEMY_GUARD)
-            {
-                ey = (e->y >> 8) - camY - GFX_WALKER_FEET - 1;
-                esize = SPRITE_SIZE(2, 3);
-                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, e->type == ENEMY_ARCHER ? GFX_TILE_ARCHER : GFX_TILE_GUARD);
-            }
-            else if (e->type == ENEMY_NINJA)
-            {
-                ey = (e->y >> 8) - camY - GFX_FEET_ROW - 1;
-                esize = SPRITE_SIZE(2, 4);
-                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_ENINJA);
-            }
-            else if (e->type == ENEMY_JELLY)
-            {
-                ey = (e->y >> 8) - camY - 16;
-                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_JELLY);
+                ey = (e->y >> 8) - camY - 32;
+                attr = base + GFX_ENEMIES_SMALL + (e->type == ENEMY_JELLY ? GFX_ENEMY_JELLY : GFX_ENEMY_SPECTRE) * 16;
             }
             else if (e->type == ENEMY_JELLY_SMALL)
             {
                 ex = (e->x >> 8) - camX - 4;
                 ey = (e->y >> 8) - camY - 7;
                 esize = SPRITE_SIZE(1, 1);
-                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_JELLY_SMALL);
+                attr = base + GFX_TILE_JELLY_SMALL;
             }
             else
             {
-                // 32 x 48 in two sprites: feet on pixel row 45 of the doubled walker art.
-                ex = (e->x >> 8) - camX - 16;
+                // Boss, 32 x 48 in two sprites: feet on pixel row 45 of the doubled walker art.
                 ey = (e->y >> 8) - camY - 46;
-                esize = SPRITE_SIZE(4, 4);
-                attr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_BOSS_TOP);
-                bossLowX = ex;
-                bossLowY = ey + 32;
-                bossLowAttr = TILE_ATTR_FULL(epal, 1, 0, e->facingLeft, GFX_TILE_BOSS_BOTTOM);
+                attr = base + GFX_TILE_BOSS_TOP;
+                lowY = ey + 32;
+                lowAttr = base + GFX_TILE_BOSS_BOTTOM;
             }
         }
         VDP_setSpriteFull(index, ex, ey, esize, attr, index + 1);
+        VDP_setSpriteFull(SPRITE_ENEMY_LOW + i, ex, lowY, SPRITE_SIZE(4, 2), lowAttr, SPRITE_ENEMY_LOW + i + 1);
     }
-    VDP_setSpriteFull(SPRITE_BOSS_LOW, bossLowX, bossLowY, SPRITE_SIZE(4, 2), bossLowAttr, SPRITE_SHOTS);
     for (u8 i = 0; i < MAX_SHOTS; i++)
     {
         const Shot *sh = &lv.enemies.shots[i];

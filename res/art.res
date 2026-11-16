@@ -7,3 +7,6 @@ TILESET ts_ninja "ninja.png" NONE NONE COLUMN
 TILESET ts_ninja_fx "ninja_fx.png" NONE NONE COLUMN
 PALETTE pal_props "props.png"
 TILESET ts_props "props.png" NONE NONE COLUMN
+PALETTE pal_void "void.png"
+TILESET ts_enemies "enemies.png" NONE NONE COLUMN
+TILESET ts_enemies_small "enemies_small.png" NONE NONE COLUMN
