@@ -128,6 +128,21 @@ avalée » et « salle d'upgrade ».
 - **Butin de boss (Thomas, à la Isaac)** : en plus de son pouvoir, chaque boss lâche un objet tiré de sa
   propre liste d'objets possibles.
 
+## Cœurs de cendre, Sanctuaire et Brèche (validé par Thomas, 2026-11-16)
+Inspiré des cœurs gris et des salles ange/diable d'Isaac, mais propre au jeu (lumière contre Néant).
+- **Cœurs de cendre** : trouvés dans le Néant (ennemis en forme Néant, coffres avalés). Ils s'ajoutent après
+  les vrais cœurs et partent en premier, mais aucun soin ne les rend. Ils servent aussi de monnaie pour les
+  pactes, ce qui pousse à aller chercher dans le Néant.
+- **Après le boss, une salle s'ouvre selon la manière dont on l'a battu** :
+  - **Sanctuaire de la gemme** (boss battu sous sa forme normale) : l'esprit de la gemme offre une
+    bénédiction gratuite, au choix parmi deux. C'est la récompense de ceux qui foncent.
+  - **La Brèche** (boss battu en forme Néant sans perdre de vie) : une entité du Néant propose des pactes.
+- **Prix d'un pacte, au choix** : un cœur maximum, ou des cœurs de cendre (plus cher), ou de la lumière
+  maximum (moins de protection dans le Néant), ou du temps (le boss de l'étage suivant se réveille plus tôt).
+- **Corruption visible** : chaque pacte marque le ninja (tenue plus sombre, œil violet, veines). Au bout de
+  3 pactes, il se transforme en « Maudit », avec un pouvoir propre ; piste pour une fin alternative.
+- Le choix entre foncer et réveiller le boss décide donc aussi de la salle qu'on obtient après lui.
+
 ## Grandes salles et retour en arrière (Thomas, 2026-11-16)
 Demande : de grandes salles type Metroid, et pouvoir revenir dans une zone déjà finie pour récupérer un
 artefact qui était inaccessible avant.
