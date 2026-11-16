@@ -190,12 +190,15 @@ def nearest(pal, c):
 
 
 def _auto_cell(lost):
-    """Where to put one more 32 x 32 extension cell: on the side that loses the most pixels."""
-    groups = {"left": [q for q in lost if q[0] < 0], "right": [q for q in lost if q[0] >= W],
-              "top": [q for q in lost if 0 <= q[0] < W and q[1] < 0]}
-    side = max(groups, key=lambda k: len(groups[k]))
-    top = min(y for _, y in groups[side])
-    return {"left": (-EXT, top), "right": (W, top), "top": (0, -EXT)}[side]
+    """Where to put one more 32 x 32 extension cell: the position (8 px grid, corners included, so a
+    blade tip past a corner is kept) that covers the most pixels still lost."""
+    best, where = -1, (W, 0)
+    for ex in range(-48, W + 17, 8):
+        for ey in range(-40, H, 8):
+            n = sum(1 for x, y in lost if ex <= x < ex + EXT and ey <= y < ey + EXT)
+            if n > best:
+                best, where = n, (ex, ey)
+    return where
 
 
 def build(ninja):
