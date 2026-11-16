@@ -17,6 +17,21 @@ Bloodlines, Rogue Legacy, Metroid pour le Néant. On s'inspire, on ne copie jama
    malédiction. Chaque ennemi garde des traces de son ancien rôle (blason, armure abîmée, uniforme
    déchiré).
 
+### Le héros (Thomas, 2026-11-16) : entre Shinobi et Kisuke
+**Visuel inspiré de Shinobi** : ninja sobre et lisible. Tenue près du corps, masque sur le bas du visage,
+bandeau à longs pans, sabre dans le dos avec une main toujours posée sur la poignée. Garde l'identité
+actuelle (tenue bleu nuit, bandeau et ceinture rouges) mais avec plus de détails : plis, sangles, armure
+légère aux avant-bras et aux tibias.
+
+**Mouvement inspiré de Kisuke (Muramasa)** : fluidité avant tout.
+- Course penchée vers l'avant, foulées longues, bandeau et pans de tenue qui traînent loin derrière.
+- Images de « traînée » (smear) sur les coups : arcs de sabre larges et courbes, en 2 tons, sur un sprite
+  à part.
+- Saut avec vrille au sommet (salto), retombée amortie (1 image de réception genou plié).
+- Enchaînements qui coulent : chaque fin d'animation mène naturellement à la suivante, pas de pose figée.
+- Tissus et cheveux en physique secondaire : ils réagissent avec 1-2 images de retard sur le corps.
+- Toujours son propre dessin : ni sprite de Shinobi ni de Muramasa copié ou décalqué.
+
 ### Consignes de dessin (pour tout sprite)
 - Lumière du couchant venant de gauche-bas en zone 1, contour sombre d'1 px (pas noir pur à l'intérieur).
 - Silhouette lisible en noir sur fond : on doit reconnaître un ennemi et son attaque à sa seule forme.
