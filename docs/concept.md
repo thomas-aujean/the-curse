@@ -104,6 +104,25 @@ Piste de réponse à « que faire si jeu fini rapidement ». Principe : on peut 
   rares, avec leurs propres règles d'apparition.
 - Graine (seed) affichable et saisissable, ce qui permet aussi de partager une partie ou de cacher des codes.
 
+## Néant v2 : la malédiction part du boss (Thomas, 2026-11-16)
+Remplace le cercle qui se referme (2026-11-13), ainsi que les règles « boss plus fort si sa salle est
+avalée » et « salle d'upgrade ».
+- **Le Néant naît dans la salle du boss et grandit vers l'extérieur.** Aller vers le Néant, c'est aller vers
+  le but : danger, récompenses doublées et objectif sont du même côté.
+- **Calme au départ** : pas de Néant, et le boss reste en forme normale.
+- **Déclenchement = prendre l'upgrade.** L'objet de la salle d'upgrade est caché : impossible de savoir ce
+  que c'est avant de le prendre (bon ou mauvais, à la Isaac). Le prendre réveille le boss, qui lâche la
+  malédiction : grondement, l'écran tremble, flash violet, la musique change. Le Néant se met à grandir.
+- **Affronter le boss directement** (sans avoir pris l'upgrade) : l'upgrade disparaît. Le boss est en forme
+  normale.
+- **Boss en forme Néant** : plus le Néant est grand quand on entre dans sa salle, plus il est fort. Entrer
+  dans la salle arrête l'expansion.
+- **Le choix de chaque zone** : un objet inconnu, avec un boss qui se renforce à mesure qu'on traîne. Ou bien
+  pas d'objet et un boss normal.
+- **Boss rush** : se débloque en battant chaque boss sous sa forme normale (à confirmer).
+- À trancher : sans upgrade prise, il n'y a aucune pression de temps. On peut donc explorer toute la zone
+  sans risque avant le boss. Est-ce voulu, ou faut-il un minuteur de secours très lent ?
+
 ## Grandes salles et retour en arrière (Thomas, 2026-11-16)
 Demande : de grandes salles type Metroid, et pouvoir revenir dans une zone déjà finie pour récupérer un
 artefact qui était inaccessible avant.
