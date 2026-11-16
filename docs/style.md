@@ -54,10 +54,10 @@ légère aux avant-bras et aux tibias.
 | Sprites | ninja, ennemis, objets | — |
 
 ## Palettes (4 × 15 couleurs + transparent)
-- **PAL0** décor : 1 contour, 2-6 pierre (ombre → reflet du couchant), 7-8 bois, 9 mousse, 10-14 ciel, 15 texte.
-- **PAL1** ninja + cœurs du HUD.
-- **PAL2** ennemis forme normale, pièces, objets.
-- **PAL3** Néant : 1-4 ennemis forme Néant, 5-13 décor avalé (couleurs 1-9 de PAL0 refroidies), 14 fond du Néant, 15 texte.
+- **PAL0** décor : 1-9 tileset du château (pierre, mousse ; bois des planches pris dans ces couleurs), 10-14 ciel, 15 texte.
+- **PAL1** héros + cœurs du HUD.
+- **PAL2** ennemis forme normale, pièces, objets : 1-6 fixes (contour, os, rouge, or), 7-13 tirées des ennemis, 14 objets seulement.
+- **PAL3** ennemis forme Néant : PAL2 teintée en violet (mêmes tuiles). Le décor avalé passe par le mode ombre.
 
 ## Proportions et animations (cibles)
 - Ninja 32×48 px (4×6 tuiles), ennemis humains 32×48, créatures 16×16 à 24×24, boss 64×64 à 96×80.
@@ -65,7 +65,7 @@ légère aux avant-bras et aux tibias.
 - Contour sombre d'1 px, éclairage venant du soleil couchant (gauche-bas), 3 à 4 tons par matière.
 
 ## Chaîne de fabrication
-- `tools/art/make_art.py` (Python dans WSL, sans dépendance) écrit les PNG indexés dans `res/`.
-- `res/gfx.res` les déclare pour rescomp (SGDK). Un PNG venant d'un artiste ou de PixelLab peut remplacer
+- `tools/art/make_art.py` (Python dans WSL, sans dépendance) écrit les PNG indexés dans `res/`, à partir des exports PixelLab rangés dans `art_in/` (voir `docs/pixellab.md`).
+- `res/art.res` les déclare pour rescomp (SGDK). Un PNG venant d'un artiste ou de PixelLab peut remplacer
   un PNG généré tant qu'il respecte : PNG indexé, palette ci-dessus, tuiles 8×8.
 - Planches de sprites : images côte à côte, découpées par colonnes (ordre des tuiles des sprites Mega Drive).

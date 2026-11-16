@@ -1,51 +1,58 @@
-# Héros avec PixelLab — mode d'emploi
+# Graphismes avec PixelLab — mode d'emploi
 
-But : un héros dessiné en vrai pixel art (outil IA PixelLab, puis retouches), branché dans le jeu sans
-toucher au moteur. Voir aussi `docs/style.md` (section « Le héros »).
+Les personnages, les ennemis et le tileset viennent de PixelLab (abonnement Tier 1 pris le 2026-11-16),
+puis passent par `tools/art/` qui les adapte à la Mega Drive. Voir aussi `docs/style.md`.
 
-## Contraintes techniques (à respecter, sinon l'import échoue)
-- Une image = **32 × 48 px**, personnage tourné **vers la droite**, fond transparent.
-- Corps centré sur la colonne 16, **semelles sur la ligne 46** (la ligne 47 = contour sous les pieds).
-- **15 couleurs maximum** pour tout le héros (+ transparent), les mêmes dans toutes les images.
-  Garder un rouge vif (cœurs du HUD) et un contour sombre.
-- Les arcs de sabre peuvent déborder : ils seront découpés en cases 32 × 32 à part (comme aujourd'hui).
-- Export : une planche PNG par animation (images côte à côte) ou une image par fichier.
+## Chaîne
+1. Générer dans PixelLab (serveur MCP `pixellab`, ou le site).
+2. Télécharger l'export dans `art_in/` :
+   - personnage : `https://api.pixellab.ai/mcp/characters/<id>/download` (zip, images PNG par animation) ;
+   - tileset : `https://api.pixellab.ai/mcp/sidescroller-tilesets/<id>/image` et `/metadata`.
+3. `wsl python3 tools/art/make_art.py` régénère `res/*.png` et `inc/ninja_frames.h`.
+4. `build.bat`.
 
-## Description à donner à PixelLab (en anglais, c'est mieux compris)
-Personnage :
-> side view, 32x48 pixel art, Sega Genesis / Mega Drive style, dark realistic 16-bit, a lean ninja in a
-> dark navy blue suit, red headband with long tails flowing behind, cloth mask over the lower face,
-> katana in a scabbard on his back with the grip above his shoulder, light bronze armour on forearms
-> and shins, red belt, dusk lighting from lower left, 1-pixel dark outline, limited palette of 15 colours,
-> facing right, transparent background
+Aperçu sans lancer le jeu : `wsl python3 tools/art/preview.py knight OUT.png 2 10`.
 
-Style : « dark realistic 16-bit », réglages sans anticrénelage (no anti-aliasing), contour sélectif sombre.
-Ne jamais demander « comme Shinobi » ou « comme Muramasa » : on décrit, on ne copie pas.
+## Identifiants PixelLab
+| Quoi | Identifiant |
+|---|---|
+| Chevalier, épée en main (attaques) | `229a6c03-6cf6-4292-95ac-021f07cddc4c` |
+| Chevalier, épée au fourreau (déplacements) | `5febe386-898f-488b-9caf-9c095ae0b930` |
+| Ninja rival (vue de côté) | `7b728d8a-026b-494d-9139-57131522b179` |
+| Spectre | `0e6df884-243e-4274-bfdd-95d19d787e37` |
+| Gelée | `5555eafc-8c9a-4578-ac88-4cd744924642` |
+| Garde (vue plongeante) | `7dfee3ab-6d2a-40cc-8a43-50c3d55da636` |
+| Tileset château | `dfb2409a-ca35-4c54-87e1-cf55ece5258c` |
 
-## Animations à produire (dans cet ordre)
-| Animation | Images | Notes |
-|---|---|---|
-| idle | 4 | garde de combat, respire, main sur la poignée |
-| run | 8 | penché en avant, grandes foulées, bandeau tendu derrière |
-| rise | 1 | montée du saut |
-| flip | 4 | salto au sommet |
-| fall | 1 | chute |
-| land | 1 | réception genou plié |
-| slash | 5 | anticipation, 2 frappe (arc large), 2 retour |
-| up | 3 | coup vers le haut |
-| air | 4 | coup de côté en l'air |
-| down | 3 | coup vers le bas en l'air |
-| crouch | 1 | accroupi |
-| crouch_slash | 2 | coup accroupi |
-| hurt | 1 | touché, recul |
+## Héros (`tools/art/knight.py`)
+- Source : `art_in/knight/<état>/<animation>/frame_NNN.png`, personnage tourné vers la droite.
+  Deux états du même chevalier : `sheathed` (épée au fourreau) et `sword` (épée en main).
+- La table `FRAMES` relie chaque image du moteur (`inc/ninja_frames.h`, 38 images) à une image exportée.
+- Case de 32 × 48, corps centré sur la colonne 16, semelles sur la ligne 46. Ce qui dépasse part dans
+  deux sprites d'extension de 32 × 32 au maximum, placés automatiquement.
+- 15 couleurs pour tout le héros (PAL1), réduites automatiquement. Emplacements réservés : 1 contour,
+  2-3 bleus de la tunique (teintés par le Néant), 5 rouge (cœurs du HUD).
+- Les arcs de sabre viennent encore de `tools/art/ninja.py` (dessin par code).
 
-Soit 38 images (même liste que `inc/ninja_frames.h`, le moteur n'a rien à changer).
+À refaire dans PixelLab :
+- **salto** (`front-flip`, squelette v3, état `sheathed`) : la génération a échoué, la pose groupée du saut
+  le remplace ;
+- **coup vers le bas** : l'épée pointe vers l'avant au lieu du bas ;
+- **coup en l'air et coup accroupi** : pas d'animation propre, images empruntées au saut.
 
-## Méthode conseillée
-1. Générer d'abord **une seule image** du héros de profil (idle). Itérer jusqu'à ce qu'elle plaise :
-   c'est elle qui sert de référence de style pour tout le reste.
-2. Générer les animations à partir de cette référence (outil d'animation / squelette de PixelLab).
-3. Retoucher : pixels parasites, contour, couleurs ramenées à la même palette.
-4. Déposer les PNG dans `art_in/hero/` (un fichier par animation, nommé comme dans le tableau :
-   `idle.png`, `run.png`…) et demander à Claude de lancer l'import : un script réduira à la palette,
-   placera les pieds sur la ligne 46, découpera les arcs et régénérera `res/ninja.png`.
+## Ennemis (`tools/art/enemies.py`)
+- Source : `art_in/enemies/*.png`, une image fixe par ennemi, tournée vers la droite.
+- Humains en 32 × 48, spectre et gelée en 32 × 32. Pas encore d'animation.
+- PAL2 est partagée avec les objets : 6 couleurs fixes, 7 tirées des ennemis. La forme Néant montre les
+  mêmes tuiles avec PAL3 (PAL2 teintée en violet), donc un ennemi n'utilise jamais les couleurs 14 et 15.
+
+## Tileset (`tools/art/castle.py`)
+- Source : `art_in/tiles/castle_tileset.png` + `.json` (16 tuiles Wang de 16 × 16).
+- Chaque tuile est coupée en quarts de 8 × 8 ; les salles sont dessinées par blocs de 16 × 16 (`src/rooms.c`).
+- Ses 9 couleurs occupent les emplacements 1 à 9 de PAL0.
+
+## Consignes de génération
+- Vue de côté (`view: side`), « dark realistic 16-bit Sega Genesis pixel art », contour sombre d'1 px,
+  pas d'anticrénelage, lumière du couchant venant de gauche-bas.
+- Animations en direction `east` seulement.
+- Ne jamais demander « comme Shinobi » ou « comme Muramasa » : on décrit, on ne copie pas.
