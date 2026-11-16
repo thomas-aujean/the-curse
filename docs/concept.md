@@ -120,8 +120,13 @@ avalée » et « salle d'upgrade ».
 - **Le choix de chaque zone** : un objet inconnu, avec un boss qui se renforce à mesure qu'on traîne. Ou bien
   pas d'objet et un boss normal.
 - **Boss rush** : se débloque en battant chaque boss sous sa forme normale (à confirmer).
-- À trancher : sans upgrade prise, il n'y a aucune pression de temps. On peut donc explorer toute la zone
-  sans risque avant le boss. Est-ce voulu, ou faut-il un minuteur de secours très lent ?
+- **Réveil de secours (validé)** : sinon le jeu devient mou. Le boss se réveille de lui-même après un temps
+  de calme (environ 1 min 30 au premier étage, de moins en moins ensuite), annoncé par des signes de plus
+  en plus forts : petites secousses, ennemis nerveux. Prendre l'upgrade le réveille tout de suite.
+  Trois façons de jouer : foncer (boss normal), explorer puis prendre l'upgrade au dernier moment,
+  ou prendre l'upgrade tout de suite.
+- **Butin de boss (Thomas, à la Isaac)** : en plus de son pouvoir, chaque boss lâche un objet tiré de sa
+  propre liste d'objets possibles.
 
 ## Grandes salles et retour en arrière (Thomas, 2026-11-16)
 Demande : de grandes salles type Metroid, et pouvoir revenir dans une zone déjà finie pour récupérer un
