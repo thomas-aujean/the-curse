@@ -20,34 +20,76 @@ PW, PH = 96, 96   # preview cell: the body cell with its surroundings
 # Default anchor: the animation's ground line goes on row FEET. "air": the image's own lowest pixel
 # does (the engine moves the hero during a jump, the drawing must not rise a second time).
 FRAMES = {
-    # Side view (view: side, 2026-11-16 evening): every animation comes from PixelLab, no borrowed pose.
-    "rise": ("sheathed/jump", 3, "air"),
-    "fall": ("sheathed/jump", 5, "air"),
-    "land": ("sheathed/jump", 8),
-    "slash0": ("sword/slash", 1),
-    "slash1": ("sword/slash", 2),
-    "slash2": ("sword/slash", 3),
-    "slash3": ("sword/slash", 4),
-    "slash4": ("sword/slash", 5),
-    "up0": ("sword/up", 1),
-    "up1": ("sword/up", 2),
-    "up2": ("sword/up", 3),
-    "air0": ("sword/air", 2, "air"),
-    "air1": ("sword/air", 3, "air"),
-    "air2": ("sword/air", 4, "air"),
-    "air3": ("sword/air", 5, "air"),
-    "down0": ("sword/down", 1, "air"),
-    "down1": ("sword/down", 2, "air"),
-    "down2": ("sword/down", 3, "air"),
-    "crouch": ("sheathed/crouch", 4),
-    "crouch_slash0": ("sword/crouch_slash", 3),
-    "crouch_slash1": ("sword/crouch_slash", 4),
+    # Running comes from PixelLab's run animation; strikes and jumps are key poses (one PixelLab
+    # state each, same 48 x 48 canvas, so the knight keeps his size from pose to pose).
+    "rise": ("poses/rise", 0, "air legs"),
+    "fall": ("poses/fall", 0, "air legs"),
+    "land": ("poses/land", 0, "legs"),
+    "slash0": ("poses/windup", 0, "legs"),
+    "slash1": ("poses/strike", 0, "legs"),
+    "slash2": ("poses/strike", 0, "legs"),
+    "slash3": ("poses/strike", 0, "legs"),
+    "slash4": ("poses/windup", 0, "legs"),
+    "up0": ("poses/windup", 0, "legs"),
+    "up1": ("poses/up", 0, "legs"),
+    "up2": ("poses/up", 0, "legs"),
+    "air0": ("poses/windup", 0, "air legs"),
+    "air1": ("poses/strike", 0, "air legs"),
+    "air2": ("poses/strike", 0, "air legs"),
+    "air3": ("poses/tuck", 0, "air legs"),
+    "down0": ("poses/tuck", 0, "air legs"),
+    "down1": ("poses/down", 0, "air legs"),
+    "down2": ("poses/down", 0, "air legs"),
+    "crouch": ("poses/crouch", 0, "legs"),
+    "crouch_slash0": ("poses/crouch", 0, "legs"),
+    "crouch_slash1": ("poses/crouch_strike", 0, "legs"),
     "hurt": ("sheathed/hurt", 2),
 }
 FRAMES.update({"idle%d" % i: ("sheathed/idle", i) for i in range(4)})
 BREATH_ROW = FEET - 17   # belt line: everything above it moves ("breathe" flag)
 FRAMES.update({"run%d" % i: ("sheathed/run", i) for i in range(8)})
-FRAMES.update({"flip%d" % i: ("sheathed/flip", i + 1, "air") for i in range(4)})
+FRAMES.update({"flip%d" % i: ("poses/tuck", 0, "air legs") for i in range(4)})
+
+# Blades cut by the 48 px canvas, continued here (source image coordinates).
+#   ("copy", x, y0, y1, dx, dy, length): repeat column x (rows y0..y1) along (dx, dy), tapering at the tip.
+#   ("up", x0, y, length): a vertical blade above row y, columns x0..x0+3 (outline, light, mid, outline).
+BLADES = {
+    "poses/strike": ("right", 48, 16, 18),   # the canvas edge shows the gold grip: steel starts here
+    "poses/crouch_strike": ("copy", 47, 29, 32, 1, 0.34, 10),
+    "poses/up": ("up", 26, 0, 18),
+}
+STEEL = [(0x05, 0x05, 0x0A), (0xC9, 0xDC, 0xE1), (0x80, 0x94, 0xA4), (0x05, 0x05, 0x0A)]
+
+
+def _blade(path, fr):
+    """Extra {(x, y): rgb} pixels in source coordinates for a blade cut by the canvas."""
+    spec = BLADES.get(path)
+    if not spec:
+        return {}
+    out = {}
+    if spec[0] == "copy":
+        _, x, y0, y1, dx, dy, length = spec
+        col = [fr[y][x] for y in range(y0, y1 + 1)]
+        for k in range(1, length + 1):
+            trim = max(0, k - (length - 2))   # the last pixels narrow to a point
+            for i, p in enumerate(col):
+                if p[3] > 127 and trim <= i < len(col) - trim:
+                    out[(x + k * dx, y0 + i + int(round(k * dy)))] = p[:3]
+    elif spec[0] == "right":   # horizontal blade from column x, rows y0..y0+3
+        _, x, y0, length = spec
+        for k in range(length):
+            trim = max(0, k - (length - 3))
+            for i, c in enumerate(STEEL):
+                if trim <= i < len(STEEL) - trim:
+                    out[(x + k, y0 + i)] = c
+    else:
+        _, x0, y, length = spec
+        for k in range(1, length + 1):
+            trim = max(0, k - (length - 2))
+            for i, c in enumerate(STEEL):
+                if trim <= i < len(STEEL) - trim:
+                    out[(x0 + i, y - k)] = c
+    return out
 TEXT_RED = (0xEE, 0x44, 0x44)
 
 _anims = {}
@@ -79,8 +121,9 @@ def _pixels(name):
     if "legs" in flags:   # a rotation image is not centred on its canvas: centre it on the legs
         xs = [x for r in fr[ground - 12:ground + 1] for x, p in enumerate(r) if p[3] > 127]
         cx = (min(xs) + max(xs) + 1) // 2
-    px = {(x - cx + W // 2, y - ground + FEET): p[:3]
-          for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
+    src = {(x, y): p[:3] for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
+    src.update(_blade(spec[0], fr))
+    px = {(x - cx + W // 2, y - ground + FEET): c for (x, y), c in src.items()}
     if "breathe" in flags:   # chest and head sink by one pixel, the legs stay planted
         px = {(x, y + 1 if y < BREATH_ROW else y): c for (x, y), c in sorted(px.items(), key=lambda e: -e[0][1])
               if y != BREATH_ROW - 1 or (x, BREATH_ROW) not in px}
