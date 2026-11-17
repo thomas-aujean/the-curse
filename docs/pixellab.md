@@ -153,3 +153,16 @@ Vérifier une salle sans BlastEm : `wsl sh tools/test.sh` puis
 Objet PixelLab `268344c0-2642-4698-b30c-c29ba1ac0aad` : 64 candidats 16 x 16 (8 par objet), dessinés dans les couleurs de PAL2. Retenus : 6 cœur de pierre, 10 bottes de vent, 16 ailes de corbeau, 29 lame longue, 33 lanterne, 42 cœur de verre, 55 bottes de plomb, 59 sang du Néant -> `art_in/items/`, importés par `tools/art/items.py`.
 
 Archer qui tire en cloche (17/11) : états `ede3e6ef-4d5c-47e8-9a24-8557be38727e` (Aim sky, toile 64 x 64) et `b881ffa6-6155-4e80-b895-c229cd464208` (Release sky) -> `art_in/enemies/poses/archer/aim_sky.png`, `release_sky.png`. Deux essais ratés (arc resté horizontal) : 29052bce, 8317ed40. Le ninja est retiré du jeu pour le moment (art gardé dans `art_in/enemies/poses/ninja`).
+
+## Ajouts du 17/11 (soir)
+| Quoi | Id PixelLab | Fichier |
+|---|---|---|
+| Porte de sortie du boss | image `9ca208e1` | `art_in/door/door.png` |
+| Garde : élan lance dans le dos / coup vers le haut | states `1822e872` / `20f0ab0f` | `art_in/enemies/poses/guard/` |
+| Caravane du marchand | objet `7905517f` (candidat 1) | `art_in/shop/caravan.png` |
+| Marchand | image `44f1530d` | `art_in/shop/merchant.png` |
+| Grosse caisse | objet `e3ab622b` (candidat 3) | `art_in/props/crate.png` |
+| Coffre à cadenas fermé / ouvert | objet `f6a75f95` / state `6c3183e8` | `art_in/props/gold*.png` |
+| Clé, cadenas | objet `c7460c18` (candidats 0, 3) | `art_in/keys/` |
+| Écran titre | image `89aca91e` | `art_in/title/title_a.png` |
+| Coffres de trois quarts aimés par Thomas | revue `2ab67517` (48 px, trop larges pour un sprite 32) | — |

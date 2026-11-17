@@ -1146,11 +1146,42 @@ static void updateRoom(u16 pad, u16 pressed)
     }
 }
 
+// Title screen (Thomas, 2026-11-17): the hero on his cliff over the castle (res/title.png, plane B),
+// "PRESS START" blinking. Shown before the game loads its own tiles, which take the picture's place.
+// Returns the frames waited: the floor's seed (every game a new floor).
+static u16 titleScreen(void)
+{
+    PAL_setPalette(PAL0, img_title.palette->data, CPU);
+    PAL_setColor(16 + 15, RGB24_TO_VDPCOLOR(0xF8E0B0));   // text: warm white (PAL1, loaded again later)
+    VDP_drawImageEx(BG_B, &img_title, TILE_ATTR_FULL(PAL0, FALSE, FALSE, FALSE, TILE_USER_INDEX), 0, 0, FALSE, TRUE);
+    VDP_setTextPalette(PAL1);
+    VDP_drawTextBG(BG_A, "THE CURSE", 15, 2);
+    u16 frames = 0, prev = 0xFFFF;
+    while (TRUE)
+    {
+        u16 pad = JOY_readJoypad(JOY_1);
+        if ((pad & ~prev) & (BUTTON_START | BUTTON_A | BUTTON_B | BUTTON_C)) break;
+        prev = pad;
+        if ((frames & 31) == 0) VDP_drawTextBG(BG_A, "APPUIE SUR START", 12, 25);
+        if ((frames & 31) == 20) VDP_clearTextBG(BG_A, 12, 25, 16);
+        frames++;
+        SYS_doVBlankProcess();
+    }
+    VDP_clearPlane(BG_A, TRUE);
+    VDP_clearPlane(BG_B, TRUE);
+    return frames;
+}
+
 int main(bool hardReset)
 {
     (void) hardReset;
     VDP_setPlaneSize(64, 32, TRUE);
     VDP_setTextPriority(1);
+#ifdef DEBUG_SCRIPT
+    u16 seed = 0x1234;   // replays: the same floor every time, no title to wait for
+#else
+    u16 seed = 0x1234 ^ (titleScreen() * 0x9E37);
+#endif
     gfx_load();
     VDP_resetSprites();
     player_setRegion(IS_PAL_SYSTEM);
@@ -1158,7 +1189,7 @@ int main(bool hardReset)
     level_setRegion(IS_PAL_SYSTEM);
 
     player_init(&player, 0, 0);
-    newFloor(0x1234);
+    newFloor(seed);
 #ifdef DEBUG_ENEMIES
     // Diagnostic build (tools/replay.ps1 -Flags "-DDEBUG_ENEMIES"): one enemy of each kind around the
     // hero in the first room, to look at their poses.
@@ -1204,7 +1235,11 @@ int main(bool hardReset)
 #endif
     enterRoom();
 
+#ifdef DEBUG_SCRIPT
     u16 prevPad = 0;
+#else
+    u16 prevPad = JOY_readJoypad(JOY_1);   // START still held from the title is not a new press
+#endif
     while (TRUE)
     {
         u16 pad = readPad();
