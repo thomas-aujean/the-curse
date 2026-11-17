@@ -423,6 +423,7 @@ static const u8 POSE_FRAME[ENEMY_TYPES][ENEMY_POSES] =
     { EF_GUARD_WALK_A, EF_GUARD_WALK_B, EF_GUARD_WINDUP, EF_GUARD_THRUST, EF_GUARD_UP },
     { EF_JELLY_SQUASH, EF_JELLY_STRETCH, EF_JELLY_SQUASH, EF_JELLY_STRETCH, EF_JELLY_STRETCH },
     { 0, 0, 0, 0, 0 },
+    { EF_BAT_A, EF_BAT_B, EF_BAT_HANG, EF_BAT_B, EF_BAT_B },   // WINDUP: hanging upside down
 };
 
 // One pose = up to four sprites side by side (tools/art/enemies.py). Mirrored, the cell flips around
@@ -460,7 +461,7 @@ static void recolourTile(u32 *dst, const u32 *src, u8 c);
 static void drawEnemyBar(void)
 {
     static const char *const NAME[ENEMY_TYPES] =
-        { "", "SOLDAT", "SPECTRE", "GARDIEN", "ARCHER", "NINJA", "GARDE", "GELEE", "GELEE" };
+        { "", "SOLDAT", "SPECTRE", "GARDIEN", "ARCHER", "NINJA", "GARDE", "GELEE", "GELEE", "VAMPIRE" };
     static u32 tiles[12 * 8];
     static u8 shownType = 0xFF, shownHp = 0xFF, shownMax;
     const EnemySet *s = &lv.enemies;
@@ -1226,14 +1227,14 @@ int main(bool hardReset)
     // Diagnostic build (tools/replay.ps1 -Flags "-DDEBUG_ENEMIES"): one enemy of each kind around the
     // hero in the first room, to look at their poses.
     {
-        static const s16 SPAWN[5][2] =
+        static const s16 SPAWN[6][2] =
         {
             { ENEMY_WALKER, 56 }, { ENEMY_ARCHER, 120 }, { ENEMY_GUARD, -56 },
-            { ENEMY_JELLY, 90 }, { ENEMY_FLYER, 0 },
+            { ENEMY_JELLY, 90 }, { ENEMY_FLYER, 0 }, { ENEMY_BAT, 80 },
         };
-        for (u8 i = 0; i < 5; i++)
+        for (u8 i = 0; i < 6; i++)
             enemies_add(&lv.enemies, SPAWN[i][0], (player.x >> 8) + SPAWN[i][1],
-                        (player.y >> 8) - (SPAWN[i][0] == ENEMY_FLYER ? 70 : 0), 0);
+                        (player.y >> 8) - (SPAWN[i][0] == ENEMY_FLYER || SPAWN[i][0] == ENEMY_BAT ? 70 : 0), 0);
     }
 #endif
 #ifdef DEBUG_CARAVAN

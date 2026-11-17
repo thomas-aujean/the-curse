@@ -20,6 +20,7 @@ enum
     ENEMY_GUARD,        // shield blocks frontal slashes; Void: only the back is vulnerable
     ENEMY_JELLY,        // splits in two when hit; Void: in three
     ENEMY_JELLY_SMALL,
+    ENEMY_BAT,          // flutters, then swoops at the player and flies back; Void: faster, tougher
     ENEMY_TYPES
 };
 

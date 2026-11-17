@@ -55,7 +55,7 @@
 #define ROOM_PLANE         BG_A
 #define FAR_PLANE          BG_B
 // Far background (plane B, tools/art/far.py): its tiles fill free stretches of video memory listed in
-// far.py (RANGES) and far_map.h: 228..479, 576..599, 656..699, 716..759 and 1960..2015.
+// far.py (RANGES) and far_map.h: 228..479, 576..599, 656..699 and 1960..2015.
 // Tile indices: CASTLE_* in game_room.h.
 
 // Zone-1 decor (res/decor.png, tools/art/outdoor.py, src/game_decor.c), in two stretches of video
@@ -64,9 +64,9 @@
 // behind it), and every room entry loads these tiles again (gfx_loadDecor).
 // Plane sizes 64 x 32 (SGDK): plane B 0xC000, window 0xD000, plane A 0xE000, scroll table 0xF000,
 // sprites 0xF400, free from 0xF700 (the far background's last stretch, tiles 1976..2047).
-#define GFX_DECOR_A        (TILE_USER_INDEX + 1304)  // 120 tiles, after the enemies, up to the font
+#define GFX_DECOR_A        (TILE_USER_INDEX + 1315)  // 109 tiles, after the arrow, up to the font
 #define GFX_DECOR_B        (0xD180 / 32)             // 116 tiles, window rows 3..31
-#define DECOR_A_LEN        120
+#define DECOR_A_LEN        109
 #define DECOR_B_LEN        116
 
 // Hero frames (res/ninja.png, tools/art/ninja.py): 32 x 48 (4 x 6 tiles), body centred on x 16, soles on
@@ -85,13 +85,13 @@
 #include "enemy_frames.h"
 // The guard's crescents (res/slash.png, tools/art/slash.py, PAL2): side 4 x 4 + 4 x 2, then up
 // 4 x 4 + 2 x 4, 48 tiles after the enemies, up to the arrow.
-#define GFX_ENEMY_SLASH    (TILE_USER_INDEX + 1211)
-#if 760 + ENEMY_TILE_COUNT > 1174
-#error "enemy tiles run into the crate (inc/gfx.h)"
+#define GFX_ENEMY_SLASH    (TILE_USER_INDEX + 1222)
+#if 760 + ENEMY_TILE_COUNT > 1222
+#error "enemy tiles run into the guard's crescents (inc/gfx.h)"
 #endif
 // The archer's arrow (res/arrow.png, tools/art/arrow.py): 5 angles of 3 x 3 tiles (PAL2), after the
 // enemies (room freed by the ninja, out for now), up to the decor.
-#define GFX_ARROWS         (TILE_USER_INDEX + 1259)
+#define GFX_ARROWS         (TILE_USER_INDEX + 1270)
 
 // Breakable props (res/props.png, tools/art/props.py): 2 x 2 tiles each, order of PROP_* (game_level.h).
 #define GFX_PROPS          (TILE_USER_INDEX + 700)
@@ -104,12 +104,13 @@
 #define GFX_CARAVAN        GFX_CHESTS
 #define GFX_MERCHANT       (GFX_CHESTS + 64)
 // The big wooden crate (res/crate.png, tools/art/crate.py): 4 x 4 tiles (PAL2), after the enemies.
-#define GFX_CRATE          (TILE_USER_INDEX + 1174)
+// These four sit in a stretch the far background gave back (tools/art/far.py, RANGES): 716..751.
+#define GFX_CRATE          (TILE_USER_INDEX + 716)
 // The key and the padlock (res/keys.png, tools/art/keys.py): 2 x 2 tiles each (PAL2).
-#define GFX_KEY            (TILE_USER_INDEX + 1190)
-#define GFX_PADLOCK        (TILE_USER_INDEX + 1194)
+#define GFX_KEY            (TILE_USER_INDEX + 732)
+#define GFX_PADLOCK        (TILE_USER_INDEX + 736)
 // The life bar of the enemy last hit (main.c, drawEnemyBar): 8 tiles of name, 4 of bar, made in RAM.
-#define GFX_ENEMY_BAR      (TILE_USER_INDEX + 1198)   // up to 1209
+#define GFX_ENEMY_BAR      (TILE_USER_INDEX + 740)   // up to 751
 
 void gfx_load(void);
 void gfx_loadBoss(void);   // the boss's tiles (again after the exit door took their place)

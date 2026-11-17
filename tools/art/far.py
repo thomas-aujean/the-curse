@@ -30,7 +30,8 @@ BANDS = [
 ]
 # Free stretches of video memory for these tiles: (offset from TILE_USER_INDEX, length); see gfx.h.
 # The last 16 tiles of video memory (2016..2031) hold the hero's third slash cell (GFX_NINJA_EXT3).
-RANGES = [(228, 252), (576, 24), (656, 44), (716, 44), (1960, 56)]
+# 716..759 holds the crate, the key, the padlock and the enemy life bar.
+RANGES = [(228, 252), (576, 24), (656, 44), (1960, 56)]
 
 BAYER = [[0, 2], [3, 1]]
 SKY = [10, 11, 12, 13, 14]   # PAL0 slots, dark violet -> sun glow
@@ -75,8 +76,8 @@ def compose(pal):
 
     # Clouds, a few per band, drifting.
     clouds = [_load("cloud_%d.png" % i, pal) for i in range(6)]
-    for (x, y, k) in [(20, 22, 0), (330, 16, 2),
-                      (70, 76, 3), (250, 88, 4)]:
+    # One cloud, not four (2026-11-17: their tiles went to the bat and the props, see gfx.h).
+    for (x, y, k) in [(70, 76, 3)]:
         band = next(b for b in BANDS if b[0] <= y < b[1])
         _paste(img, clouds[k], x, y, band[0], band[1])
 

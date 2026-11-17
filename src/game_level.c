@@ -274,11 +274,11 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
                 char c = t->rows[by][bx];
                 u8 type = c == 'w' ? ENEMY_WALKER : c == 'f' ? ENEMY_FLYER : c == 'B' ? ENEMY_BOSS
                         : c == 'a' ? ENEMY_ARCHER : c == 'g' ? ENEMY_GUARD   // 'n' (ninja): out for now
-                        : c == 'j' ? ENEMY_JELLY : ENEMY_NONE;
+                        : c == 'j' ? ENEMY_JELLY : c == 'b' ? ENEMY_BAT : ENEMY_NONE;
                 if (type == ENEMY_NONE) continue;
                 u8 k = n++;
                 if (k < 16 && (lv->killed[y][x] & (1 << k))) continue;
-                Enemy *e = enemies_add(&lv->enemies, type, bx * 16 + 8, type == ENEMY_FLYER ? by * 16 + 14 : (by + 1) * 16, 0);
+                Enemy *e = enemies_add(&lv->enemies, type, bx * 16 + 8, type == ENEMY_FLYER || type == ENEMY_BAT ? by * 16 + 14 : (by + 1) * 16, 0);
                 if (e) lv->spawnOf[e - lv->enemies.e] = k;
             }
     }

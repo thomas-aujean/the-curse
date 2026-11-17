@@ -119,7 +119,7 @@ static void checkReach(int index)
                     CHECK(reach[y][x] || reach[y][x - 1] || reach[y][x + 1],
                           "template %d: prop at (%d,%d) out of reach", index, x, y);
                 }
-                if (c && strchr("wfBangj", c)) enemies++;
+                if (c && strchr("wfBangjb", c)) enemies++;
                 if (c && strchr("wBangj", c)) CHECK(standable(x, y), "template %d: enemy at (%d,%d) in the air", index, x, y);
             }
         CHECK(enemies <= MAX_ENEMIES && props <= MAX_PROPS, "template %d: %d enemies, %d props", index, enemies, props);

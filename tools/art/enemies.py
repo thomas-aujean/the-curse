@@ -38,7 +38,9 @@ HUMANS = [
     # art_in/enemies/poses/ninja.
 ]
 FLOATING = [("spectre_float_a", "spectre/float_a"), ("spectre_float_b", "spectre/float_b"),
-            ("spectre_lunge", "spectre/lunge")]
+            ("spectre_lunge", "spectre/lunge"),
+            # Bat (2026-11-17): PixelLab object fe55975b (candidate 10) and its state 454ad00a.
+            ("bat_a", "bat/fly_a"), ("bat_b", "bat/fly_b"), ("bat_hang", "bat/hang")]
 GROUND_SMALL = [("jelly_squash", "jelly/squash"), ("jelly_stretch", "jelly/stretch")]
 
 FIXED = [(0x10, 0x08, 0x10), (0x00, 0x00, 0x00), (0xCC, 0xCC, 0xAA), (0x88, 0x88, 0x66), (0xEE, 0x22, 0x22),

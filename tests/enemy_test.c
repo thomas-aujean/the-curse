@@ -366,6 +366,26 @@ int main(void)
         }
         CHECK(up && p.hp < p.maxHp, "guard strikes upwards (up %d, hp %d)", up, p.hp);
     }
+    // Bat: hangs from the ceiling over its spawn point, then swoops at the player nearby and hurts.
+    {
+        enemies_clear(&set);
+        Enemy *bat = enemies_add(&set, ENEMY_BAT, 260, 120, 0);
+        player_init(&p, 60, 200);   // far: it stays hanging
+        enemies_update(&set, &room, &p);
+        int hangY = bat->y >> 8;
+        for (int f = 0; f < 60; f++) enemies_update(&set, &room, &p);
+        CHECK(bat->pose == ENEMY_POSE_WINDUP && hangY < 50 && (bat->y >> 8) == hangY,
+              "bat hangs from the ceiling (y %d, pose %d)", hangY, bat->pose);
+        player_init(&p, 230, 200);
+        int dived = 0;
+        for (int f = 0; f < 120 && p.hp == p.maxHp; f++)
+        {
+            enemies_update(&set, &room, &p);
+            if (bat->state == 1) dived = 1;
+        }
+        CHECK(dived && p.hp < p.maxHp, "bat swoops and hurts (dived %d, hp %d)", dived, p.hp);
+    }
+
     // Clash: a downward slash on the guard's upward crescent: nobody hurt, the player bounces.
     {
         enemies_clear(&set);

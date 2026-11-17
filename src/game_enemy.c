@@ -13,13 +13,14 @@ static const EnemyStats STATS[ENEMY_TYPES][2] =
 {
     { { 0 }, { 0 } },
     { { 154, 0, 0, 2, 1 }, { 256, 640, 128, 4, 2 } },        // walker: patrols; Void form charges
-    { { 192, 0, 112, 1, 1 }, { 384, 0, 160, 2, 2 } },        // flyer: homes in on the player
+    { { 240, 0, 112, 1, 1 }, { 448, 0, 160, 2, 2 } },        // flyer: homes in on the player (a bit faster, 17/11)
     { { 192, 1024, 0, 16, 2 }, { 256, 1280, 0, 24, 3 } },    // boss: dash, leap, fan of shots
     { { 0, 1024, 200, 2, 1 }, { 0, 384, 240, 3, 2 } },       // archer: chase = arrow / spore speed
     { { 384, 640, 160, 2, 1 }, { 512, 1024, 200, 3, 2 } },   // ninja: chase = shuriken / lunge speed
     { { 128, 0, 160, 3, 1 }, { 256, 0, 200, 6, 2 } },        // guard
     { { 256, 0, 160, 2, 1 }, { 448, 0, 200, 2, 2 } },        // jelly
     { { 320, 0, 160, 1, 1 }, { 512, 0, 200, 1, 1 } },        // small jelly
+    { { 256, 900, 130, 1, 1 }, { 320, 1150, 160, 2, 2 } },   // bat: chase = swoop speed
 };
 
 static s16 speedScale6, gravity, maxFall, knockback, leapVel, shotSpeed, shotSpread;
@@ -89,7 +90,7 @@ void enemy_size(u8 type, s16 *w, s16 *h)
     static const u8 SIZE[ENEMY_TYPES][2] =
     {
         // Boxes a little slimmer than the drawings (humans 32 x 48, spectre and jelly 32 x 32).
-        { 0, 0 }, { 16, 40 }, { 14, 26 }, { 28, 44 }, { 16, 40 }, { 16, 42 }, { 18, 40 }, { 18, 24 }, { 8, 7 },
+        { 0, 0 }, { 16, 40 }, { 14, 26 }, { 28, 44 }, { 16, 40 }, { 16, 42 }, { 18, 40 }, { 18, 24 }, { 8, 7 }, { 16, 12 },
     };
     *w = SIZE[type][0];
     *h = SIZE[type][1];
@@ -364,6 +365,69 @@ static void updateFlyer(Enemy *e, const EnemyStats *st, const Player *p)
     }
     e->x += e->vx;
     e->y += e->vy;   // spirits drift through inner walls (kept inside the room by enemies_update)
+}
+
+// Bat (Thomas, 2026-11-17): rests hanging upside down from the ceiling over its spawn point; when the
+// player comes close it drops and swoops at where the player stood, flutters a moment, then flies back
+// up to hang again. state: 0 hanging, 1 dive, 2 back to the roost. homeY = the roost (set on the first
+// frame: the ceiling above the spawn point).
+static void updateBat(Enemy *e, const EnemyStats *st, const Room *r, const Player *p)
+{
+    if (e->step == 0)
+    {
+        s16 x = e->homeX >> 8, y = e->homeY >> 8;
+        while (y > 8 && !isSolid(r, x, y - 8)) y -= 8;
+        e->homeY = e->y = (s32) ((y & ~7) + 30) << 8;   // feet (canvas row 1) against the ceiling
+        e->step = 1;
+        e->stateTimer = 30;
+    }
+    s32 dx = (p->x - e->x) >> 8, dy = ((p->y - (12 << 8)) - e->y) >> 8;
+    s16 speed = speedOf(st->speed);
+    if (e->stateTimer) e->stateTimer--;
+    if (e->state == 0)
+    {
+        e->pose = ENEMY_POSE_WINDUP;   // hanging
+        e->vx = e->vy = 0;
+        e->x = e->homeX;
+        e->y = e->homeY;
+        if (!e->stateTimer && !e->hurtTimer && absS32(dx) < st->range && dy > -16 && dy < st->range + 40)
+        {
+            // Dive: straight at the player's chest as it is now, fast.
+            s32 d = absS32(dx) + absS32(dy) + 1;
+            e->vx = (s16) (dx * speedOf(st->chase) / d);
+            e->vy = (s16) (dy * speedOf(st->chase) / d);
+            e->state = 1;
+            e->stateTimer = 40;
+            e->facingLeft = dx < 0;
+        }
+        return;
+    }
+    e->pose = (e->timer & 4) ? ENEMY_POSE_B : ENEMY_POSE_A;   // quick wing beats
+    if (e->state == 1)
+    {
+        e->pose = ENEMY_POSE_STRIKE;
+        if (!e->stateTimer || e->hurtTimer) { e->state = 2; e->stateTimer = 60; }
+    }
+    else
+    {
+        // Back to the roost with a jittery flutter (a little longer around the player first).
+        u16 phase = e->timer & 31;
+        s16 bob = phase < 16 ? phase - 8 : 24 - phase;
+        s32 tx = (e->homeX - e->x) >> 8, ty = ((e->homeY - e->y) >> 8) + (e->stateTimer ? bob : 0);
+        if (e->stateTimer) { tx = dx; ty = dy - 40 + bob; }   // hovers over the player for a moment
+        else if (absS32(tx) < 6 && absS32(ty) < 6) { e->state = 0; e->stateTimer = 70; return; }
+        s16 v = e->stateTimer ? speed : speed * 3 / 2;
+        e->vx = approach(e->vx, tx > 2 ? v : tx < -2 ? -v : 0, v / 6 + 1);
+        e->vy = approach(e->vy, ty > 2 ? v : ty < -2 ? -v : 0, v / 6 + 1);
+        if (tx > 2 || tx < -2) e->facingLeft = tx < 0;
+    }
+    if (e->hurtTimer)
+    {
+        e->vx = approach(e->vx, 0, 48);
+        e->vy = approach(e->vy, 0, 48);
+    }
+    e->x += e->vx;
+    e->y += e->vy;
 }
 
 static void fireShots(EnemySet *s, const Enemy *e, u8 count, u8 damage)
@@ -700,6 +764,7 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
         if (e->flashTimer) e->flashTimer--;
         if (e->type == ENEMY_WALKER) updateWalker(e, st, r, p);
         else if (e->type == ENEMY_FLYER) updateFlyer(e, st, p);
+        else if (e->type == ENEMY_BAT) updateBat(e, st, r, p);
         else if (e->type == ENEMY_BOSS) updateBoss(s, e, st, r, p);
         else if (e->type == ENEMY_ARCHER) updateArcher(s, e, st, r, p);
         else if (e->type == ENEMY_NINJA) updateNinja(s, e, st, r, p);

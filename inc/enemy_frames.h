@@ -19,12 +19,15 @@ enum
     EF_SPECTRE_FLOAT_A,
     EF_SPECTRE_FLOAT_B,
     EF_SPECTRE_LUNGE,
+    EF_BAT_A,
+    EF_BAT_B,
+    EF_BAT_HANG,
     EF_JELLY_SQUASH,
     EF_JELLY_STRETCH,
     EF_COUNT
 };
 
-#define ENEMY_TILE_COUNT 414
+#define ENEMY_TILE_COUNT 462
 
 // First tile, cell x from the enemy's centre (facing right), cell y from just below its feet,
 // parts: bit 0 = 4x4 at (0, 0), 1 = strip x4 at (32, 0), 2 = 4x2 at (0, 32), 3 = strip x2 at (32, 32),
@@ -46,8 +49,11 @@ enum
     { 334, -16, -32, 0x01 },   /* spectre_float_a */ \
     { 350, -16, -32, 0x01 },   /* spectre_float_b */ \
     { 366, -16, -32, 0x01 },   /* spectre_lunge */ \
-    { 382, -16, -32, 0x01 },   /* jelly_squash */ \
-    { 398, -16, -32, 0x01 },   /* jelly_stretch */ \
+    { 382, -16, -32, 0x01 },   /* bat_a */ \
+    { 398, -16, -32, 0x01 },   /* bat_b */ \
+    { 414, -16, -32, 0x01 },   /* bat_hang */ \
+    { 430, -16, -32, 0x01 },   /* jelly_squash */ \
+    { 446, -16, -32, 0x01 },   /* jelly_stretch */ \
 }
 
 #endif
