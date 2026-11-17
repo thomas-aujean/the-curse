@@ -12,13 +12,20 @@ static u8 count;
 
 // The picture's last row of cells is the ground itself (row ty + 1): its foot goes into the ground
 // behind the grass (tools/art/outdoor.py). That row was drawn for a flat ground top on even columns,
-// so the ground must be flat one tile past each side, and the rows above it empty.
+// so the ground must be flat one tile past each side, and the rows above it empty. And it must be
+// ground, not a block hanging in the air (one block, 2 tiles thick): a fence or a grave on one floats
+// (Thomas). GROUND_DEPTH tiles of solid under the foot, or down to the room's edge.
+#define GROUND_DEPTH 3
 static u8 fits(const Room *r, u8 kind, u8 tx, u8 ty)
 {
     u8 w = DECOR_W[kind], h = DECOR_H[kind];
     if ((tx & 1) || tx == 0 || tx + w + 1 > r->w || ty + 1 >= r->h || ty + 1 < h) return 0;
     for (u8 x = tx - 1; x <= tx + w; x++)
-        if (r->tiles[ty + 1][x] != TILE_SOLID || r->tiles[ty][x] != TILE_EMPTY) return 0;
+    {
+        if (r->tiles[ty][x] != TILE_EMPTY) return 0;
+        for (u8 y = ty + 1; y <= ty + GROUND_DEPTH && y < r->h; y++)
+            if (r->tiles[y][x] != TILE_SOLID) return 0;
+    }
     for (u8 x = tx; x < tx + w; x++)
         for (u8 y = ty + 2 - h; y <= ty; y++)
             if (r->tiles[y][x] != TILE_EMPTY) return 0;
