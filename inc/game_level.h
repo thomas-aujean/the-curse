@@ -95,7 +95,7 @@ typedef struct
 #define LEVEL_ITEM   4      // an item was picked up (lastItem): show its name
 #define LEVEL_MESSAGE 8     // show lv->message
 
-enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY };
+enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY };
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);
 void level_enter(Level *lv, Player *p, u8 x, u8 y);   // jump straight into a room (tests, debug)

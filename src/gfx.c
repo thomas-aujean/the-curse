@@ -416,5 +416,5 @@ void gfx_loadDecor(void)
 
 void gfx_drawFar(void)
 {
-    VDP_setTileMapDataRect(BG_B, FAR_MAP, 0, 0, 64, 32, 64, CPU);
+    VDP_setTileMapDataRect(FAR_PLANE, FAR_MAP, 0, 0, 64, 32, 64, CPU);
 }

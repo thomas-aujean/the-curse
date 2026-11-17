@@ -319,10 +319,19 @@ int main(void)
                     p.coins = 2;
                     player_place(&p, heart.x >> 8, heart.y >> 8);
                     p.hp = 2;
+                    // Walking past it shows how to buy, and buys nothing (UP buys).
+                    p.coins = 20;
                     lv.messageCooldown = 0;
+                    p.upPressed = 0;
+                    CHECK((level_update(&lv, &p) & LEVEL_MESSAGE) && lv.message == MSG_BUY, "seed %u: buy hint", seed);
+                    CHECK(p.coins == 20 && lv.pickups[0].type == PICKUP_ITEM, "seed %u: bought by walking past", seed);
+                    p.coins = 2;
+                    lv.messageCooldown = 0;
+                    p.upPressed = 1;
                     CHECK((level_update(&lv, &p) & LEVEL_MESSAGE) && lv.message == MSG_NO_MONEY, "seed %u: no money message", seed);
                     CHECK(p.coins == 2 && lv.pickups[0].type == PICKUP_ITEM, "seed %u: sold without money", seed);
                     p.coins = 20;
+                    p.upPressed = 1;
                     int r = level_update(&lv, &p);
                     CHECK((r & LEVEL_ITEM) && p.coins == 20 - SHOP_HEART_PRICE && p.hp == 4, "seed %u: heart bought", seed);
                     level_enter(&lv, &p, x, y);

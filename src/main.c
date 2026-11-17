@@ -181,7 +181,7 @@ static void drawTileState(s16 tx, s16 ty, u8 inVoid)
     u16 index = castleTile(tx, ty), tile = 0;
     if (index & DECOR_TILE) tile = gfx_decorTile(index & 0xFF);
     else if (index & ~CASTLE_FLIP) tile = GFX_CASTLE + (index & ~CASTLE_FLIP);
-    VDP_setTileMapXY(BG_A, TILE_ATTR_FULL(PAL0, !inVoid, 0, (index & CASTLE_FLIP) != 0, tile), tx & 63, ty & 31);
+    VDP_setTileMapXY(ROOM_PLANE, TILE_ATTR_FULL(PAL0, !inVoid, 0, (index & CASTLE_FLIP) != 0, tile), tx & 63, ty & 31);
 }
 
 static void drawColumn(s16 tx)
@@ -218,12 +218,12 @@ static void updateCamera(void)
     if (camY < 0) camY = 0;
 }
 
-// Parallax (the line scroll mode, one horizontal offset per screen line): plane B is cut into bands
+// Parallax (the line scroll mode, one horizontal offset per screen line): FAR_PLANE is cut into bands
 // of rows (far_bands.h, written with the picture by tools/art/make_art.py), from the high clouds to
-// the forest, each drifting at its own fraction of the room's speed. Plane B is 256 rows tall: its
+// the forest, each drifting at its own fraction of the room's speed. It is 256 rows tall: its
 // vertical offset follows the camera from the top of the room (0) to the bottom (32), so it never
 // wraps. Both tables go to video memory by DMA during the next vertical blank.
-static s16 scrollA[224], scrollB[224];
+static s16 scrollRoom[224], scrollBands[224];
 static void scrollFar(void)
 {
     s16 maxY = lv.room.h * ROOM_TILE - SCREEN_H_TILES * ROOM_TILE;
@@ -237,12 +237,12 @@ static void scrollFar(void)
     {
         u16 row = line + vB;
         while (b < FAR_BANDS - 1 && row >= FAR_BAND_END[b]) b++;
-        scrollA[line] = -camX;
-        scrollB[line] = band[b];
+        scrollRoom[line] = -camX;
+        scrollBands[line] = band[b];
     }
-    VDP_setHorizontalScrollLine(BG_A, 0, scrollA, 224, DMA_QUEUE);
-    VDP_setHorizontalScrollLine(BG_B, 0, scrollB, 224, DMA_QUEUE);
-    VDP_setVerticalScroll(BG_B, vB);
+    VDP_setHorizontalScrollLine(ROOM_PLANE, 0, scrollRoom, 224, DMA_QUEUE);
+    VDP_setHorizontalScrollLine(FAR_PLANE, 0, scrollBands, 224, DMA_QUEUE);
+    VDP_setVerticalScroll(FAR_PLANE, vB);
 }
 
 static void scrollCamera(void)
@@ -252,7 +252,7 @@ static void scrollCamera(void)
     while (drawnTX > tx) { drawnTX--; drawColumn(drawnTX); }
     while (drawnTY < ty) { drawnTY++; drawRow(drawnTY + SCREEN_H_TILES); }
     while (drawnTY > ty) { drawnTY--; drawRow(drawnTY); }
-    VDP_setVerticalScroll(BG_A, camY);
+    VDP_setVerticalScroll(ROOM_PLANE, camY);
     scrollFar();
 }
 
@@ -587,7 +587,7 @@ static void hideSprites(void)
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
 
-// HUD on plane A (does not scroll): hearts and light bar top left, minimap of the rooms around
+// HUD in the window plane (does not scroll): hearts and light bar top left, minimap of the rooms around
 // top right. Each part is redrawn only when what it shows has changed.
 static u8 hudHp = 0xFF, hudMaxHp = 0xFF, hudLight = 0xFF, hudCell = 0xFF, hudCorrupted = 0xFF;
 static u16 hudCoins = 0xFFFF;
@@ -672,7 +672,7 @@ static void drawHud(void)
             sprintf(tag, "%u", pk->price);
             VDP_setTextPalette(player.coins >= pk->price ? PAL2 : PAL1);
             // On the room plane, in the air above the ware (the shop room never scrolls).
-            VDP_drawTextBG(BG_A, tag, (pk->x >> 8) / 8 - (pk->price >= 10), (pk->y >> 8) / 8 - 4);
+            VDP_drawTextBG(ROOM_PLANE, tag, (pk->x >> 8) / 8 - (pk->price >= 10), (pk->y >> 8) / 8 - 4);
         }
     }
     if (itemMessage && --itemMessage == 0) VDP_clearTextArea(12, 2, 21, 1);
@@ -707,12 +707,14 @@ static void drawDebug(void)
 }
 #endif
 
-// Room screen: sky on plane A (parallax), room on plane B (high priority), HUD in the window plane
-// over the top 3 rows (the window replaces plane A there; the room still shows through).
+// Room screen: sky on FAR_PLANE (A, parallax), room on ROOM_PLANE (B, high priority), HUD in the window
+// plane over the top 3 rows (the window replaces plane A there; the room still shows through, over the
+// backdrop colour, the top of the sky).
 static void enterRoom(void)
 {
     mode = MODE_ROOM;
     VDP_setWindowVPos(FALSE, 3);
+    VDP_setBackgroundColor(10);   // PAL0: the sky's top colour
     VDP_setHilightShadow(TRUE);
     VDP_setScrollingMode(HSCROLL_LINE, VSCROLL_PLANE);
     VDP_setTextPlane(WINDOW);
@@ -729,6 +731,7 @@ static void enterMap(void)
 {
     mode = MODE_MAP;
     VDP_setWindowVPos(FALSE, 0);
+    VDP_setBackgroundColor(0);
     VDP_setHilightShadow(FALSE);
     VDP_setTextPlane(BG_A);
     VDP_setScrollingMode(HSCROLL_PLANE, VSCROLL_PLANE);
@@ -869,7 +872,7 @@ static void updateRoom(u16 pad, u16 pressed)
     lv.enemies.hitStop = 0;
     if (events & LEVEL_REDRAW) drawRoom();
     if (events & LEVEL_ITEM) showText(player_itemName(lv.lastItem));
-    if (events & LEVEL_MESSAGE) showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : "PAS ASSEZ DE PIECES");
+    if (events & LEVEL_MESSAGE) showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER" : "PAS ASSEZ DE PIECES");
     if (events & LEVEL_GEM)
     {
         startFloorWon();

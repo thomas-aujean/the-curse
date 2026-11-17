@@ -258,6 +258,7 @@ void player_update(Player *p, const Room *r, u16 pad)
     }
     u16 pressed = pad & ~p->prevPad;
     p->prevPad = pad;
+    p->upPressed = (pressed & PAD_UP) != 0;
 
     if (p->dropTimer) p->dropTimer--;
     if (p->attackTimer) p->attackTimer--;

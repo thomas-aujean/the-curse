@@ -162,7 +162,8 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             pk->itemId = slot == 0 ? ITEM_HEART
                 : ITEM_FIRST_UPGRADE + (lv->floor.seed + slot * 5 + x) % UPGRADE_COUNT;
             pk->price = slot == 0 ? SHOP_HEART_PRICE : SHOP_ITEM_PRICE;
-            pk->x = (s32) (t->wBlocks * 8 + (slot - 1) * 64) << 8;
+            static const s8 SLOT_X[3] = { -96, -48, 48 };   // the middle is the trapdoor and its arrow
+            pk->x = (s32) (t->wBlocks * 8 + SLOT_X[slot]) << 8;
             pk->y = (s32) ((t->hBlocks - 2) * 16) << 8;
             pk->vx = pk->vy = 0;
         }
@@ -425,7 +426,7 @@ static u8 levelMessage(Level *lv, u8 message)
     return LEVEL_MESSAGE;
 }
 
-// Pickups fall and bounce on floors and platforms; touching one takes it (wares only if affordable).
+// Pickups fall and bounce on floors and platforms; touching one takes it (wares: UP, if affordable).
 static u8 updatePickups(Level *lv, Player *p, s16 ppx, s16 ppy)
 {
     u8 result = 0;
@@ -469,6 +470,13 @@ static u8 updatePickups(Level *lv, Player *p, s16 ppx, s16 ppy)
         }
         else
         {
+            // A ware is bought with UP, not by walking past it: the shop is entered from the side,
+            // across its wares.
+            if (!p->upPressed)
+            {
+                result |= levelMessage(lv, MSG_BUY);
+                continue;
+            }
             if (p->coins < pk->price)
             {
                 result |= levelMessage(lv, MSG_NO_MONEY);

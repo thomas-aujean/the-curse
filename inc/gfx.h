@@ -45,14 +45,18 @@
 // 16 x 16 block, drawn from the solid neighbours around the nearest block corner. Then cracked walls
 // and the branches of zone 1 (outside: earth and grass, branches as one-way platforms).
 #define GFX_CASTLE         (TILE_USER_INDEX + 140)   // 88 tiles (CASTLE_TILES), up to 228
-// Far background (plane B, tools/art/far.py): its tiles fill free stretches of video memory listed in
+// The room is on plane B and the far background on plane A: the HUD (window, top 3 rows) replaces
+// plane A only, so the top of the room, its doors, still shows under the hearts.
+#define ROOM_PLANE         BG_B
+#define FAR_PLANE          BG_A
+// Far background (plane A, tools/art/far.py): its tiles fill free stretches of video memory listed in
 // far.py (RANGES) and far_map.h: 228..479, 576..599, 656..699, 716..759 and 1960..2031.
 // Tile indices: CASTLE_* in game_room.h.
 
 // Zone-1 decor (res/decor.png, tools/art/outdoor.py, src/game_decor.c), in two stretches of video
 // memory. The second one is the unused part of the window plane's map (0xD000, 64 x 32 cells): the HUD
-// only uses its 3 top rows. A full-screen message clears the whole window, but it also hides plane A,
-// where the decor is drawn, and every room entry loads these tiles again (gfx_loadDecor).
+// only uses its 3 top rows. A full-screen message clears the whole window (the decor blinks out
+// behind it), and every room entry loads these tiles again (gfx_loadDecor).
 // Plane sizes 64 x 32 (SGDK): plane B 0xC000, window 0xD000, plane A 0xE000, scroll table 0xF000,
 // sprites 0xF400, free from 0xF700 (the far background's last stretch, tiles 1976..2047).
 #define GFX_DECOR_A        (TILE_USER_INDEX + 1304)  // 120 tiles, after the enemies, up to the font
@@ -84,7 +88,7 @@
 void gfx_load(void);
 u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
 void gfx_loadDecor(void);   // decor tiles into video memory (again after a full-screen message)
-void gfx_drawFar(void);   // the parallax sky on plane B
+void gfx_drawFar(void);   // the parallax sky on FAR_PLANE
 void gfx_setRoomPalette(u8 inVoid);
 void gfx_setPlayerCorrupted(u8 corrupted);   // violet ninja while touched by the Void   // cold, dead colours once the Void has swallowed the room
 

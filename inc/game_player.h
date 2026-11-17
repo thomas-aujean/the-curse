@@ -75,6 +75,7 @@ typedef struct
     u16 coins;
     u8 corrupted;        // light ran out: touched by the Void (pact: hits harder, takes more)
     u16 prevPad;
+    u8 upPressed;        // UP pressed this frame: buys the ware the player stands at (shop)
 } Player;
 
 // Per-frame constants: NTSC values, scaled for 50 Hz so a jump has the same height and duration.
