@@ -116,6 +116,19 @@ u16 room_artTile(const Room *r, s16 tx, s16 ty)
     s16 nx = (tx & 1) ? tx + 1 : tx - 1, ny = (ty & 1) ? ty + 1 : ty - 1;   // towards the block corner
     u8 bits = (tileOr(r, nx, ty) == TILE_SOLID) | (tileOr(r, tx, ny) == TILE_SOLID) << 1
         | (tileOr(r, nx, ny) == TILE_SOLID) << 2 | (t == TILE_SOLID) << 3;
+    if (bits == 15)
+    {
+        // Inner ground. Half the blocks (fixed per position) show the mirror image, so the 16 x 16
+        // pattern does not repeat; far from the air (3 tiles every way) it gets darker, for depth.
+        u16 bx = tx >> 1, by = ty >> 1, h = (bx * 7 + by * 13) ^ (bx * by) ^ (bx >> 2);
+        u16 flip = h & 1 ? CASTLE_FLIP : 0;
+        u8 q = h & 1 ? quarter ^ 1 : quarter;
+        u8 deep = tileOr(r, tx - 3, ty) == TILE_SOLID && tileOr(r, tx + 3, ty) == TILE_SOLID
+            && tileOr(r, tx, ty - 3) == TILE_SOLID && tileOr(r, tx, ty + 3) == TILE_SOLID
+            && tileOr(r, tx - 2, ty - 2) == TILE_SOLID && tileOr(r, tx + 2, ty - 2) == TILE_SOLID
+            && tileOr(r, tx - 2, ty + 2) == TILE_SOLID && tileOr(r, tx + 2, ty + 2) == TILE_SOLID;
+        return (deep ? CASTLE_DEEP + q : CASTLE_STONE + q * 16 + 15) | flip;
+    }
     if (bits) return CASTLE_STONE + quarter * 16 + bits;
     s8 piece = branchPiece(r, tx, ty);
     if (piece >= 0) return branchTile(CASTLE_BRANCH, piece);

@@ -25,6 +25,7 @@ import enemies  # noqa: E402
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 RES = os.path.join(ROOT, "res")
 ART_IN = os.path.join(ROOT, "art_in")
+GROUND = "stone_ground_tileset"   # zone-1 ground (art_in/tiles; the earth one: "ground_tileset")
 
 # PAL0, zone 1 at dusk (docs/style.md). Index 0 = transparent / backdrop.
 PAL0 = [
@@ -223,9 +224,9 @@ def main():
     os.makedirs(RES, exist_ok=True)
     # Room tiles come from PixelLab (tools/art/castle.py) and bring their own colours for slots 1..9.
     # Zone 1 is outside (earth and grass, branches); the castle stone is kept for the zones inside.
-    ground = os.path.join("tiles", "ground_tileset.png")
+    ground = os.path.join("tiles", GROUND + ".png")
     pal9 = outdoor.palette(ground)
-    tiles, count, stone = castle.tileset(PAL0, "ground_tileset", pal9, outdoor.branch_tiles(pal9))
+    tiles, count, stone = castle.tileset(PAL0, GROUND, pal9, outdoor.branch_tiles(pal9))
     pal0 = PAL0[:1] + stone + PAL0[10:]
     write_indexed(os.path.join(RES, "castle.png"), tiles, pal0)
     far_sheet, far_count, far_img, bands_h, map_h = far.build(pal0)

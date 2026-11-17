@@ -105,6 +105,15 @@ def tileset(old_pal, name="castle_tileset", pal=None, extra=None):
     else:
         for ends in ((True, True), (True, False), (False, False), (False, True)):
             tiles.append([[remap[c] for c in row] for row in plank_tile(*ends)])
+    # Deep inside the ground (CASTLE_DEEP): the plain inner quarters in darker colours, for depth.
+    def darker(k):
+        c = pal[k - 1]
+        target = tuple(v * 0.6 for v in c)
+        lower = [i for i in range(len(pal)) if sum(pal[i]) < sum(c)] or [k - 1]
+        return 1 + min(lower, key=lambda i: dist(pal[i], target))
+    dark = [0] + [darker(k) for k in range(1, len(pal) + 1)]
+    for q in range(4):
+        tiles.append([[dark[c] for c in row] for row in tiles[1 + q * 16 + 15]])
     count = len(tiles)
     while len(tiles) % 16:
         tiles.append([[0] * 8 for _ in range(8)])

@@ -40,27 +40,32 @@ def _load(rel):
     return {(x, y): rows[y][x][:3] for y in range(h) for x in range(w) if rows[y][x][3] >= 128}
 
 
-GROUND_COLOURS = 5
+GRASS_COLOURS, GROUND_COLOURS = 2, 4
+
+
+def _green(c):
+    return c[1] > c[0] + 8 and c[1] > c[2] + 8
 
 
 def palette(ground_png):
-    """The 9 colours shared by everything outside. The ground gets 5 of its own (its grass greens
-    would lose to the browns and greys otherwise), the branch and the decor the 4 others, picked among
-    their colours that the ground's 5 do not already give (each picture weighed the same whatever its
-    size, so a small grave still gets its greys)."""
-    counts = {}
+    """The 9 colours shared by everything outside: 2 for the grass on the ground (green pixels, or
+    they lose to the many browns of the earth or stones), 4 for the rest of the ground, 3 for the
+    branch and the decor, among their colours that the ground's do not already give (each picture
+    weighed the same whatever its size, so a small grave still gets its greys)."""
+    grass, rest = {}, {}
     for c in _load(ground_png).values():
-        counts[c] = counts.get(c, 0) + 1
-    ground = median_cut(counts, GROUND_COLOURS)
+        d = grass if _green(c) else rest
+        d[c] = d.get(c, 0) + 1
+    ground = median_cut(grass, GRASS_COLOURS) + median_cut(rest, GROUND_COLOURS)
     counts = {}
     for px in [_load(BRANCH)] + [_load(f) for _, f in DECOR]:
         n = len(px)
         for c in px.values():
             if min(dist(c, g) for g in ground) > 1200:
                 counts[c] = counts.get(c, 0) + 10000.0 / n
-    pal = sorted(ground + median_cut(counts, COLOURS - GROUND_COLOURS), key=sum)
+    pal = sorted(ground + median_cut(counts, COLOURS - GRASS_COLOURS - GROUND_COLOURS), key=sum)
     GRASS.clear()
-    GRASS.update(1 + i for i, c in enumerate(pal) if c[1] > c[0] + 10 and c[1] > c[2])   # green wins
+    GRASS.update(1 + i for i, c in enumerate(pal) if _green(c))
     return pal
 
 

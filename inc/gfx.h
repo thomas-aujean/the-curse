@@ -44,9 +44,9 @@
 // Room tiles (res/castle.png, tools/art/castle.py and outdoor.py): every map tile is a quarter of a
 // 16 x 16 block, drawn from the solid neighbours around the nearest block corner. Then cracked walls
 // and the branches of zone 1 (outside: earth and grass, branches as one-way platforms).
-#define GFX_CASTLE         (TILE_USER_INDEX + 140)   // 79 tiles
+#define GFX_CASTLE         (TILE_USER_INDEX + 140)   // 83 tiles (CASTLE_TILES), up to 223
 // Far background (plane B, tools/art/far.py): its tiles fill free stretches of video memory listed in
-// far.py (RANGES) and far_map.h: 219..479, 576..599, 656..699, 716..759 and 1960..2031.
+// far.py (RANGES) and far_map.h: 223..479, 576..599, 656..699, 716..759 and 1960..2031.
 // Tile indices: CASTLE_* in game_room.h.
 
 // Zone-1 decor (res/decor.png, tools/art/outdoor.py, src/game_decor.c), in two stretches of video
