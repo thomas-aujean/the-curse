@@ -352,15 +352,15 @@ static u8 ninjaFrame(void)
     wasOnGround = player.onGround;
     if (landTimer) landTimer--;
     if (player.hurtTimer) return NINJA_HURT;
-    if (player.attackTimer)
+    // The slash shows only its wind-up and its crescent: no end pose, the recovery (no new slash yet)
+    // keeps the normal animation (Thomas, 2026-11-17).
+    if (player.attackTimer && player_attackStep(&player) < 3)
     {
         u8 step = player_attackStep(&player);
-        // Up and down: wind-up, the crescent alone, the blade with the fading crescent, the blade.
-        static const u8 VERTICAL[5] = { 0, 1, 2, 3, 3 };
-        if (player.attackDir == ATTACK_UP) return NINJA_UP0 + VERTICAL[step];
-        if (player.attackDir == ATTACK_DOWN) return NINJA_DOWN0 + VERTICAL[step];
+        if (player.attackDir == ATTACK_UP) return NINJA_UP0 + step;
+        if (player.attackDir == ATTACK_DOWN) return NINJA_DOWN0 + step;
         if (player.crouching) return step == 1 || step == 2 ? NINJA_CROUCH_SLASH1 : NINJA_CROUCH_SLASH0;
-        if (!player.onGround) return NINJA_AIR0 + (step > 3 ? 3 : step);
+        if (!player.onGround) return NINJA_AIR0 + step;
         return NINJA_SLASH0 + step;
     }
     if (player.crouching) return NINJA_CROUCH;

@@ -511,7 +511,6 @@ pose("up1", h=21, lean=-3, near_leg=("ik", -4, 0), far_leg=("ik", 5, 0),
 pose("up2", h=20.5, lean=-8, near_leg=("ik", -4.5, 0), far_leg=("ik", 5, 0),
      near_arm=("fk", 196, 208), blade=226, arc=(160, 5.0, False), ext=UP_EXT,
      far_arm=("fk", -10, 30), tails=(120, 12, 120), droop=0.0, sash=(96, 8, 90))
-pose("up3", **POSES["up2"])   # held after the crescent is gone (the knight shows it without its arc)
 
 # In the air: side slash with the legs gathered, and the plunging slash under the feet.
 pose("air0", h=22, lean=-2, near_leg=("fk", 50, -40, 40), far_leg=("fk", 10, -50, 50), pull=3,
@@ -533,7 +532,6 @@ pose("down1", h=15, lean=14, near_leg=("fk", 96, -40, 40), far_leg=("fk", 70, -6
 pose("down2", h=15, lean=18, near_leg=("fk", 92, -44, 40), far_leg=("fk", 66, -68, 50),
      near_arm=("fk", -8, -22), blade=-36, arc=(16, 4.5, False), ext=DOWN_EXT,
      far_arm=("fk", -110, -140), tails=(266, 14, 120), droop=-0.5, sash=(258, 10, 90))
-pose("down3", **POSES["down2"])
 
 # Crouch, and its low slash.
 CROUCH = dict(h=9, lean=30, curl=12, near_leg=("ik", 5, 0), far_leg=("ik", -7, 0, 0))
