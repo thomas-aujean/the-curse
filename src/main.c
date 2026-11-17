@@ -355,8 +355,8 @@ static u8 ninjaFrame(void)
     if (player.attackTimer)
     {
         u8 step = player_attackStep(&player);
-        // Up and down: wind-up, fresh crescent, fading crescent, back to the wind-up pose to recover.
-        static const u8 VERTICAL[5] = { 0, 1, 2, 2, 0 };
+        // Up and down: wind-up, the crescent alone, the blade with the fading crescent, the blade.
+        static const u8 VERTICAL[5] = { 0, 1, 2, 3, 3 };
         if (player.attackDir == ATTACK_UP) return NINJA_UP0 + VERTICAL[step];
         if (player.attackDir == ATTACK_DOWN) return NINJA_DOWN0 + VERTICAL[step];
         if (player.crouching) return step == 1 || step == 2 ? NINJA_CROUCH_SLASH1 : NINJA_CROUCH_SLASH0;

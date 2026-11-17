@@ -29,7 +29,8 @@ static const Tuning NTSC =
     .dropFrames = 10,
     // Hollow Knight-like slash (Thomas, 2026-11-17: "where timing really counts"): a short wind-up, the
     // crescent hits for 4 frames only, then a recovery where no new slash can start: a missed blow costs.
-    .attackFrames = 20,
+    // The crescent shows only while the blow hits (Thomas: "shorter, for a more precise timing").
+    .attackFrames = 16,
     .attackFrom = 3,   // hitbox active on frames [from, to) of the slash
     .attackTo = 7,
     .invulFrames = 90,  // 1.5 s of blinking after a hit
@@ -476,6 +477,6 @@ u8 player_attackStep(const Player *p)
 {
     u8 elapsed = t.attackFrames - p->attackTimer;
     if (elapsed < t.attackFrom) return 0;
-    if (elapsed < t.attackTo) return elapsed < (t.attackFrom + t.attackTo) / 2 ? 1 : 2;
-    return elapsed < (t.attackTo + t.attackFrames) / 2 ? 3 : 4;
+    if (elapsed < t.attackTo) return elapsed < (t.attackFrom + t.attackTo) / 2 ? 1 : 2;   // the crescent
+    return elapsed < (t.attackTo + t.attackFrames) / 2 ? 3 : 4;                            // recovery
 }

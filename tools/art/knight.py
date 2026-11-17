@@ -25,21 +25,26 @@ FRAMES = {
     "rise": ("poses/rise", 0, "air legs"),
     "fall": ("poses/fall", 0, "air legs"),
     "land": ("poses/land", 0, "legs"),
+    # A slash (Thomas, 2026-11-17: "the sword is too static"): wind-up, the crescent alone (the blade is
+    # lost in its sweep, "noblade"), then the sword at the end of its course, pointing at the ground in
+    # front (the lunge of the low strike), while the crescent fades.
     "slash0": ("poses/windup_wide", 0, "feet"),
-    "slash1": ("poses/strike_wide", 0, "legs"),
-    "slash2": ("poses/strike_wide", 0, "legs"),
-    "slash3": ("poses/strike_wide", 0, "legs"),
-    "slash4": ("poses/windup_wide", 0, "feet"),
+    "slash1": ("poses/strike_wide", 0, "legs noblade"),
+    "slash2": ("poses/crouch_strike", 0, "legs"),
+    "slash3": ("poses/crouch_strike", 0, "legs"),
+    "slash4": ("poses/crouch_strike", 0, "legs"),
     "up0": ("poses/windup_wide", 0, "feet"),
-    "up1": ("poses/up", 0, "legs"),
+    "up1": ("poses/up", 0, "legs noblade"),
     "up2": ("poses/up", 0, "legs"),
+    "up3": ("poses/up", 0, "legs"),
     "air0": ("poses/windup_wide", 0, "air feet"),
-    "air1": ("poses/strike_wide", 0, "air legs"),
-    "air2": ("poses/strike_wide", 0, "air legs"),
+    "air1": ("poses/strike_wide", 0, "air legs noblade"),
+    "air2": ("poses/crouch_strike", 0, "air legs"),
     "air3": ("poses/tuck", 0, "air legs"),
     "down0": ("poses/tuck", 0, "air legs"),
-    "down1": ("poses/down2", 0, "air"),
+    "down1": ("poses/down2", 0, "air noblade"),
     "down2": ("poses/down2", 0, "air"),
+    "down3": ("poses/down2", 0, "air"),
     # PixelLab fills its canvas whatever the pose: its kneeling knight is as tall as the standing one.
     # The crouch comes from the crouch animation (drawn at the right size, head lowered); the low
     # strike is brought back to that height ("low": scaled around the feet).
@@ -62,6 +67,12 @@ BLADES = {
     "poses/crouch_strike": ("copy", 47, 29, 32, 1, 0.34, 10),
     "poses/up": ("up", 26, 0, 18),
     "poses/down2": ("down", 31, 47, 8),
+}
+# Where the blade is in the source image (x0, y0, x1, y1 inclusive), erased on "noblade" frames.
+NOBLADE = {
+    "poses/strike_wide": (61, 30, 79, 36),
+    "poses/up": None,                # the blade is only the continuation (BLADES)
+    "poses/down2": (32, 36, 36, 47),
 }
 STEEL = [(0x05, 0x05, 0x0A), (0xC9, 0xDC, 0xE1), (0x80, 0x94, 0xA4), (0x05, 0x05, 0x0A)]
 
@@ -115,8 +126,8 @@ UP = (16, 12, 28, 100, 260)
 DOWN = (16, 34, 26, 75, -75)
 CROUCH = (18, 30, 26, 150, 30)
 ARCS = {
-    "slash1": SIDE + (0,), "slash2": SIDE + (1,), "slash3": SIDE + (2,),
-    "air1": SIDE + (0,), "air2": SIDE + (1,), "air3": SIDE + (2,),
+    "slash1": SIDE + (0,), "slash2": SIDE + (1,),
+    "air1": SIDE + (0,), "air2": SIDE + (1,),
     "up1": UP + (0,), "up2": UP + (1,),
     "down1": DOWN + (0,), "down2": DOWN + (1,),
     "crouch_slash1": CROUCH + (0,),
@@ -195,7 +206,12 @@ def _pixels(name):
         xs = [x for r in fr[ground - rows:ground + 1] for x, p in enumerate(r) if p[3] > 127]
         cx = (min(xs) + max(xs) + 1) // 2
     src = {(x, y): p[:3] for y, r in enumerate(fr) for x, p in enumerate(r) if p[3] > 127}
-    src.update(_blade(spec[0], fr))
+    if "noblade" in flags:
+        box = NOBLADE[spec[0]]
+        if box:
+            src = {q: c for q, c in src.items() if not (box[0] <= q[0] <= box[2] and box[1] <= q[1] <= box[3])}
+    else:
+        src.update(_blade(spec[0], fr))
     px = {(x - cx + W // 2, y - ground + FEET): c for (x, y), c in src.items()}
     if "low" in flags:
         px = _scaled(px, LOW_SCALE)
