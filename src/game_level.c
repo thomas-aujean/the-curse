@@ -340,10 +340,15 @@ static u8 breakWalls(Level *lv, const Player *p)
     if (!player_attackActive(p) || !lv->crackedCount) return 0;
     s16 ax0, ay0, ax1, ay1;
     player_attackBox(p, &ax0, &ay0, &ax1, &ay1);
+    // A crouching slash also strikes the ground under the feet (Thomas: a cracked floor under a low
+    // platform could not be reached, the jump for a downward slash landed on the platform).
+    s16 fx = p->x >> 8, fy = p->y >> 8;
+    u8 low = p->crouching && p->onGround;
     for (u8 i = 0; i < lv->crackedCount; i++)
     {
         Cracked *c = &lv->cracked[i];
-        if (ax0 > c->x1 || c->x0 > ax1 || ay0 > c->y1 || c->y0 > ay1) continue;
+        u8 floorHit = low && c->dir == DOOR_DOWN && fx + 11 >= c->x0 && fx - 12 <= c->x1 && fy + 10 >= c->y0 && fy <= c->y1;
+        if (!floorHit && (ax0 > c->x1 || c->x0 > ax1 || ay0 > c->y1 || c->y0 > ay1)) continue;
         u8 x = lv->cellX, y = lv->cellY;
         lv->opened[y][x] |= c->dir;
         if (c->dir == DOOR_LEFT) lv->opened[y][x - 1] |= DOOR_RIGHT;

@@ -252,7 +252,7 @@ int main(void)
     }
     // Secret rooms: a slash breaks the cracked wall, the passage opens on both sides and leads to
     // the secret room and its item.
-    int secretsOpened = 0;
+    int secretsOpened = 0, crouched = 0;
     for (unsigned seed = 3; seed < 600; seed += 9)
     {
         level_start(&lv, &p, (u16) seed, 3);
@@ -271,12 +271,15 @@ int main(void)
                 if (c.dir == DOOR_LEFT) player_place(&p, c.x1 + 12, c.y1 + 1);
                 else if (c.dir == DOOR_RIGHT) player_place(&p, c.x0 - 12, c.y1 + 1);
                 else if (c.dir == DOOR_UP) { player_place(&p, cx, c.y1 + 35); pad |= PAD_UP; }
+                // A cracked floor: a downward slash from the air, or (every other seed) a crouching slash
+                // standing on it.
+                else if ((seed / 9) & 1) { player_place(&p, cx, c.y0); pad |= PAD_DOWN; crouched++; }
                 else { player_place(&p, cx, c.y0 - 10); pad |= PAD_DOWN; }
                 p.facingLeft = c.dir == DOOR_LEFT;
                 int redraw = 0;
-                for (int f = 0; f < 6; f++)
+                for (int f = 0; f < 10; f++)
                 {
-                    player_update(&p, &lv.room, f ? pad : (pad & ~PAD_ATTACK));
+                    player_update(&p, &lv.room, f > 1 ? (f == 2 ? pad : pad & ~PAD_ATTACK) : (pad & ~PAD_ATTACK));
                     p.facingLeft = c.dir == DOOR_LEFT;
                     if (level_update(&lv, &p) & LEVEL_REDRAW) redraw = 1;
                     if (lv.cellX != x || lv.cellY != y) break;
@@ -298,6 +301,7 @@ int main(void)
             }
     }
     CHECK(secretsOpened > 50, "only %d secret passages tested", secretsOpened);
+    CHECK(crouched > 5, "only %d cracked floors broken crouching", crouched);
 
     // Jars break into coins that land and can be picked up; broken jars stay broken.
     int jarsTested = 0, shopsTested = 0;
