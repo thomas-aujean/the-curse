@@ -90,18 +90,24 @@ typedef struct
     u8 bossFight;                      // the boss of this floor is alive and fighting
     u8 bossStrong;                     // reached after the circle closed: Void form
     u8 lockTimer;
-    u8 gemActive;                      // dropped by the boss, waiting to be picked up
+    // Boss down (Thomas, 2026-11-17): the gem falls in the middle of the room and is taken (or not)
+    // with UP; a door appears, UP in front of it goes to the next floor.
+    u8 gemActive;                      // waiting on the floor of the boss room
+    u8 gemTaken;                       // taken on this floor
     s32 gemX, gemY;                    // 1/256 px, y = bottom
     s16 gemVy;
+    u8 exitOpen;                       // the door to the next floor is there
+    s16 exitX, exitY;                  // room px: centre, bottom
 } Level;
 
 // level_update result bits
 #define LEVEL_REDRAW 1      // new room, or the doors just locked: redraw the room
-#define LEVEL_GEM    2      // the gem was picked up: the floor is won
+#define LEVEL_EXIT   2      // UP in front of the exit door: the floor is won
+#define LEVEL_GEM    16     // the gem was taken
 #define LEVEL_ITEM   4      // an item was picked up (lastItem): show its name
 #define LEVEL_MESSAGE 8     // show lv->message
 
-enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY };
+enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT };
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);
 void level_enter(Level *lv, Player *p, u8 x, u8 y);   // jump straight into a room (tests, debug)

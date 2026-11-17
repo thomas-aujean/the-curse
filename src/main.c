@@ -543,6 +543,29 @@ static void drawSprites(void)
         }
         else n = drawEnemyFrame(n, &ENEMY_FRAME[POSE_FRAME[e->type][e->pose]], ex, ey, base, e->facingLeft);
     }
+    // The exit door, once the boss is gone: on the boss's tiles, given back on the next floor.
+    {
+        static u8 doorLoaded;
+        u8 bossThere = 0;
+        for (u8 i = 0; i < MAX_ENEMIES; i++) bossThere |= lv.enemies.e[i].type == ENEMY_BOSS;
+        if (lv.exitOpen && !bossThere)
+        {
+            if (!doorLoaded) gfx_loadDoor();
+            doorLoaded = 1;
+            s16 dx = lv.exitX - camX - 16, dy = lv.exitY - camY - 48;
+            if (n + 1 < SPRITE_ENEMIES + ENEMY_SPRITES && !offScreen(dx, dy))
+            {
+                VDP_setSpriteFull(n, dx, dy, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL2, 0, 0, 0, GFX_TILE_BOSS_TOP), n + 1);
+                VDP_setSpriteFull(n + 1, dx, dy + 32, SPRITE_SIZE(4, 2), TILE_ATTR_FULL(PAL2, 0, 0, 0, GFX_TILE_BOSS_BOTTOM), n + 2);
+                n += 2;
+            }
+        }
+        else if (doorLoaded && !lv.exitOpen)
+        {
+            gfx_loadBoss();
+            doorLoaded = 0;
+        }
+    }
     // The rest of the pool stays in the chain (the sprites after it are fixed), out of sight.
     for (; n < SPRITE_ENEMIES + ENEMY_SPRITES; n++) VDP_setSpriteFull(n, 0, -64, SPRITE_SIZE(1, 1), 0, n + 1);
     for (u8 i = 0; i < MAX_SHOTS; i++)
@@ -892,7 +915,6 @@ static void fullWindow(void)
 static void startFloorWon(void)
 {
     wonFrames = 1;
-    gems++;
     if (!lv.bossStrong) bossesInTime++;   // every boss reached in time: boss rush (later)
 }
 
@@ -913,7 +935,7 @@ static void updateFloorWon(void)
         VDP_setTextPalette(PAL0);
         sprintf(line, "GEMME DE LA VIE  %u/7", gems);
         VDP_drawText(line, 10, 10);
-        VDP_drawText("LE GARDIEN TE LEGUE UN POUVOIR", 5, 13);
+        VDP_drawText(lv.gemTaken ? "LE GARDIEN TE LEGUE UN POUVOIR" : "TU AS LAISSE LA GEMME...", lv.gemTaken ? 5 : 8, 13);
         VDP_setTextPalette(lv.bossStrong ? PAL3 : PAL2);
         VDP_drawText(lv.bossStrong ? "LE NEANT L'AVAIT ATTEINT..." : "ARRIVE AVANT LE NEANT !", 7, 16);
     }
@@ -967,8 +989,15 @@ static void updateRoom(u16 pad, u16 pressed)
     if (events & LEVEL_ITEM) showText2(player_itemName(lv.lastItem), player_itemPhrase(lv.lastItem));
     if (events & LEVEL_MESSAGE)
         // No name on a ware (Isaac-style: the items are known by their look).
-        showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER" : "PAS ASSEZ DE PIECES");
+        showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER"
+                 : lv.message == MSG_TAKE ? "HAUT : PRENDRE" : lv.message == MSG_EXIT ? "HAUT : NIVEAU SUIVANT"
+                 : "PAS ASSEZ DE PIECES");
     if (events & LEVEL_GEM)
+    {
+        gems++;
+        showText2("GEMME DE LA VIE", "LE GARDIEN TE LA LEGUE");
+    }
+    if (events & LEVEL_EXIT)
     {
         startFloorWon();
         return;
@@ -1016,6 +1045,15 @@ int main(bool hardReset)
             enemies_add(&lv.enemies, SPAWN[i][0], (player.x >> 8) + SPAWN[i][1],
                         (player.y >> 8) - (SPAWN[i][0] == ENEMY_FLYER ? 70 : 0), 0);
     }
+#endif
+#ifdef DEBUG_BOSS_DOWN
+    // Diagnostic build: straight into the boss room, the boss just beaten (gem and exit door).
+    level_enter(&lv, &player, lv.floor.voidX, lv.floor.voidY);
+    {
+        s8 slot = enemies_bossSlot(&lv.enemies);
+        if (slot >= 0) lv.enemies.e[slot].deathTimer = 1;
+    }
+    player_place(&player, 60, lv.room.h * ROOM_TILE - 2 * ROOM_TILE);
 #endif
     enterRoom();
 

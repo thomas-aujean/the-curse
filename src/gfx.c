@@ -245,6 +245,25 @@ const u32 *gfx_digitPicture(u8 d)
     return digits[d];
 }
 
+void gfx_loadBoss(void)
+{
+    static u32 buffer[16 * 8];
+    artToTiles(WALKER, doubledPixel, 4, 4, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_BOSS_TOP, 16, CPU);
+    artToTiles(WALKER + 16, doubledPixel, 4, 2, buffer);
+    VDP_loadTileData(buffer, GFX_TILE_BOSS_BOTTOM, 8, CPU);
+}
+
+void gfx_loadDoor(void)
+{
+    // res/door.png in columns of 6 tiles: a 4 x 4 top sprite then a 4 x 2 bottom one, in hardware order.
+    for (u8 c = 0; c < 4; c++)
+    {
+        VDP_loadTileData(ts_door.tiles + c * 6 * 8, GFX_TILE_BOSS_TOP + c * 4, 4, DMA_QUEUE);
+        VDP_loadTileData(ts_door.tiles + (c * 6 + 4) * 8, GFX_TILE_BOSS_BOTTOM + c * 2, 2, DMA_QUEUE);
+    }
+}
+
 void gfx_load(void)
 {
     static u32 buffer[16 * 8];
@@ -299,10 +318,7 @@ void gfx_load(void)
     gfx_loadDecor();
 
 
-    artToTiles(WALKER, doubledPixel, 4, 4, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_BOSS_TOP, 16, CPU);
-    artToTiles(WALKER + 16, doubledPixel, 4, 2, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_BOSS_BOTTOM, 8, CPU);
+    gfx_loadBoss();
     VDP_loadTileData(SHOT_TILE, GFX_TILE_SHOT, 1, CPU);
     VDP_loadTileData(GEM_TILE, GFX_TILE_GEM, 1, CPU);
     artToTiles(RELIC, plainPixel, 2, 2, buffer);

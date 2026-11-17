@@ -278,7 +278,7 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
             lv->propsBroken[y][x] = lv->shopBought[y][x] = 0;
     lv->rng = seed | 1;
     dealFloorItems(lv);
-    lv->gemActive = 0;
+    lv->gemActive = lv->gemTaken = lv->exitOpen = 0;
     lv->bossFight = 0;
 
     // The circle closes on the centre of the boss room. It starts just around the farthest room
@@ -588,24 +588,27 @@ u8 level_update(Level *lv, Player *p)
         s8 slot = enemies_bossSlot(&lv->enemies);
         if (slot < 0)
         {
-            // Boss down: the gem drops where it fell.
+            // Boss down: the gem falls from high up in the middle of the room, the exit door stands
+            // on the floor a quarter of the room further right.
+            s16 w = lv->room.w * ROOM_TILE;
             lv->bossFight = 0;
-            for (u8 i = 0; i < MAX_ENEMIES; i++)
-                if (lv->enemies.e[i].type == ENEMY_BOSS)
-                {
-                    lv->gemX = lv->enemies.e[i].x;
-                    lv->gemY = lv->enemies.e[i].y - (24 << 8);
-                }
+            lv->gemX = (s32) (w / 2) << 8;
+            lv->gemY = (s32) (3 * ROOM_TILE) << 8;
             lv->gemVy = 0;
             lv->gemActive = 1;
+            lv->exitOpen = 1;
+            lv->exitX = w * 3 / 4;
+            lv->exitY = 3 * ROOM_TILE;
+            while (lv->exitY < lv->room.h * ROOM_TILE && room_tileAt(&lv->room, lv->exitX, lv->exitY) != TILE_SOLID)
+                lv->exitY += ROOM_TILE;
         }
     }
     if (lv->gemActive)
     {
         s16 gx = lv->gemX >> 8, gy = lv->gemY >> 8;
-        if (room_tileAt(&lv->room, gx, gy) == TILE_EMPTY)
+        if (room_tileAt(&lv->room, gx, gy) != TILE_SOLID)   // through the branches, down to the ground
         {
-            lv->gemVy += 64;
+            if (lv->gemVy < 1536) lv->gemVy += 64;   // at most 6 px a frame: never through a floor
             lv->gemY += lv->gemVy;
         }
         else
@@ -615,9 +618,19 @@ u8 level_update(Level *lv, Player *p)
         }
         if (nearPlayer(gx, gy, ppx, ppy))
         {
-            lv->gemActive = 0;
-            return result | LEVEL_GEM;
+            if (p->upPressed)
+            {
+                lv->gemActive = 0;
+                lv->gemTaken = 1;
+                return result | LEVEL_GEM;
+            }
+            result |= levelMessage(lv, MSG_TAKE);
         }
+    }
+    if (lv->exitOpen && ppx > lv->exitX - 14 && ppx < lv->exitX + 14 && ppy > lv->exitY - 24 && ppy <= lv->exitY + 2)
+    {
+        if (p->upPressed) return result | LEVEL_EXIT;
+        result |= levelMessage(lv, MSG_EXIT);
     }
     if (result & LEVEL_REDRAW) return result;
 

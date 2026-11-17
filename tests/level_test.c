@@ -212,7 +212,7 @@ int main(void)
     }
 
     // Boss room: entering stops the Void, the doors lock without trapping the player in a wall,
-    // the boss drops the gem, picking it up wins the floor.
+    // the boss drops the gem in the middle (UP takes it) and a door opens (UP: next floor).
     for (unsigned seed = 5; seed < 300; seed += 11)
     {
         level_start(&lv, &p, (u16) seed, 3);
@@ -241,14 +241,29 @@ int main(void)
         CHECK(slot >= 0, "seed %u: boss present", seed);
         if (slot < 0) continue;
         lv.enemies.e[slot].deathTimer = 64;   // as if killed
-        p.x = 24 << 8;                        // away from the boss, or the gem is picked up at once
-        int won = level_update(&lv, &p) & LEVEL_GEM;
-        CHECK(!won && lv.gemActive && !lv.bossFight, "seed %u: gem dropped", seed);
+        p.x = 24 << 8;
+        int won = level_update(&lv, &p) & (LEVEL_GEM | LEVEL_EXIT);
+        CHECK(!won && lv.gemActive && lv.exitOpen && !lv.bossFight, "seed %u: gem dropped, door open", seed);
+        CHECK(lv.gemX >> 8 == lv.room.w * 4, "seed %u: gem in the middle of the room", seed);
         for (int f = 0; f < 120; f++) level_update(&lv, &p);
+        CHECK(room_tileAt(&lv.room, lv.gemX >> 8, lv.gemY >> 8) == TILE_SOLID, "seed %u: gem not on the ground", seed);
+        // Walking over the gem does not take it, UP does.
         p.x = lv.gemX;
         p.y = lv.gemY;
         p.invulnerable = 255;
-        CHECK(level_update(&lv, &p) & LEVEL_GEM, "seed %u: gem picked up", seed);
+        p.upPressed = 0;
+        CHECK(!(level_update(&lv, &p) & LEVEL_GEM) && lv.gemActive, "seed %u: gem taken without UP", seed);
+        p.upPressed = 1;
+        CHECK((level_update(&lv, &p) & LEVEL_GEM) && lv.gemTaken && !lv.gemActive, "seed %u: gem taken with UP", seed);
+        // The door stands on the floor; UP in front of it wins the floor.
+        CHECK(room_tileAt(&lv.room, lv.exitX, lv.exitY) == TILE_SOLID && room_tileAt(&lv.room, lv.exitX, lv.exitY - 1) != TILE_SOLID,
+              "seed %u: door at %d,%d not on the floor", seed, lv.exitX, lv.exitY);
+        p.x = (s32) lv.exitX << 8;
+        p.y = (s32) lv.exitY << 8;
+        p.upPressed = 0;
+        CHECK(!(level_update(&lv, &p) & LEVEL_EXIT), "seed %u: exit without UP", seed);
+        p.upPressed = 1;
+        CHECK(level_update(&lv, &p) & LEVEL_EXIT, "seed %u: exit with UP", seed);
     }
     // Secret rooms: a slash breaks the cracked wall, the passage opens on both sides and leads to
     // the secret room and its item.

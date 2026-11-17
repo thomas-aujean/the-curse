@@ -18,6 +18,7 @@ import knight  # noqa: E402
 import props  # noqa: E402
 import chests  # noqa: E402
 import items  # noqa: E402
+import door  # noqa: E402
 import arrow  # noqa: E402
 import outdoor  # noqa: E402
 import far  # noqa: E402
@@ -268,6 +269,7 @@ def main():
     write_indexed(os.path.join(RES, "chests.png"), chests.sheet(pal2), pal2)
     write_indexed(os.path.join(RES, "items.png"), items.sheet(pal2), pal2)
     write_indexed(os.path.join(RES, "arrow.png"), arrow.sheet(), pal2)
+    write_indexed(os.path.join(RES, "door.png"), door.sheet(pal2), pal2)
     print("castle.png: %d tiles, far.png: 512x256, ninja.png: %d frames" % (count, len(ninja.ORDER)))
 
 
