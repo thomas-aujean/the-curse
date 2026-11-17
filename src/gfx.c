@@ -339,6 +339,15 @@ void gfx_load(void)
     PAL_setColors(16, pal_ninja.data, 16, CPU);
     VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);
     VDP_loadTileSet(&ts_chests, GFX_CHESTS, CPU);
+    // Zone-1 decor, in three stretches of video memory (gfx.h).
+    {
+        u16 n = ts_decor.numTile, a = n < DECOR_A_LEN ? n : DECOR_A_LEN;
+        u16 b = n - a < DECOR_B_LEN ? n - a : DECOR_B_LEN, c = n - a - b;
+        if (c > DECOR_C_LEN) c = DECOR_C_LEN;   // too many: tools/art/outdoor.py must trim the decor
+        VDP_loadTileData(ts_decor.tiles, GFX_DECOR_A, a, CPU);
+        if (b) VDP_loadTileData(ts_decor.tiles + a * 8, GFX_DECOR_B, b, CPU);
+        if (c) VDP_loadTileData(ts_decor.tiles + (a + b) * 8, GFX_DECOR_C, c, CPU);
+    }
 
     artToTiles(NINJA, plainPixel, 2, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_STAND, 8, CPU);
@@ -398,6 +407,13 @@ void gfx_setPlayerCorrupted(u8 corrupted)
     PAL_setColor(16 + 3, RGB24_TO_VDPCOLOR(0x8822CC));
     PAL_setColor(16 + 5, RGB24_TO_VDPCOLOR(0x44EEEE));
 }
+u16 gfx_decorTile(u8 i)
+{
+    if (i < DECOR_A_LEN) return GFX_DECOR_A + i;
+    if (i < DECOR_A_LEN + DECOR_B_LEN) return GFX_DECOR_B + i - DECOR_A_LEN;
+    return GFX_DECOR_C + i - DECOR_A_LEN - DECOR_B_LEN;
+}
+
 void gfx_drawFar(void)
 {
     VDP_setTileMapEx(BG_B, img_far.tilemap, TILE_ATTR_FULL(PAL0, 0, 0, 0, GFX_FAR), 0, 0, 0, 0, 64, 32, CPU);

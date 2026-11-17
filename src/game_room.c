@@ -74,3 +74,52 @@ u8 room_tileAt(const Room *r, s16 px, s16 py)
     if (ty >= r->h) ty = r->h - 1;
     return r->tiles[ty][tx] == TILE_EMPTY ? TILE_EMPTY : TILE_SOLID;
 }
+
+static u8 tileOr(const Room *r, s16 tx, s16 ty)
+{
+    if (tx < 0 || ty < 0 || tx >= r->w || ty >= r->h) return TILE_SOLID;   // walls go on
+    return r->tiles[ty][tx];
+}
+
+// Branch piece on the platform row for tile (tx, ty): 0 middle A, 1 middle B, 2 end, 3 tip 1, 4 tip 2,
+// + BRANCH_LEFT on the left side (mirrored), or -1. A run of platform tiles is a branch: middle tiles
+// between two ends, and the twigs (tips) carry on over the two empty tiles past each end.
+#define BRANCH_LEFT 8
+static s8 branchPiece(const Room *r, s16 tx, s16 ty)
+{
+    u8 t = tileOr(r, tx, ty);
+    if (t == TILE_PLATFORM)
+    {
+        u8 left = tileOr(r, tx - 1, ty) == TILE_PLATFORM, right = tileOr(r, tx + 1, ty) == TILE_PLATFORM;
+        if (left && right) return tx & 1;
+        return left ? 2 : 2 + BRANCH_LEFT;   // alone: a short branch, its end towards the right
+    }
+    if (t != TILE_EMPTY) return -1;
+    if (tileOr(r, tx - 1, ty) == TILE_PLATFORM) return 3;
+    if (tileOr(r, tx + 1, ty) == TILE_PLATFORM) return 3 + BRANCH_LEFT;
+    if (tileOr(r, tx - 1, ty) == TILE_EMPTY && tileOr(r, tx - 2, ty) == TILE_PLATFORM) return 4;
+    if (tileOr(r, tx + 1, ty) == TILE_EMPTY && tileOr(r, tx + 2, ty) == TILE_PLATFORM) return 4 + BRANCH_LEFT;
+    return -1;
+}
+
+static u16 branchTile(u16 base, s8 piece)
+{
+    return base + (piece & 7) + (piece & BRANCH_LEFT ? CASTLE_FLIP : 0);
+}
+
+u16 room_artTile(const Room *r, s16 tx, s16 ty)
+{
+    if (tx < 0 || ty < 0 || tx >= r->w || ty >= r->h) return 0;
+    u8 t = r->tiles[ty][tx];
+    if (t == TILE_PLATFORM) return branchTile(CASTLE_BRANCH, branchPiece(r, tx, ty));
+    u8 quarter = (ty & 1) << 1 | (tx & 1);
+    s16 nx = (tx & 1) ? tx + 1 : tx - 1, ny = (ty & 1) ? ty + 1 : ty - 1;   // towards the block corner
+    u8 bits = (tileOr(r, nx, ty) == TILE_SOLID) | (tileOr(r, tx, ny) == TILE_SOLID) << 1
+        | (tileOr(r, nx, ny) == TILE_SOLID) << 2 | (t == TILE_SOLID) << 3;
+    if (bits) return CASTLE_STONE + quarter * 16 + bits;
+    s8 piece = branchPiece(r, tx, ty);
+    if (piece >= 0) return branchTile(CASTLE_BRANCH, piece);
+    if (tileOr(r, tx, ty - 1) != TILE_SOLID && (piece = branchPiece(r, tx, ty - 1)) >= 0)
+        return branchTile(CASTLE_BRANCH_LOW, piece);
+    return 0;
+}

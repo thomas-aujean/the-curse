@@ -136,3 +136,14 @@ Source : `art_in/props/<nom>.png` et `<nom>_open.png`. En jeu : un sprite de 32 
 - petit bronze : fermé 03f1c876, ouvert 4ded3485 (26 x 22)
 - petit argent : fermé 56c367e2, ouvert 04a4468a (même forme)
 - gros or : fermé 7ee031ce, ouvert 9fed1de8 (30 x 28, toile de 38)
+
+## Niveau 1 extérieur (`tools/art/outdoor.py`, 2026-11-17)
+Palette PAL0 1..9 commune : 5 couleurs pour le sol (verts de l'herbe gardés), 4 pour branches et décors.
+- Sol : tileset sidescroller pro `c740d402-c827-4b5d-9aab-572b0faf4ab6` (terre sombre, herbe éclairée) → `art_in/tiles/ground_tileset.*`
+- Château lointain : image pro `3a1ace7d` n° 1 → `art_in/far/castle_1.png` (collé dans le fond, couleurs du ciel)
+- Branche (plateformes) : image pro `366289c0` n° 0 → `art_in/trees/branch.png` (milieu A/B, bout, 2 pointes ; miroir à gauche)
+- Arbres morts : image pro `b4763301` n° 1 et 6 → `art_in/trees/tree_a.png`, `tree_b.png`
+- Grille : image pro `4700acb6` n° 0 → `art_in/decor/fence.png`
+- Tombes (objet `1ab648de`, gardées : b54d1ef8, 34c07c62, e7fead90, d44c1164, 01f76217) → `art_in/decor/grave_*.png`
+Vérifier une salle sans BlastEm : `wsl sh tools/test.sh` puis
+`wsl python3 tools/art/render_room.py out/room_7.txt out/room_7.png`.

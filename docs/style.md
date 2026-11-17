@@ -39,7 +39,13 @@ légère aux avant-bras et aux tibias.
 - Palette imposée par couche (voir plus bas), 15 couleurs + transparent, aucune couleur hors palette.
 - S'inspirer de Shinobi / Bloodlines / Rogue Legacy / Metroid pour la qualité, ne jamais copier un sprite.
 
-## Zone 1 — entrée du château, au crépuscule (choix A, 2026-11-13)
+## Zone 1 — dehors, en approchant du château (Thomas, 2026-11-17)
+- Même ciel de crépuscule ; au loin le château gothique sur son piton, collines, lisière de forêt.
+- Sol de terre sombre et herbe éclairée par le couchant ; plateformes = branches ; décors posés au sol :
+  arbres morts, tombes, grille en fer (cimetière). Sous-sols (caves, cryptes) à venir.
+- La pierre du château (ci-dessous) sert aux zones à l'intérieur.
+
+## Ancienne zone 1 — entrée du château, au crépuscule (choix A, 2026-11-13)
 - Ciel en dégradé violet profond → magenta → orange, soleil bas et chaud à l'horizon.
 - Pierre chaude (brun-rose), arêtes supérieures éclairées par le couchant, dessous dans l'ombre.
 - Poutres de bois sombres pour les plateformes, mousse et lierre sur la pierre.
@@ -49,12 +55,12 @@ légère aux avant-bras et aux tibias.
 | Couche | Contenu | Défilement |
 |---|---|---|
 | Plan B | ciel + soleil + remparts lointains | parallaxe 1/4 horizontal, 1/8 vertical |
-| Plan A | la salle (tuiles), raccords automatiques | suit la caméra |
+| Plan A | la salle (tuiles), raccords automatiques, décors dans les cases vides | suit la caméra |
 | Fenêtre | HUD (3 lignes en haut) | fixe |
 | Sprites | ninja, ennemis, objets | — |
 
 ## Palettes (4 × 15 couleurs + transparent)
-- **PAL0** décor : 1-9 tileset du château (pierre, mousse ; bois des planches pris dans ces couleurs), 10-14 ciel, 15 texte.
+- **PAL0** décor : 1-9 tileset de la zone (dehors : 5 sol + 4 branches et décors), 10-14 ciel, 15 texte.
 - **PAL1** héros + cœurs du HUD.
 - **PAL2** ennemis forme normale, pièces, objets : 1-6 fixes (contour, os, rouge, or), 7-13 tirées des ennemis, 14 objets seulement.
 - **PAL3** ennemis forme Néant : PAL2 teintée en violet (mêmes tuiles). Le décor avalé passe par le mode ombre.

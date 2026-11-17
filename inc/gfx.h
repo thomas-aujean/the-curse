@@ -41,18 +41,26 @@
 
 #define GFX_FEET_ROW 29   // last pixel row of the feet in the 32-row ninja art
 
-// Zone-1 castle tiles (res/castle.png, tools/art/castle.py): every map tile is a quarter of a 16 x 16
-// block, drawn from the solid neighbours around the nearest block corner. Then cracked walls and planks.
-#define GFX_CASTLE         (TILE_USER_INDEX + 140)   // 73 tiles
-#define GFX_FAR            (TILE_USER_INDEX + 230)   // dusk sky on plane B (parallax, low priority)
-#define CASTLE_STONE       1     // + quarter * 16 + bits (1 horizontal neighbour solid, 2 vertical, 4 diagonal, 8 self)
-#define CASTLE_CRACKED     65    // + quarter
-#define CASTLE_PLANK       69    // alone; 70 left end, 71 middle, 72 right end
+// Room tiles (res/castle.png, tools/art/castle.py and outdoor.py): every map tile is a quarter of a
+// 16 x 16 block, drawn from the solid neighbours around the nearest block corner. Then cracked walls
+// and the branches of zone 1 (outside: earth and grass, branches as one-way platforms).
+#define GFX_CASTLE         (TILE_USER_INDEX + 140)   // 79 tiles
+#define GFX_FAR            (TILE_USER_INDEX + 230)   // dusk sky on plane B (parallax), 188 tiles, up to 418
+// Tile indices: CASTLE_* in game_room.h.
+
+// Zone-1 decor (res/decor.png, tools/art/outdoor.py, src/game_decor.c): too many tiles for one free
+// stretch of video memory, so they are split in three. Decor tile i (1..) goes to decorTile(i), gfx.c.
+#define GFX_DECOR_A        (TILE_USER_INDEX + 1304)  // 120 tiles, after the enemies, up to the font
+#define GFX_DECOR_B        (TILE_USER_INDEX + 418)   // 62 tiles, after the far background
+#define GFX_DECOR_C        (TILE_USER_INDEX + 656)   // 44 tiles, after the hero
+#define DECOR_A_LEN        120
+#define DECOR_B_LEN        62
+#define DECOR_C_LEN        44
 
 // Hero frames (res/ninja.png, tools/art/ninja.py): 32 x 48 (4 x 6 tiles), body centred on x 16, soles on
 // row GFX_HERO_FEET. Too many frames for VRAM: only the current one is streamed (DMA) to GFX_NINJA, its
 // 32 x 32 extension cells (slash arcs, res/ninja_fx.png) to GFX_NINJA_EXT.
-#define GFX_NINJA          (TILE_USER_INDEX + 400)
+#define GFX_NINJA          (TILE_USER_INDEX + 600)   // 24 + 2 x 16 tiles, up to 656
 #define GFX_NINJA_EXT      (GFX_NINJA + 24)
 #define GFX_HERO_FEET 46
 #include "ninja_frames.h"
@@ -71,6 +79,7 @@
 #define GFX_CHEST_TILES    16
 
 void gfx_load(void);
+u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
 void gfx_drawFar(void);   // the parallax sky on plane B
 void gfx_setRoomPalette(u8 inVoid);
 void gfx_setPlayerCorrupted(u8 corrupted);   // violet ninja while touched by the Void   // cold, dead colours once the Void has swallowed the room

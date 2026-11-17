@@ -3,6 +3,7 @@
 #include "game_room.h"
 #include "game_player.h"
 #include "game_level.h"
+#include "game_decor.h"
 #include "gfx.h"
 #include "art.h"
 
@@ -163,32 +164,23 @@ static u8 roomTile(s16 tx, s16 ty)
     return lv.room.tiles[ty][tx];
 }
 
-// Castle tile for a room cell. Rooms are built from 16 x 16 blocks: a map tile is one quarter of a
-// block, and its drawing depends on the blocks around the nearest block corner (mossy top, shaded
-// underside, faces, inner and outer corners). Empty tiles next to stone get the moss that hangs over.
-// Planks pick their piece from their neighbours. Index into the castle tileset.
+// Room tile or decor for a room cell (decor_planeTile, game_decor.c), or a cracked wall hiding a
+// secret room.
 static u16 castleTile(s16 tx, s16 ty)
 {
-    u8 t = roomTile(tx, ty);
-    if (t == TILE_PLATFORM)
-    {
-        u8 l = roomTile(tx - 1, ty) == TILE_PLATFORM, r = roomTile(tx + 1, ty) == TILE_PLATFORM;
-        return CASTLE_PLANK + (l && r ? 2 : l ? 3 : r ? 1 : 0);
-    }
-    u8 quarter = (ty & 1) << 1 | (tx & 1);
-    s16 nx = (tx & 1) ? tx + 1 : tx - 1, ny = (ty & 1) ? ty + 1 : ty - 1;   // towards the block corner
-    u8 bits = (roomTile(nx, ty) == TILE_SOLID) | (roomTile(tx, ny) == TILE_SOLID) << 1
-        | (roomTile(nx, ny) == TILE_SOLID) << 2 | (t == TILE_SOLID) << 3;
-    if (!bits) return 0;
-    if (t == TILE_SOLID && lv.crackedCount && level_crackedAt(&lv, tx * 8 + 4, ty * 8 + 4))
-        return CASTLE_CRACKED + quarter;
-    return CASTLE_STONE + quarter * 16 + bits;
+    if (lv.crackedCount && roomTile(tx, ty) == TILE_SOLID && level_crackedAt(&lv, tx * 8 + 4, ty * 8 + 4))
+        return CASTLE_CRACKED + ((ty & 1) << 1 | (tx & 1));
+    return decor_planeTile(&lv.room, tx, ty);
 }
 
+// Room tiles stay in front (high priority) unless the Void has swallowed them: the shadow mode then
+// darkens them. Empty tiles show the decor (trees, graves, fence), with the same priority.
 static void drawTileState(s16 tx, s16 ty, u8 inVoid)
 {
-    u16 index = (tx >= 0 && ty >= 0 && tx < lv.room.w && ty < lv.room.h) ? castleTile(tx, ty) : 0;
-    VDP_setTileMapXY(BG_A, TILE_ATTR_FULL(PAL0, !inVoid, 0, 0, index ? GFX_CASTLE + index : 0), tx & 63, ty & 31);
+    u16 index = castleTile(tx, ty), tile = 0;
+    if (index & DECOR_TILE) tile = gfx_decorTile(index & 0xFF);
+    else if (index & ~CASTLE_FLIP) tile = GFX_CASTLE + (index & ~CASTLE_FLIP);
+    VDP_setTileMapXY(BG_A, TILE_ATTR_FULL(PAL0, !inVoid, 0, (index & CASTLE_FLIP) != 0, tile), tx & 63, ty & 31);
 }
 
 static void drawColumn(s16 tx)
@@ -700,6 +692,7 @@ static void enterRoom(void)
     VDP_setTextPlane(WINDOW);
     VDP_clearPlane(WINDOW, TRUE);
     gfx_drawFar();
+    decor_place(&lv.room, lv.floor.seed ^ (lv.cellX * 77 + lv.cellY * 1031));
     drawRoom();
     forceHud();
     itemMessage = 0;

@@ -11,15 +11,19 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from png import write_indexed  # noqa: E402
+from pngread import read_png  # noqa: E402
+from knight import dist  # noqa: E402
 import ninja  # noqa: E402
 import knight  # noqa: E402
 import props  # noqa: E402
 import chests  # noqa: E402
+import outdoor  # noqa: E402
 import castle  # noqa: E402
 import enemies  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 RES = os.path.join(ROOT, "res")
+ART_IN = os.path.join(ROOT, "art_in")
 
 # PAL0, zone 1 at dusk (docs/style.md). Index 0 = transparent / backdrop.
 PAL0 = [
@@ -134,13 +138,101 @@ def far_background():
     return img
 
 
+def treeline(img, top, period=128):
+    """Forest edge in silhouette (slot 1, lit rim slot 2): round crowns and a few pines, periodic."""
+    W, H = len(img[0]), len(img)
+    crown = [top + 14] * W
+    for x in range(W):
+        p = x % period
+        y = top + 14 + int(3 * math.sin(p * 2 * math.pi / period * 3))
+        # Round crowns: overlapping bumps of 10..18 px.
+        for k in range(9):
+            cx, r = (k * 15 + h(k, 7) % 6) % period, 7 + h(k, 8) % 6
+            d = min(abs(p - cx), period - abs(p - cx))
+            if d < r:
+                y = min(y, top + 12 - h(k, 9) % 8 - int(math.sqrt(r * r - d * d)))
+        # Pines: narrow spikes.
+        for k in range(3):
+            cx, ht = (20 + k * 43 + h(k, 10) % 9) % period, 24 + h(k, 11) % 8
+            d = min(abs(p - cx), period - abs(p - cx))
+            half = 9
+            if d < half:
+                # Fir in tiers: each 6-px tier is a little wider than the one above, with drooping tips.
+                rise = ht - d * ht // half
+                tier = (rise // 6) * 6
+                y = min(y, top + 14 - max(tier, rise - 3 + (d & 1)))
+        crown[x] = y
+    for x in range(W):
+        for y in range(max(0, crown[x]), H):
+            img[y][x] = 1
+        # Rim lit by the low sun, from the left: the top pixel where the crown rises to the right.
+        if 0 <= crown[x] < H and crown[x] <= crown[x - 1]:
+            img[crown[x]][x] = 2
+
+
+def paste(img, path, x0, bottom, colours):
+    """Pastes a PixelLab image (art_in/far) at x0, its lowest pixel on row bottom; colours: rgb -> slot."""
+    px, (w, h_) = read_png(path)
+    rows = [y for y in range(h_) if any(p[3] >= 128 for p in px[y])]
+    dy = bottom - rows[-1]
+    for y in rows:
+        for x in range(w):
+            p = px[y][x]
+            if p[3] >= 128:
+                img[y + dy][(x0 + x) % len(img[0])] = colours[min(colours, key=lambda c: dist(c, p[:3]))]
+
+
+def outdoor_far():
+    """Zone 1 (outside the castle, Thomas 2026-11-17): dusk sky, the castle far away on its peak, forest."""
+    W, H = 512, 256
+    horizon = 200
+    img = [[sky_color(x, y, horizon) for x in range(W)] for y in range(H)]
+    sx, sy, r = 120, horizon - 50, 15
+    for y in range(sy - r - 3, sy + r + 3):
+        for x in range(sx - r - 3, sx + r + 3):
+            d = math.hypot(x - sx, y - sy)
+            if d <= r or (d <= r + 2 and (x + y) % 2 == 0):
+                img[y][x] = 14
+    for k in range(6):
+        cy = 60 + k * 16 + h(k, 1) % 10
+        cx = h(k, 2) * 2 % 256
+        length = 40 + h(k, 3) % 60
+        color = 12 if cy < 110 else 13
+        for rep in (0, 256):
+            for dx in range(length):
+                x = (cx + dx + rep) % W
+                mid = min(dx, length - dx)
+                thick = 1 + (mid > 6) + (mid > 16)
+                for dy in range(thick):
+                    img[cy + dy][x] = 14 if dy == 0 and mid > 3 else color
+                img[cy + thick][x] = 11 if color == 12 else 12
+    for x in range(W):
+        hill = horizon - 14 + int(7 * math.sin(x * 2 * math.pi / 256) + 4 * math.sin(x * 2 * math.pi / 128 + 1))
+        for y in range(hill, H):
+            img[y][x] = 11
+    # The castle on its peak, once per 512 px (the plane scrolls at 1/4: once every 2048 px of room).
+    paste(img, os.path.join(ART_IN, "far", "castle_1.png"), 300, horizon - 2,
+          {(0x14, 0x0A, 0x14): 10, (0x2E, 0x1A, 0x44): 10, (0x5A, 0x2A, 0x5A): 11,
+           (0xA0, 0x40, 0x5A): 12, (0xF8, 0xB0, 0x60): 14})
+    treeline(img, horizon - 4)
+    return img
+
+
 def main():
     os.makedirs(RES, exist_ok=True)
     # Room tiles come from PixelLab (tools/art/castle.py) and bring their own colours for slots 1..9.
-    tiles, count, stone = castle.tileset(PAL0)
+    # Zone 1 is outside (earth and grass, branches); the castle stone is kept for the zones inside.
+    ground = os.path.join("tiles", "ground_tileset.png")
+    pal9 = outdoor.palette(ground)
+    tiles, count, stone = castle.tileset(PAL0, "ground_tileset", pal9, outdoor.branch_tiles(pal9))
     pal0 = PAL0[:1] + stone + PAL0[10:]
     write_indexed(os.path.join(RES, "castle.png"), tiles, pal0)
-    write_indexed(os.path.join(RES, "far.png"), far_background(), pal0)
+    write_indexed(os.path.join(RES, "far.png"), outdoor_far(), pal0)
+    decor, decor_count, decor_h = outdoor.decor(pal9)
+    write_indexed(os.path.join(RES, "decor.png"), decor, pal0)
+    with open(os.path.join(ROOT, "inc", "decor_tiles.h"), "w", newline=chr(10)) as f:
+        f.write(decor_h)
+    print("decor.png: %d tiles" % decor_count)
     if knight.available():   # the PixelLab knight replaces the generated ninja (tools/art/knight.py)
         hero, hero_fx, hero_pal, offsets, lost = knight.apply(ninja)
     else:

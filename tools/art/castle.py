@@ -19,7 +19,7 @@ from knight import dist, median_cut
 from pngread import read_png
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
-SRC = os.path.join(ROOT, "art_in", "tiles", "castle_tileset")
+TILES = os.path.join(ROOT, "art_in", "tiles")
 COLOURS = 9   # PAL0 slots 1..9 belong to the room tiles (docs/style.md)
 
 # Per quarter: which Wang corner each of (self, horizontal, vertical, diagonal) is, and where the
@@ -58,17 +58,21 @@ def plank_tile(left_end, right_end):
     return rows
 
 
-def tileset(old_pal):
+def tileset(old_pal, name="castle_tileset", pal=None, extra=None):
     """Returns (sheet rows of palette indices, tile count, the 9 colours of PAL0 slots 1..9).
-    old_pal: the generated PAL0, whose colours 1..9 the planks were drawn with."""
-    px, _ = read_png(SRC + ".png")
-    meta = json.load(open(SRC + ".json", encoding="utf-8"))["tileset_data"]["tiles"]
+    old_pal: the generated PAL0, whose colours 1..9 the planks were drawn with.
+    pal: the 9 colours to use (default: picked from the tileset); extra: 8 x 8 tiles (indices 0..9) that
+    replace the planks (zone 1 outside: the branches, tools/art/outdoor.py)."""
+    src = os.path.join(TILES, name)
+    px, _ = read_png(src + ".png")
+    meta = json.load(open(src + ".json", encoding="utf-8"))["tileset_data"]["tiles"]
     counts = {}
     for row in px:
         for p in row:
             if p[3] > 127:
                 counts[p[:3]] = counts.get(p[:3], 0) + 1
-    pal = sorted(median_cut(counts, COLOURS), key=sum)   # slot 1 = darkest (outline, far silhouettes)
+    if pal is None:
+        pal = sorted(median_cut(counts, COLOURS), key=sum)   # slot 1 = darkest (outline, far silhouettes)
 
     def index(rgb):
         return 1 + min(range(len(pal)), key=lambda i: dist(pal[i], rgb))
@@ -96,8 +100,11 @@ def tileset(old_pal):
     # Planks keep to the stone's browns: the nearest colour of a wood tone must not be a moss green.
     browns = [i for i in range(len(pal)) if pal[i][0] >= pal[i][1]]
     remap = [0] + [1 + min(browns, key=lambda i: dist(pal[i], old_pal[k])) for k in range(1, 10)]
-    for ends in ((True, True), (True, False), (False, False), (False, True)):
-        tiles.append([[remap[c] for c in row] for row in plank_tile(*ends)])
+    if extra is not None:
+        tiles += extra
+    else:
+        for ends in ((True, True), (True, False), (False, False), (False, True)):
+            tiles.append([[remap[c] for c in row] for row in plank_tile(*ends)])
     count = len(tiles)
     while len(tiles) % 16:
         tiles.append([[0] * 8 for _ in range(8)])

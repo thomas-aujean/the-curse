@@ -29,6 +29,19 @@ void room_clear(Room *r, u8 w, u8 h);
 void room_fill(Room *r, u8 x0, u8 y0, u8 x1, u8 y1, u8 tile);   // inclusive tile rectangle
 void room_buildTest(Room *r);
 
+// Room art (res/castle.png, tools/art/castle.py and outdoor.py): every map tile is a quarter of a
+// 16 x 16 block, drawn from the solid neighbours around the nearest block corner (grassy top, shaded
+// underside, faces, corners; empty tiles next to the ground get the grass hanging over). Platforms are
+// branches: middle pieces between two ends, twigs over the two empty tiles past each end, and the
+// underside on the row below. Indices into the room tileset:
+#define CASTLE_STONE       1        // + quarter * 16 + bits (1 horizontal neighbour solid, 2 vertical, 4 diagonal, 8 self)
+#define CASTLE_CRACKED     65       // + quarter (drawn by main.c: walls hiding a secret room)
+#define CASTLE_BRANCH      69       // + piece: middle A, middle B, end, tip 1, tip 2 (right side; mirrored on the left)
+#define CASTLE_BRANCH_LOW  74       // + piece: the same, on the row under the platform
+#define CASTLE_TILES       79
+#define CASTLE_FLIP        0x8000   // mirror the tile
+u16 room_artTile(const Room *r, s16 tx, s16 ty);   // index | CASTLE_FLIP, 0 = empty
+
 // Outside the room counts as solid, except beyond an open door.
 u8 room_tileAt(const Room *r, s16 px, s16 py);
 
