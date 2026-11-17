@@ -10,5 +10,6 @@ TILESET ts_props "props.png" NONE NONE COLUMN
 TILESET ts_decor "decor.png" NONE NONE ROW
 TILESET ts_chests "chests.png" NONE NONE COLUMN
 TILESET ts_items "items.png" NONE NONE COLUMN
+TILESET ts_arrow "arrow.png" NONE NONE COLUMN
 PALETTE pal_void "void.png"
 TILESET ts_enemies "enemies.png" NONE NONE ROW

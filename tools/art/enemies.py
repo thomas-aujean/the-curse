@@ -29,11 +29,11 @@ SRC = os.path.join(ROOT, "art_in", "enemies", "poses")
 HUMANS = [
     ("soldier_walk_a", "soldier/walk_a"), ("soldier_walk_b", "soldier/walk_b"),
     ("soldier_windup", "soldier/windup"), ("soldier_strike", "soldier/strike"),
-    ("archer_idle", "archer/walk_a"), ("archer_aim", "archer/aim"), ("archer_release", "archer/release"),
+    ("archer_idle", "archer/walk_a"), ("archer_aim", "archer/aim_sky"), ("archer_release", "archer/release_sky"),
     ("guard_walk_a", "guard/walk_a"), ("guard_walk_b", "guard/walk_b"),
     ("guard_brace", "guard/brace"), ("guard_thrust", "guard/thrust"),
-    ("ninja_run_a", "ninja/run_a"), ("ninja_run_b", "ninja/run_b"),
-    ("ninja_windup", "ninja/throw_windup"), ("ninja_throw", "ninja/throw"),
+    # The ninja is out for now (Thomas, 2026-11-17: "the ninjas are no good"); its art stays in
+    # art_in/enemies/poses/ninja.
 ]
 FLOATING = [("spectre_float_a", "spectre/float_a"), ("spectre_float_b", "spectre/float_b"),
             ("spectre_lunge", "spectre/lunge")]

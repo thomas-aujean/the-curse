@@ -148,7 +148,7 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             {
                 char c = t->rows[by][bx];
                 u8 type = c == 'w' ? ENEMY_WALKER : c == 'f' ? ENEMY_FLYER : c == 'B' ? ENEMY_BOSS
-                        : c == 'a' ? ENEMY_ARCHER : c == 'n' ? ENEMY_NINJA : c == 'g' ? ENEMY_GUARD
+                        : c == 'a' ? ENEMY_ARCHER : c == 'g' ? ENEMY_GUARD   // 'n' (ninja): out for now
                         : c == 'j' ? ENEMY_JELLY : ENEMY_NONE;
                 if (type == ENEMY_NONE) continue;
                 u8 k = n++;

@@ -415,7 +415,7 @@ static const u8 POSE_FRAME[ENEMY_TYPES][ENEMY_POSES] =
     { EF_SPECTRE_FLOAT_A, EF_SPECTRE_FLOAT_B, EF_SPECTRE_LUNGE, EF_SPECTRE_LUNGE },
     { 0, 0, 0, 0 },
     { EF_ARCHER_IDLE, EF_ARCHER_IDLE, EF_ARCHER_AIM, EF_ARCHER_RELEASE },
-    { EF_NINJA_RUN_A, EF_NINJA_RUN_B, EF_NINJA_WINDUP, EF_NINJA_THROW },
+    { 0, 0, 0, 0 },   // ninja: out for now, no drawing (never spawned)
     { EF_GUARD_WALK_A, EF_GUARD_WALK_B, EF_GUARD_BRACE, EF_GUARD_THRUST },
     { EF_JELLY_SQUASH, EF_JELLY_STRETCH, EF_JELLY_SQUASH, EF_JELLY_STRETCH },
     { 0, 0, 0, 0 },
@@ -542,12 +542,23 @@ static void drawSprites(void)
     for (u8 i = 0; i < MAX_SHOTS; i++)
     {
         const Shot *sh = &lv.enemies.shots[i];
-        s16 sx = (sh->x >> 8) - camX - 4, y = (sh->y >> 8) - camY - 4;
+        u8 arrow = sh->kind == SHOT_ARROW;
+        s16 half = arrow ? 8 : 4;
+        s16 sx = (sh->x >> 8) - camX - half, y = (sh->y >> 8) - camY - half;
         if (!sh->active || offScreen(sx, y)) y = -64;
-        u16 tile = sh->kind == SHOT_ARROW ? GFX_TILE_ARROW : sh->kind == SHOT_SHURIKEN ? GFX_TILE_SHURIKEN : GFX_TILE_SHOT;
+        u16 tile = sh->kind == SHOT_SHURIKEN ? GFX_TILE_SHURIKEN : GFX_TILE_SHOT;
         u16 spal = sh->kind == SHOT_SPORE ? PAL3 : PAL2;
         u16 hflip = sh->vx < 0, vflip = sh->kind == SHOT_SHURIKEN && (vtimer & 4);   // shurikens spin
-        VDP_setSpriteFull(SPRITE_SHOTS + i, sx, y, SPRITE_SIZE(1, 1),
+        if (arrow)
+        {
+            // The drawing nearest its flight (0, 22.5, 45, 67.5, 90 degrees up), mirrored: tan 11.25,
+            // 33.75, 56.25 and 78.75 degrees are about 1/5, 2/3, 3/2 and 5.
+            s32 ax = sh->vx < 0 ? -sh->vx : sh->vx, ay = sh->vy < 0 ? -sh->vy : sh->vy;
+            u8 k = ay * 5 < ax ? 0 : ay * 3 < ax * 2 ? 1 : ay * 2 < ax * 3 ? 2 : ay < ax * 5 ? 3 : 4;
+            tile = GFX_ARROWS + k * 4;
+            vflip = sh->vy > 0;
+        }
+        VDP_setSpriteFull(SPRITE_SHOTS + i, sx, y, arrow ? SPRITE_SIZE(2, 2) : SPRITE_SIZE(1, 1),
                           TILE_ATTR_FULL(spal, 1, vflip, hflip, tile), SPRITE_SHOTS + i + 1);
     }
     s16 gx = (lv.gemX >> 8) - camX - 4, gy = (lv.gemY >> 8) - camY - 8;
@@ -990,12 +1001,12 @@ int main(bool hardReset)
     // Diagnostic build (tools/replay.ps1 -Flags "-DDEBUG_ENEMIES"): one enemy of each kind around the
     // hero in the first room, to look at their poses.
     {
-        static const s16 SPAWN[6][2] =
+        static const s16 SPAWN[5][2] =
         {
-            { ENEMY_WALKER, 56 }, { ENEMY_ARCHER, 120 }, { ENEMY_GUARD, -56 }, { ENEMY_NINJA, -110 },
+            { ENEMY_WALKER, 56 }, { ENEMY_ARCHER, 120 }, { ENEMY_GUARD, -56 },
             { ENEMY_JELLY, 90 }, { ENEMY_FLYER, 0 },
         };
-        for (u8 i = 0; i < 6; i++)
+        for (u8 i = 0; i < 5; i++)
             enemies_add(&lv.enemies, SPAWN[i][0], (player.x >> 8) + SPAWN[i][1],
                         (player.y >> 8) - (SPAWN[i][0] == ENEMY_FLYER ? 70 : 0), 0);
     }

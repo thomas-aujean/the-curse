@@ -151,3 +151,5 @@ Vérifier une salle sans BlastEm : `wsl sh tools/test.sh` puis
 ## Icônes des objets (17/11)
 
 Objet PixelLab `268344c0-2642-4698-b30c-c29ba1ac0aad` : 64 candidats 16 x 16 (8 par objet), dessinés dans les couleurs de PAL2. Retenus : 6 cœur de pierre, 10 bottes de vent, 16 ailes de corbeau, 29 lame longue, 33 lanterne, 42 cœur de verre, 55 bottes de plomb, 59 sang du Néant -> `art_in/items/`, importés par `tools/art/items.py`.
+
+Archer qui tire en cloche (17/11) : états `ede3e6ef-4d5c-47e8-9a24-8557be38727e` (Aim sky, toile 64 x 64) et `b881ffa6-6155-4e80-b895-c229cd464208` (Release sky) -> `art_in/enemies/poses/archer/aim_sky.png`, `release_sky.png`. Deux essais ratés (arc resté horizontal) : 29052bce, 8317ed40. Le ninja est retiré du jeu pour le moment (art gardé dans `art_in/enemies/poses/ninja`).

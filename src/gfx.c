@@ -290,6 +290,7 @@ void gfx_load(void)
     VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);
     VDP_loadTileSet(&ts_chests, GFX_CHESTS, CPU);
     VDP_loadTileSet(&ts_items, GFX_ITEMS, CPU);
+    VDP_loadTileSet(&ts_arrow, GFX_ARROWS, CPU);
     {
         TileSet *font = unpackTileSet(&font_default, NULL);
         memcpy(digits, font->tiles + ('0' - 32) * 8, sizeof(digits));   // the font starts at ' '

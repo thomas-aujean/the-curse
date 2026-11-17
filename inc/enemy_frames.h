@@ -15,10 +15,6 @@ enum
     EF_GUARD_WALK_B,
     EF_GUARD_BRACE,
     EF_GUARD_THRUST,
-    EF_NINJA_RUN_A,
-    EF_NINJA_RUN_B,
-    EF_NINJA_WINDUP,
-    EF_NINJA_THROW,
     EF_SPECTRE_FLOAT_A,
     EF_SPECTRE_FLOAT_B,
     EF_SPECTRE_LUNGE,
@@ -27,7 +23,7 @@ enum
     EF_COUNT
 };
 
-#define ENEMY_TILE_COUNT 544
+#define ENEMY_TILE_COUNT 390
 
 // First tile, cell x from the enemy's centre (facing right), cell y from just below its feet,
 // parts: bit 0 = 4x4 at (0, 0), 1 = strip x4 at (32, 0), 2 = 4x2 at (0, 32), 3 = strip x2 at (32, 32),
@@ -39,21 +35,17 @@ enum
     { 50, -23, -48, 0x05 },   /* soldier_windup */ \
     { 74, -21, -48, 0x1F },   /* soldier_strike */ \
     { 110, -15, -48, 0x05 },   /* archer_idle */ \
-    { 134, -17, -48, 0x1F },   /* archer_aim */ \
-    { 170, -23, -48, 0x1F },   /* archer_release */ \
-    { 206, -15, -48, 0x05 },   /* guard_walk_a */ \
-    { 230, -15, -48, 0x05 },   /* guard_walk_b */ \
-    { 254, -19, -48, 0x1F },   /* guard_brace */ \
-    { 290, -16, -48, 0x1F },   /* guard_thrust */ \
-    { 326, -23, -48, 0x1F },   /* ninja_run_a */ \
-    { 362, -21, -48, 0x0F },   /* ninja_run_b */ \
-    { 392, -16, -48, 0x1F },   /* ninja_windup */ \
-    { 428, -17, -48, 0x1F },   /* ninja_throw */ \
-    { 464, -16, -32, 0x01 },   /* spectre_float_a */ \
-    { 480, -16, -32, 0x01 },   /* spectre_float_b */ \
-    { 496, -16, -32, 0x01 },   /* spectre_lunge */ \
-    { 512, -16, -32, 0x01 },   /* jelly_squash */ \
-    { 528, -16, -32, 0x01 },   /* jelly_stretch */ \
+    { 134, -14, -48, 0x07 },   /* archer_aim */ \
+    { 162, -14, -48, 0x07 },   /* archer_release */ \
+    { 190, -15, -48, 0x05 },   /* guard_walk_a */ \
+    { 214, -15, -48, 0x05 },   /* guard_walk_b */ \
+    { 238, -19, -48, 0x1F },   /* guard_brace */ \
+    { 274, -16, -48, 0x1F },   /* guard_thrust */ \
+    { 310, -16, -32, 0x01 },   /* spectre_float_a */ \
+    { 326, -16, -32, 0x01 },   /* spectre_float_b */ \
+    { 342, -16, -32, 0x01 },   /* spectre_lunge */ \
+    { 358, -16, -32, 0x01 },   /* jelly_squash */ \
+    { 374, -16, -32, 0x01 },   /* jelly_stretch */ \
 }
 
 #endif

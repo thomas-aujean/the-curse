@@ -30,6 +30,8 @@ static u8 guardTurn;
 static u8 flashFrames, sparkFrames, hitStopFrames, killStopFrames;
 static u8 meleeWindup, meleeStrike, meleeRest, aimFrames, releaseFrames, ninjaWarn;
 static u16 sporeLife;
+static s16 arrowGravity;
+static u8 arrowMinFrames, arrowMaxFrames;
 
 void enemies_setRegion(u8 isPal)
 {
@@ -54,6 +56,9 @@ void enemies_setRegion(u8 isPal)
     jellyJump = isPal ? 900 * 6 / 5 : 900;
     homingAccel = isPal ? 24 * 36 / 25 : 24;
     sporeLife = isPal ? 240 * 5 / 6 : 240;
+    arrowGravity = isPal ? 40 * 36 / 25 : 40;   // a visible lob: ~50 px high up close, ~90 far
+    arrowMinFrames = isPal ? 48 * 5 / 6 : 48;
+    arrowMaxFrames = isPal ? 80 * 5 / 6 : 80;
     guardTurn = isPal ? 40 * 5 / 6 : 40;
     flashFrames = 3;
     sparkFrames = isPal ? 7 : 8;
@@ -415,13 +420,14 @@ static void faceAndStand(Enemy *e, const Room *r, const Player *p)
     moveBody(e, r, w, h);
 }
 
-// Archer: stands still and shoots when the player is roughly level with it.
-// Void bulb: spits a slow spore that steers towards the player for a few seconds.
+// Archer: stands still and lobs an arrow high, in an arc that comes down on the player (Thomas): it
+// can reach the player on a platform above or below. Void bulb: spits a slow spore that steers
+// towards the player for a few seconds.
 static void updateArcher(EnemySet *s, Enemy *e, const EnemyStats *st, const Room *r, const Player *p)
 {
     faceAndStand(e, r, p);
     s32 dx = (p->x - e->x) >> 8, dy = (p->y - e->y) >> 8;
-    u8 inSight = absS32(dx) <= st->range && (e->voidForm || absS32(dy) <= 40);
+    u8 inSight = absS32(dx) <= st->range && absS32(dy) <= (e->voidForm ? 255 : 120);
     // The bow is drawn a moment before the arrow leaves: the player sees it coming.
     e->pose = ENEMY_POSE_A;
     if (e->attackTimer)
@@ -440,12 +446,25 @@ static void updateArcher(EnemySet *s, Enemy *e, const EnemyStats *st, const Room
     s16 dir = e->facingLeft ? -1 : 1;
     sh->active = 1;
     sh->x = e->x + ((s32) (dir * 8) << 8);
-    sh->y = e->y - (28 << 8);
-    sh->vx = dir * speedOf(st->chase);
-    sh->vy = 0;
+    sh->y = e->y - (34 << 8);   // the bow, raised
     sh->damage = st->damage;
     sh->kind = e->voidForm ? SHOT_SPORE : SHOT_ARROW;
     sh->life = e->voidForm ? sporeLife : 0xFFFF;
+    if (e->voidForm)
+    {
+        sh->vx = dir * speedOf(st->chase);
+        sh->vy = 0;
+        return;
+    }
+    // Lob: flight time from the distance at the arrow's speed, then the launch that lands on the
+    // player's chest in that time. Each frame vy += g, then y += vy: after T frames the arrow has
+    // risen vy0 * T + g * T * (T + 1) / 2. Two divisions per shot, not per frame.
+    s32 tx = (p->x - sh->x) >> 8, ty = ((p->y - sh->y) >> 8) - 20;
+    s32 t = absS32(tx) * 256 / speedOf(st->chase);
+    if (t < arrowMinFrames) t = arrowMinFrames;
+    if (t > arrowMaxFrames) t = arrowMaxFrames;
+    sh->vx = tx * 256 / t;
+    sh->vy = ty * 256 / t - arrowGravity * (t + 1) / 2;
 }
 
 // Ninja: closes in, then every so often leaps at the player; the normal one throws a shuriken
@@ -565,6 +584,7 @@ static void updateShots(EnemySet *s, const Room *r, Player *p, s16 px0, s16 py0,
         Shot *sh = &s->shots[i];
         if (!sh->active) continue;
         if (sh->kind == SHOT_SPORE) steerSpore(sh, p);
+        if (sh->kind == SHOT_ARROW) sh->vy += arrowGravity;   // lobbed: falls back on the player
         if (sh->life != 0xFFFF && --sh->life == 0)
         {
             sh->active = 0;

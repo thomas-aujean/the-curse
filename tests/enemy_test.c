@@ -138,26 +138,35 @@ int main(void)
     }
     CHECK(hits >= 16 && hits < 40, "boss dies after %d slashes (some miss while it leaps)", hits);
 
-    // Archer: shoots an arrow at a player level with it; the Void bulb's spore homes in.
+    // Archer: lobs an arrow that rises, then comes down on the player (level, above or below it);
+    // the Void bulb's spore homes in.
     for (int form = 0; form < 2; form++)
     {
-        enemies_clear(&set);
-        enemies_add(&set, ENEMY_ARCHER, 250, 200, form);
-        player_init(&p, 120, form ? 140 : 200);
-        int fired = 0, steered = 0;
-        for (int f = 0; f < 200; f++)
+        static const s16 PLAYER_DY[3] = { 0, -60, -30 };   // the test room is flat: above only
+        for (int k = 0; k < (form ? 1 : 3); k++)
         {
-            p.invulnerable = 255;
-            enemies_update(&set, &room, &p);
-            for (int i = 0; i < MAX_SHOTS; i++)
-                if (set.shots[i].active)
-                {
-                    fired = 1;
-                    CHECK(set.shots[i].kind == (form ? SHOT_SPORE : SHOT_ARROW), "archer shot kind");
-                    if (set.shots[i].vy < 0) steered = 1;   // the player is above: the spore climbs
-                }
+            enemies_clear(&set);
+            enemies_add(&set, ENEMY_ARCHER, 250, 200, form);
+            player_init(&p, 120, form ? 140 : 200 + PLAYER_DY[k]);
+            int fired = 0, rose = 0, reached = 0;
+            for (int f = 0; f < 200 && !reached; f++)
+            {
+                p.invulnerable = 255;
+                enemies_update(&set, &room, &p);
+                for (int i = 0; i < MAX_SHOTS; i++)
+                    if (set.shots[i].active)
+                    {
+                        const Shot *sh = &set.shots[i];
+                        fired = 1;
+                        CHECK(sh->kind == (form ? SHOT_SPORE : SHOT_ARROW), "archer shot kind");
+                        if (sh->vy < 0) rose = 1;   // lobbed, or the spore climbing to the player above
+                        s32 dx = (sh->x - p.x) >> 8, dy = (sh->y - p.y) >> 8;
+                        if (dx > -10 && dx < 10 && dy > -40 && dy < 0) reached = 1;
+                    }
+            }
+            CHECK(fired && rose && (form || reached), "archer form %d, player dy %d: fired %d rose %d reached %d",
+                  form, PLAYER_DY[k], fired, rose, reached);
         }
-        CHECK(fired && steered == form, "archer form %d: fired %d steered %d", form, fired, steered);
     }
 
     // Guard: the shield blocks a side slash from the front, the back is open. The Void colossus
