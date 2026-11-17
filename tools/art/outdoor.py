@@ -58,7 +58,13 @@ def palette(ground_png):
         for c in px.values():
             if min(dist(c, g) for g in ground) > 1200:
                 counts[c] = counts.get(c, 0) + 10000.0 / n
-    return sorted(ground + median_cut(counts, COLOURS - GROUND_COLOURS), key=sum)
+    pal = sorted(ground + median_cut(counts, COLOURS - GROUND_COLOURS), key=sum)
+    GRASS.clear()
+    GRASS.update(1 + i for i, c in enumerate(pal) if c[1] > c[0] + 10 and c[1] > c[2])   # green wins
+    return pal
+
+
+GRASS = set()   # palette indices of the grass greens, filled by palette()
 
 
 def _indexer(pal):
@@ -83,8 +89,15 @@ def branch_tiles(pal):
     return tiles
 
 
-def decor(pal):
-    """Returns (sheet rows 128 px wide, tile count, C header)."""
+SINK = 3   # px a picture goes down into the ground, behind the grass: it stands, it does not float
+
+
+def decor(pal, ground):
+    """Returns (sheet rows 128 px wide, tile count, C header).
+    ground: the two tiles (palette indices) of a flat ground top, for even and odd columns. Every
+    picture gets one more row of cells, on the ground: the ground tile with the foot of the picture
+    (SINK px) drawn over it and the grass blades of the ground's two top rows drawn back in front.
+    Pictures stand on even columns, so the parity of each of their columns is known here."""
     index = _indexer(pal)
     tiles, seen = [[[0] * 8 for _ in range(8)]], {}
     seen[tuple(tuple(r) for r in tiles[0])] = 0
@@ -93,19 +106,28 @@ def decor(pal):
         px = _load(rel)
         x0, x1 = min(x for x, _ in px), max(x for x, _ in px)
         y0, y1 = min(y for _, y in px), max(y for _, y in px)
-        w, h = (x1 - x0 + 8) // 8, (y1 - y0 + 8) // 8
+        w = (x1 - x0 + 8) // 8
+        above = (y1 - y0 + 1 - SINK + 7) // 8      # rows of cells over the ground
+        h = above + 1
         ox = x0 - (w * 8 - (x1 - x0 + 1)) // 2      # centred
-        oy = y1 + 1 - h * 8                          # bottom row on the ground
+        oy = y1 + 1 - (above * 8 + SINK)            # picture bottom SINK px into the ground row
         cells = []
         for ty in range(h):
             for tx in range(w):
-                t = tuple(tuple(index(px[(ox + tx * 8 + x, oy + ty * 8 + y)])
-                                if (ox + tx * 8 + x, oy + ty * 8 + y) in px else 0 for x in range(8))
-                          for y in range(8))
-                if t not in seen:
-                    seen[t] = len(tiles)
-                    tiles.append([list(r) for r in t])
-                cells.append(seen[t])
+                t = [[index(px[(ox + tx * 8 + x, oy + ty * 8 + y)])
+                      if (ox + tx * 8 + x, oy + ty * 8 + y) in px else 0 for x in range(8)] for y in range(8)]
+                if ty == above:
+                    g = ground[tx & 1]
+                    t = [[t[y][x] if y < SINK and t[y][x] else g[y][x] for x in range(8)] for y in range(8)]
+                    for y in range(2):   # grass blades in front of the foot, one in two on the second row
+                        for x in range(8):
+                            if g[y][x] and (y == 0 or (x + y) & 1) and g[y][x] in GRASS:
+                                t[y][x] = g[y][x]
+                key = tuple(tuple(r) for r in t)
+                if key not in seen:
+                    seen[key] = len(tiles)
+                    tiles.append(t)
+                cells.append(seen[key])
         kinds.append((name, w, h, cells))
 
     count = len(tiles)

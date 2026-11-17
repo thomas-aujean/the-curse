@@ -22,7 +22,8 @@ int main(void)
         placed += decor_count();
         for (int y = 0; y < room.h; y++)
             for (int x = 0; x < room.w; x++)
-                CHECK(!decor_tileAt(x, y) || room.tiles[y][x] == TILE_EMPTY,
+                CHECK(!decor_tileAt(x, y) || room.tiles[y][x] == TILE_EMPTY
+                      || (room.tiles[y][x] == TILE_SOLID && room.tiles[y - 1][x] == TILE_EMPTY),
                       "template %d: decor over a wall or platform at (%d, %d)", n, x, y);
         char path[32];
         sprintf(path, "out/room_%d.txt", n);

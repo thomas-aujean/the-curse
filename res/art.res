@@ -1,7 +1,7 @@
 // Generated PNGs (tools/art/make_art.py); see docs/style.md.
 PALETTE pal_castle "castle.png"
 TILESET ts_castle "castle.png" NONE NONE ROW
-IMAGE img_far "far.png" NONE ALL
+TILESET ts_far "far_tiles.png" NONE NONE ROW
 PALETTE pal_ninja "ninja.png"
 TILESET ts_ninja "ninja.png" NONE NONE COLUMN
 TILESET ts_ninja_fx "ninja_fx.png" NONE NONE COLUMN

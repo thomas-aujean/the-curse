@@ -18,6 +18,7 @@ import knight  # noqa: E402
 import props  # noqa: E402
 import chests  # noqa: E402
 import outdoor  # noqa: E402
+import far  # noqa: E402
 import castle  # noqa: E402
 import enemies  # noqa: E402
 
@@ -227,8 +228,18 @@ def main():
     tiles, count, stone = castle.tileset(PAL0, "ground_tileset", pal9, outdoor.branch_tiles(pal9))
     pal0 = PAL0[:1] + stone + PAL0[10:]
     write_indexed(os.path.join(RES, "castle.png"), tiles, pal0)
-    write_indexed(os.path.join(RES, "far.png"), outdoor_far(), pal0)
-    decor, decor_count, decor_h = outdoor.decor(pal9)
+    far_sheet, far_count, far_img, bands_h, map_h = far.build(pal0)
+    write_indexed(os.path.join(RES, "far_tiles.png"), far_sheet, pal0)
+    write_indexed(os.path.join(RES, "far.png"), far_img, pal0)   # preview (tools/art/render_room.py)
+    with open(os.path.join(ROOT, "inc", "far_bands.h"), "w", newline=chr(10)) as f:
+        f.write(bands_h)
+    with open(os.path.join(ROOT, "inc", "far_map.h"), "w", newline=chr(10)) as f:
+        f.write(map_h)
+    print("far_tiles.png: %d tiles" % far_count)
+    # Flat ground top for even and odd columns: CASTLE_STONE + quarter * 16 + 9 (self and side solid).
+    def sheet_tile(i):
+        return [row[(i % 16) * 8:(i % 16) * 8 + 8] for row in tiles[(i // 16) * 8:(i // 16) * 8 + 8]]
+    decor, decor_count, decor_h = outdoor.decor(pal9, [sheet_tile(1 + 9), sheet_tile(1 + 16 + 9)])
     write_indexed(os.path.join(RES, "decor.png"), decor, pal0)
     with open(os.path.join(ROOT, "inc", "decor_tiles.h"), "w", newline=chr(10)) as f:
         f.write(decor_h)

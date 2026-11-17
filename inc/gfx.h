@@ -45,17 +45,20 @@
 // 16 x 16 block, drawn from the solid neighbours around the nearest block corner. Then cracked walls
 // and the branches of zone 1 (outside: earth and grass, branches as one-way platforms).
 #define GFX_CASTLE         (TILE_USER_INDEX + 140)   // 79 tiles
-#define GFX_FAR            (TILE_USER_INDEX + 230)   // dusk sky on plane B (parallax), 188 tiles, up to 418
+// Far background (plane B, tools/art/far.py): its tiles fill free stretches of video memory listed in
+// far.py (RANGES) and far_map.h: 219..479, 576..599, 656..699, 716..759 and 1960..2031.
 // Tile indices: CASTLE_* in game_room.h.
 
-// Zone-1 decor (res/decor.png, tools/art/outdoor.py, src/game_decor.c): too many tiles for one free
-// stretch of video memory, so they are split in three. Decor tile i (1..) goes to decorTile(i), gfx.c.
+// Zone-1 decor (res/decor.png, tools/art/outdoor.py, src/game_decor.c), in two stretches of video
+// memory. The second one is the unused part of the window plane's map (0xD000, 64 x 32 cells): the HUD
+// only uses its 3 top rows. A full-screen message clears the whole window, but it also hides plane A,
+// where the decor is drawn, and every room entry loads these tiles again (gfx_loadDecor).
+// Plane sizes 64 x 32 (SGDK): plane B 0xC000, window 0xD000, plane A 0xE000, scroll table 0xF000,
+// sprites 0xF400, free from 0xF700 (the far background's last stretch, tiles 1976..2047).
 #define GFX_DECOR_A        (TILE_USER_INDEX + 1304)  // 120 tiles, after the enemies, up to the font
-#define GFX_DECOR_B        (TILE_USER_INDEX + 418)   // 62 tiles, after the far background
-#define GFX_DECOR_C        (TILE_USER_INDEX + 656)   // 44 tiles, after the hero
+#define GFX_DECOR_B        (0xD180 / 32)             // 116 tiles, window rows 3..31
 #define DECOR_A_LEN        120
-#define DECOR_B_LEN        62
-#define DECOR_C_LEN        44
+#define DECOR_B_LEN        116
 
 // Hero frames (res/ninja.png, tools/art/ninja.py): 32 x 48 (4 x 6 tiles), body centred on x 16, soles on
 // row GFX_HERO_FEET. Too many frames for VRAM: only the current one is streamed (DMA) to GFX_NINJA, its
@@ -80,6 +83,7 @@
 
 void gfx_load(void);
 u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
+void gfx_loadDecor(void);   // decor tiles into video memory (again after a full-screen message)
 void gfx_drawFar(void);   // the parallax sky on plane B
 void gfx_setRoomPalette(u8 inVoid);
 void gfx_setPlayerCorrupted(u8 corrupted);   // violet ninja while touched by the Void   // cold, dead colours once the Void has swallowed the room

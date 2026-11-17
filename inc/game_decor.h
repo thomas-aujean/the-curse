@@ -12,8 +12,8 @@ void decor_place(const Room *r, u16 seed);
 u8 decor_tileAt(s16 tx, s16 ty);   // decor tile (1..DECOR_TILE_COUNT - 1), 0 = none
 u8 decor_count(void);
 
-// What the room plane shows at (tx, ty): room art (room_artTile: index | CASTLE_FLIP) or, on an empty
-// tile, the decor in front of the grass that hangs over it (DECOR_TILE | decor tile). 0 = nothing.
+// What the room plane shows at (tx, ty): room art (room_artTile: index | CASTLE_FLIP) or the decor
+// (DECOR_TILE | decor tile), on empty tiles and on the ground under its foot. 0 = nothing.
 #define DECOR_TILE 0x4000
 u16 decor_planeTile(const Room *r, s16 tx, s16 ty);
 
