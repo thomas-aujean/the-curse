@@ -474,7 +474,9 @@ static u8 updatePickups(Level *lv, Player *p, s16 ppx, s16 ppy)
             // across its wares.
             if (!p->upPressed)
             {
+                if (lv->message == MSG_BUY && lv->messageItem != pk->itemId) lv->messageCooldown = 0;   // next ware
                 result |= levelMessage(lv, MSG_BUY);
+                lv->messageItem = pk->itemId;
                 continue;
             }
             if (p->coins < pk->price)

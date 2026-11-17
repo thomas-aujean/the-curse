@@ -71,6 +71,7 @@ typedef struct
     u8 shopBought[FLOOR_H][FLOOR_W];   // bit per shop slot
     u8 shopChanged;                    // a ware was bought: redraw the price tags
     u8 message, messageCooldown;       // MSG_* to show (LEVEL_MESSAGE)
+    u8 messageItem;                    // MSG_BUY: the ware the player stands at
     u16 rng;
     EnemySet enemies;
     s16 voidCX, voidCY;                // Void circle centre, castle pixels (the boss room centre)

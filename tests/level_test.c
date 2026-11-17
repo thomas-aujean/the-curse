@@ -323,7 +323,7 @@ int main(void)
                     p.coins = 20;
                     lv.messageCooldown = 0;
                     p.upPressed = 0;
-                    CHECK((level_update(&lv, &p) & LEVEL_MESSAGE) && lv.message == MSG_BUY, "seed %u: buy hint", seed);
+                    CHECK((level_update(&lv, &p) & LEVEL_MESSAGE) && lv.message == MSG_BUY && lv.messageItem == ITEM_HEART, "seed %u: buy hint", seed);
                     CHECK(p.coins == 20 && lv.pickups[0].type == PICKUP_ITEM, "seed %u: bought by walking past", seed);
                     p.coins = 2;
                     lv.messageCooldown = 0;

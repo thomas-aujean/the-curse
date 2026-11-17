@@ -454,12 +454,15 @@ static void drawSprites(void)
             VDP_loadTileData(ts_ninja_fx.tiles + (u32) ext->first * 16 * 8, GFX_NINJA_EXT, ext->count * 16,
                              DMA_QUEUE);
     }
+    // The hero's sprites come first in the chain (in front of everything): body, lower body, slash
+    // arcs, then the spark, the enemies... the pickups last. (The lower body used to come last: a
+    // ware was drawn over the hero's legs and under his chest.)
     // Sprite 0: hero (32 x 48, body centred on x 16, soles on row GFX_HERO_FEET); blinks while invulnerable.
     u8 hidden = (player.invulnerable & 4) != 0;
     s16 bx = px - 16, by = py - GFX_HERO_FEET - 1;
-    VDP_setSpriteFull(0, bx, hidden ? -64 : by, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA), 1);
+    VDP_setSpriteFull(0, bx, hidden ? -64 : by, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA), SPRITE_BODY_LOW);
     VDP_setSpriteFull(SPRITE_BODY_LOW, bx, hidden ? -64 : by + 32, SPRITE_SIZE(4, 2),
-                      TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA + 16), 0);
+                      TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA + 16), 1);
 
     // Sprite 1 and SPRITE_EXT2: 32 x 32 extension cells (slash arcs), mirrored with the body.
     for (u8 k = 0; k < 2; k++)
@@ -468,7 +471,7 @@ static void drawSprites(void)
         s16 ex = flip ? bx - ext->x[k] : bx + ext->x[k];
         s16 ey = (k < ext->count && !hidden) ? by + ext->y[k] : -64;
         VDP_setSpriteFull(index, ex, ey, SPRITE_SIZE(4, 4),
-                          TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA_EXT + k * 16), k ? SPRITE_BODY_LOW : SPRITE_HIT);
+                          TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA_EXT + k * 16), k ? SPRITE_HIT : SPRITE_EXT2);
     }
 
     // Spark where the last blow landed: big for two frames, then mirrored each frame so it flickers.
@@ -566,7 +569,7 @@ static void drawSprites(void)
     }    for (u8 i = 0; i < MAX_PICKUPS; i++)
     {
         const Pickup *pk = &lv.pickups[i];
-        u8 index = SPRITE_PICKUPS + i, link = i + 1 < MAX_PICKUPS ? index + 1 : SPRITE_EXT2;
+        u8 index = SPRITE_PICKUPS + i, link = i + 1 < MAX_PICKUPS ? index + 1 : 0;
         s16 x = (pk->x >> 8) - camX, y = (pk->y >> 8) - camY;
         if (pk->type == PICKUP_NONE || offScreen(x - 8, y - 20))
             VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
@@ -872,7 +875,12 @@ static void updateRoom(u16 pad, u16 pressed)
     lv.enemies.hitStop = 0;
     if (events & LEVEL_REDRAW) drawRoom();
     if (events & LEVEL_ITEM) showText(player_itemName(lv.lastItem));
-    if (events & LEVEL_MESSAGE) showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER" : "PAS ASSEZ DE PIECES");
+    if (events & LEVEL_MESSAGE)
+    {
+        char buy[24];
+        if (lv.message == MSG_BUY) sprintf(buy, "HAUT: %s", player_itemName(lv.messageItem));   // 21 chars max
+        showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? buy : "PAS ASSEZ DE PIECES");
+    }
     if (events & LEVEL_GEM)
     {
         startFloorWon();
