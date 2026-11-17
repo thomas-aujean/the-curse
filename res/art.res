@@ -17,5 +17,6 @@ TILESET ts_shop "shop.png" NONE NONE COLUMN
 TILESET ts_crate "crate.png" NONE NONE COLUMN
 TILESET ts_keys "keys.png" NONE NONE COLUMN
 IMAGE img_title "title.png" BEST ALL
+TILESET ts_title_cape "title_cape.png" NONE NONE ROW
 PALETTE pal_void "void.png"
 TILESET ts_enemies "enemies.png" NONE NONE ROW

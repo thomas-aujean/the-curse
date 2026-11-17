@@ -281,6 +281,7 @@ def main():
     write_indexed(os.path.join(RES, "keys.png"), keys.sheet(pal2), pal2)
     title_img, title_pal = title.build()
     write_indexed(os.path.join(RES, "title.png"), title_img, title_pal, opaque=True)
+    write_indexed(os.path.join(RES, "title_cape.png"), title.cape_frames(title_pal), title_pal, opaque=True)
     print("castle.png: %d tiles, far.png: 512x256, ninja.png: %d frames" % (count, len(ninja.ORDER)))
 
 

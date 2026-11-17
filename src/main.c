@@ -1149,13 +1149,31 @@ static void updateRoom(u16 pad, u16 pressed)
 // Title screen (Thomas, 2026-11-17): the hero on his cliff over the castle (res/title.png, plane B),
 // "PRESS START" blinking. Shown before the game loads its own tiles, which take the picture's place.
 // Returns the frames waited: the floor's seed (every game a new floor).
+// Bats far away over the valley: 8 x 8, wings up then spread (PAL0 colour 1, the darkest but one).
+static const u32 TITLE_BAT[2][8] =
+{
+    { 0x10000001, 0x11000011, 0x01101110, 0x00111100, 0x00011000, 0, 0, 0 },
+    { 0, 0, 0x00011000, 0x11111111, 0x10011001, 0x10000001, 0, 0 },
+};
+
 static u16 titleScreen(void)
 {
     PAL_setPalette(PAL0, img_title.palette->data, CPU);
     PAL_setColor(16 + 15, RGB24_TO_VDPCOLOR(0xF8E0B0));   // text: warm white (PAL1, loaded again later)
     VDP_drawImageEx(BG_B, &img_title, TILE_ATTR_FULL(PAL0, FALSE, FALSE, FALSE, TILE_USER_INDEX), 0, 0, FALSE, TRUE);
+    // The knight's corner (tiles 0..11 x 7..18) shows the cape's frames, streamed in turn into one
+    // place of video memory after the picture (tools/art/title.py).
+    u16 capeBase = TILE_USER_INDEX + img_title.tileset->numTile, batBase = capeBase + 144;
+    for (u8 ty = 0; ty < 12; ty++)
+        for (u8 tx = 0; tx < 12; tx++)
+            VDP_setTileMapXY(BG_B, TILE_ATTR_FULL(PAL0, FALSE, FALSE, FALSE, capeBase + ty * 12 + tx), tx, 7 + ty);
+    const u32 *cape = ts_title_cape.tiles;   // not compressed: read straight from the cartridge
+    VDP_loadTileData(cape, capeBase, 144, CPU);
+    VDP_loadTileData(TITLE_BAT[0], batBase, 2, CPU);
     VDP_setTextPalette(PAL1);
     VDP_drawTextBG(BG_A, "THE CURSE", 15, 2);
+    static const s16 BAT[4][3] = { { 340, 70, 3 }, { 420, 92, 4 }, { 520, 60, 5 }, { 610, 84, 3 } };   // x, y, speed
+    static const u8 CAPE_STEP[8] = { 0, 1, 2, 3, 4, 3, 2, 1 };   // ping-pong
     u16 frames = 0, prev = 0xFFFF;
     while (TRUE)
     {
@@ -1164,9 +1182,23 @@ static u16 titleScreen(void)
         prev = pad;
         if ((frames & 31) == 0) VDP_drawTextBG(BG_A, "APPUIE SUR START", 12, 25);
         if ((frames & 31) == 20) VDP_clearTextBG(BG_A, 12, 25, 16);
+        if ((frames & 7) == 0)
+            VDP_loadTileData(cape + CAPE_STEP[(frames >> 3) & 7] * 144 * 8, capeBase, 144, DMA_QUEUE);
+        for (u8 i = 0; i < 4; i++)
+        {
+            // Drifting left, looping around; a slow bob and a flap every few frames.
+            s16 x = BAT[i][0] - (s16) ((frames * BAT[i][2] / 8) % 480);
+            s16 y = BAT[i][1] + ((frames + i * 20) >> 4) % 4 - 2;
+            if (x < -16) x += 480;
+            VDP_setSpriteFull(i, x, y, SPRITE_SIZE(1, 1),
+                              TILE_ATTR_FULL(PAL0, 1, 0, 0, batBase + (((frames >> 3) + i) & 1)), i < 3 ? i + 1 : 0);
+        }
+        VDP_updateSprites(4, DMA_QUEUE);
         frames++;
         SYS_doVBlankProcess();
     }
+    VDP_resetSprites();
+    VDP_updateSprites(1, DMA_QUEUE);
     VDP_clearPlane(BG_A, TRUE);
     VDP_clearPlane(BG_B, TRUE);
     return frames;
