@@ -303,8 +303,19 @@ static void findTrapdoor(void)
     trapY = ty * 8;
 }
 
+// Decor of the room drawn last (cell index; 0xFF: none). Placed again on a room change only: a
+// door crossing redraws through drawRoom, not enterRoom, and kept the last room's fences and graves,
+// floating in the new one (Thomas); a wall broken open must not move them.
+static u8 decorCell = 0xFF;
+
 static void drawRoom(void)
 {
+    u8 cell = lv.cellY * FLOOR_W + lv.cellX;
+    if (cell != decorCell)
+    {
+        decorCell = cell;
+        decor_place(&lv.room, lv.floor.seed ^ (lv.cellX * 77 + lv.cellY * 1031));
+    }
     findTrapdoor();
     updateCamera();
     drawnTX = camX >> 3;
@@ -787,7 +798,7 @@ static void enterRoom(void)
     VDP_clearTileMapRect(WINDOW, 0, 0, 64, 3);   // the rest of the window map holds decor tiles (gfx.h)
     gfx_loadDecor();
     gfx_drawFar();
-    decor_place(&lv.room, lv.floor.seed ^ (lv.cellX * 77 + lv.cellY * 1031));
+    decorCell = 0xFF;   // a new floor can start in the same cell
     drawRoom();
     forceHud();
     itemMessage = 0;
