@@ -170,6 +170,34 @@ int main(void)
         }
     }
 
+    // A sword blow breaks an arrow on its way: slash when it is close, the player is not hurt.
+    {
+        enemies_clear(&set);
+        enemies_add(&set, ENEMY_ARCHER, 250, 200, 0);
+        player_init(&p, 140, 200);
+        int broken = 0, slashed = 0;
+        for (int f = 0; f < 200 && !broken; f++)
+        {
+            u16 pad = 0;
+            for (int i = 0; i < MAX_SHOTS; i++)
+            {
+                const Shot *sh = &set.shots[i];
+                if (sh->active && !slashed && ((sh->x - p.x) >> 8) < 40)
+                {
+                    pad = PAD_ATTACK;
+                    slashed = 1;
+                }
+            }
+            player_update(&p, &room, pad);
+            int before = 0, after = 0;
+            for (int i = 0; i < MAX_SHOTS; i++) before += set.shots[i].active;
+            enemies_update(&set, &room, &p);
+            for (int i = 0; i < MAX_SHOTS; i++) after += set.shots[i].active;
+            if (slashed && after < before && p.hp == p.maxHp) broken = 1;
+        }
+        CHECK(broken, "a slash breaks the arrow (slashed %d, hp %d)", slashed, p.hp);
+    }
+
     // Guard: the shield blocks a side slash from the front, the back is open. The Void colossus
     // also blocks a downward slash from the front.
     for (int form = 0; form < 2; form++)

@@ -15,7 +15,7 @@ static const EnemyStats STATS[ENEMY_TYPES][2] =
     { { 154, 0, 0, 2, 1 }, { 256, 640, 128, 4, 2 } },        // walker: patrols; Void form charges
     { { 192, 0, 112, 1, 1 }, { 384, 0, 160, 2, 2 } },        // flyer: homes in on the player
     { { 192, 1024, 0, 16, 2 }, { 256, 1280, 0, 24, 3 } },    // boss: dash, leap, fan of shots
-    { { 0, 768, 200, 2, 1 }, { 0, 384, 240, 3, 2 } },        // archer: chase = arrow / spore speed
+    { { 0, 1024, 200, 2, 1 }, { 0, 384, 240, 3, 2 } },       // archer: chase = arrow / spore speed
     { { 384, 640, 160, 2, 1 }, { 512, 1024, 200, 3, 2 } },   // ninja: chase = shuriken / lunge speed
     { { 128, 0, 160, 3, 1 }, { 256, 0, 200, 6, 2 } },        // guard
     { { 256, 0, 160, 2, 1 }, { 448, 0, 200, 2, 2 } },        // jelly
@@ -46,8 +46,8 @@ void enemies_setRegion(u8 isPal)
     deathFrames = isPal ? 16 * 5 / 6 : 16;
     bossIdle = isPal ? 50 * 5 / 6 : 50;
     bossWarn = isPal ? 36 * 5 / 6 : 36;
-    speedScale6 = isPal ? 6 : 5;
-    archerDelay = isPal ? 90 * 5 / 6 : 90;
+    speedScale6 = isPal ? 7 : 6;   // enemies x1.2 (2026-11-17: the game a little faster)
+    archerDelay = isPal ? 60 * 5 / 6 : 60;   // one arrow a second
     archerVoidDelay = isPal ? 120 * 5 / 6 : 120;
     ninjaDelay = isPal ? 70 * 5 / 6 : 70;
     ninjaVoidDelay = isPal ? 45 * 5 / 6 : 45;
@@ -56,9 +56,10 @@ void enemies_setRegion(u8 isPal)
     jellyJump = isPal ? 900 * 6 / 5 : 900;
     homingAccel = isPal ? 24 * 36 / 25 : 24;
     sporeLife = isPal ? 240 * 5 / 6 : 240;
-    arrowGravity = isPal ? 40 * 36 / 25 : 40;   // a visible lob: ~50 px high up close, ~90 far
-    arrowMinFrames = isPal ? 48 * 5 / 6 : 48;
-    arrowMaxFrames = isPal ? 80 * 5 / 6 : 80;
+    // A taut shot (Thomas: "straighter"): ~15 px above the line up close, ~40 px far.
+    arrowGravity = isPal ? 28 * 36 / 25 : 28;
+    arrowMinFrames = isPal ? 32 * 5 / 6 : 32;
+    arrowMaxFrames = isPal ? 56 * 5 / 6 : 56;
     guardTurn = isPal ? 40 * 5 / 6 : 40;
     flashFrames = 3;
     sparkFrames = isPal ? 7 : 8;
@@ -577,7 +578,9 @@ static u8 overlap(s16 ax0, s16 ay0, s16 ax1, s16 ay1, s16 bx0, s16 by0, s16 bx1,
     return ax0 <= bx1 && bx0 <= ax1 && ay0 <= by1 && by0 <= ay1;
 }
 
-static void updateShots(EnemySet *s, const Room *r, Player *p, s16 px0, s16 py0, s16 px1, s16 py1)
+// A sword blow breaks arrows and spores (Thomas): ax0 > ax1 when the player is not slashing.
+static void updateShots(EnemySet *s, const Room *r, Player *p, s16 px0, s16 py0, s16 px1, s16 py1,
+                        s16 ax0, s16 ay0, s16 ax1, s16 ay1)
 {
     for (u8 i = 0; i < MAX_SHOTS; i++)
     {
@@ -596,6 +599,15 @@ static void updateShots(EnemySet *s, const Room *r, Player *p, s16 px0, s16 py0,
         if (x < 0 || y < 0 || x >= r->w * ROOM_TILE || y >= r->h * ROOM_TILE || isSolid(r, x, y))
         {
             sh->active = 0;
+            continue;
+        }
+        if (sh->kind != SHOT_ORB && ax0 <= ax1 && overlap(x - 6, y - 6, x + 6, y + 6, ax0, ay0, ax1, ay1))
+        {
+            sh->active = 0;
+            s->hitX = x;   // a spark where it broke
+            s->hitY = y;
+            s->hitTimer = sparkFrames;
+            s->hitBlocked = 0;
             continue;
         }
         if (overlap(x - 3, y - 3, x + 3, y + 3, px0, py0, px1, py1))
@@ -728,7 +740,8 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
                 player_hurt(p, st->damage, e->facingLeft);
         }
     }
-    updateShots(s, r, p, px0, py0, px1, py1);
+    if (!slashing) ax0 = 1, ax1 = 0;
+    updateShots(s, r, p, px0, py0, px1, py1, ax0, ay0, ax1, ay1);
 }
 
 u8 enemies_alive(const EnemySet *s)

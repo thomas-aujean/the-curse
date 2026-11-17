@@ -549,7 +549,7 @@ static void drawSprites(void)
     {
         const Shot *sh = &lv.enemies.shots[i];
         u8 arrow = sh->kind == SHOT_ARROW;
-        s16 half = arrow ? 8 : 4;
+        s16 half = arrow ? 12 : 4;
         s16 sx = (sh->x >> 8) - camX - half, y = (sh->y >> 8) - camY - half;
         if (!sh->active || offScreen(sx, y)) y = -64;
         u16 tile = sh->kind == SHOT_SHURIKEN ? GFX_TILE_SHURIKEN : GFX_TILE_SHOT;
@@ -561,10 +561,10 @@ static void drawSprites(void)
             // 33.75, 56.25 and 78.75 degrees are about 1/5, 2/3, 3/2 and 5.
             s32 ax = sh->vx < 0 ? -sh->vx : sh->vx, ay = sh->vy < 0 ? -sh->vy : sh->vy;
             u8 k = ay * 5 < ax ? 0 : ay * 3 < ax * 2 ? 1 : ay * 2 < ax * 3 ? 2 : ay < ax * 5 ? 3 : 4;
-            tile = GFX_ARROWS + k * 4;
+            tile = GFX_ARROWS + k * 9;
             vflip = sh->vy > 0;
         }
-        VDP_setSpriteFull(SPRITE_SHOTS + i, sx, y, arrow ? SPRITE_SIZE(2, 2) : SPRITE_SIZE(1, 1),
+        VDP_setSpriteFull(SPRITE_SHOTS + i, sx, y, arrow ? SPRITE_SIZE(3, 3) : SPRITE_SIZE(1, 1),
                           TILE_ATTR_FULL(spal, 1, vflip, hflip, tile), SPRITE_SHOTS + i + 1);
     }
     s16 gx = (lv.gemX >> 8) - camX - 4, gy = (lv.gemY >> 8) - camY - 8;

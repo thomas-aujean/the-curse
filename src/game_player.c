@@ -13,17 +13,19 @@ typedef struct
 
 static const Tuning NTSC =
 {
-    // Scaled x1.25 for the 32 x 48 hero (Thomas, 2026-11-16: same speed looked slow on a bigger body).
-    .runMax = 880,     // 3.4 px/frame
-    .accel = 90,       // full speed in ~10 frames
-    .turn = 180,       // turning back bites harder than starting
-    .decel = 120,
-    .airAccel = 60,
-    .airDecel = 10,
-    .gravity = 100,
-    .jumpVel = 2263,   // v^2 / 2g = 100 px, same air time as before: higher, not floatier
-    .jumpCut = 640,    // releasing C caps the rise speed: short hops
-    .maxFall = 1920,
+    // Scaled x1.25 for the 32 x 48 hero (Thomas, 2026-11-16: same speed looked slow on a bigger body),
+    // then the whole game a little faster (2026-11-17): speeds x1.12-1.15, gravity x1.25 so the jumps
+    // keep their height and take less time.
+    .runMax = 1000,    // 3.9 px/frame
+    .accel = 104,      // full speed in ~10 frames
+    .turn = 207,       // turning back bites harder than starting
+    .decel = 138,
+    .airAccel = 69,
+    .airDecel = 12,
+    .gravity = 125,
+    .jumpVel = 2530,   // v^2 / 2g = 100 px
+    .jumpCut = 716,    // releasing C caps the rise speed: short hops
+    .maxFall = 2150,
     .coyote = 6,       // can still jump a few frames after leaving a ledge
     .buffer = 6,       // a jump pressed just before landing is not lost
     .dropFrames = 10,
@@ -35,10 +37,10 @@ static const Tuning NTSC =
     .attackTo = 7,
     .invulFrames = 90,  // 1.5 s of blinking after a hit
     .hurtFrames = 14,
-    .knockX = 448,
-    .knockY = 768,
-    .bounceVel = 1280,  // ~40 px hop after a downward hit
-    .recoil = 640,      // a side slash that lands pushes the hero back a little
+    .knockX = 500,
+    .knockY = 858,
+    .bounceVel = 1430,  // ~40 px hop after a downward hit
+    .recoil = 716,      // a side slash that lands pushes the hero back a little
     .lightMax = 20 * 60, // 20 s of protection inside the Void
 };
 

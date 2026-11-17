@@ -156,11 +156,11 @@ static void upgrades(void)
     player_init(&p, 60, 200);
     player_takeItem(&p, ITEM_WIND_BOOTS);
     run(&p, PAD_RIGHT, 30);
-    CHECK(p.vx > 704, "wind boots: vx %d", p.vx);
+    CHECK(p.vx > 1000, "wind boots: vx %d", p.vx);
     player_init(&p, 60, 200);
     player_takeItem(&p, ITEM_LEAD_BOOTS);
     run(&p, PAD_RIGHT, 30);
-    CHECK(p.vx < 880, "lead boots: vx %d", p.vx);
+    CHECK(p.vx < 1000, "lead boots: vx %d", p.vx);
 
     // Hearts: stone adds one, glass removes one but hits harder; health never exceeds the max.
     player_init(&p, 60, 200);

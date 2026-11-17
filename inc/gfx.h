@@ -82,10 +82,10 @@
 // per pose (enemy_frames.h). The old place of the enemies (TILE_USER_INDEX + 480..607) holds the chests.
 #define GFX_ENEMIES        (TILE_USER_INDEX + 760)
 #include "enemy_frames.h"
-// The archer's arrow (res/arrow.png, tools/art/arrow.py): 5 angles of 2 x 2 tiles (PAL2), after the
+// The archer's arrow (res/arrow.png, tools/art/arrow.py): 5 angles of 3 x 3 tiles (PAL2), after the
 // enemies (room freed by the ninja, out for now), up to the decor.
-#define GFX_ARROWS         (TILE_USER_INDEX + 1284)
-#if 760 + ENEMY_TILE_COUNT > 1284
+#define GFX_ARROWS         (TILE_USER_INDEX + 1259)
+#if 760 + ENEMY_TILE_COUNT > 1259
 #error "enemy tiles run into the arrow (inc/gfx.h)"
 #endif
 
