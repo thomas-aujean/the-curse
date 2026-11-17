@@ -384,6 +384,32 @@ int main(void)
     }
     CHECK(jarsTested > 100 && shopsTested > 20, "jars %d shops %d", jarsTested, shopsTested);
 
-    printf("%d door crossings, %d secret passages, %d jars, %d shops, %d failures\n", moves, secretsOpened, jarsTested, shopsTested, failures);
+    // A killed enemy stays dead (Thomas): leave the room and come back, one fewer; the others return.
+    int killsTested = 0;
+    for (unsigned seed = 5; seed < 120; seed += 7)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        for (int y = 0; y < FLOOR_H; y++)
+            for (int x = 0; x < FLOOR_W; x++)
+            {
+                u8 type = lv.floor.type[y][x];
+                if (type != ROOM_NORMAL) continue;
+                level_enter(&lv, &p, x, y);
+                int before = 0;
+                for (int i = 0; i < MAX_ENEMIES; i++) before += lv.enemies.e[i].type != ENEMY_NONE;
+                if (before < 2) continue;
+                lv.enemies.e[0].deathTimer = 20;   // killed
+                p.x = p.y = 0;
+                level_update(&lv, &p);
+                level_enter(&lv, &p, x, y);
+                int after = 0;
+                for (int i = 0; i < MAX_ENEMIES; i++) after += lv.enemies.e[i].type != ENEMY_NONE;
+                CHECK(after == before - 1, "seed %u (%d,%d): %d enemies, %d after one killed", seed, x, y, before, after);
+                killsTested++;
+            }
+    }
+    CHECK(killsTested > 30, "only %d kills tested", killsTested);
+
+    printf("%d door crossings, %d secret passages, %d jars, %d shops, %d kills, %d failures\n", moves, secretsOpened, jarsTested, shopsTested, killsTested, failures);
     return failures != 0;
 }

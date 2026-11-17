@@ -58,6 +58,8 @@ typedef struct
     u8 cellX, cellY;                   // current room on the floor map
     u8 visited[FLOOR_H][FLOOR_W];
     u8 cleared[FLOOR_H][FLOOR_W];      // all enemies killed: the room stays empty
+    u16 killed[FLOOR_H][FLOOR_W];      // bit per enemy of the room's template: killed, never back
+    u8 spawnOf[MAX_ENEMIES];           // enemy slot -> its place in the template (0xFF: not from it)
     u8 opened[FLOOR_H][FLOOR_W];       // hidden passages broken open (DOOR_* bits, both sides)
     u8 taken[FLOOR_H][FLOOR_W];        // the room's item was picked up
     u8 roomItem[FLOOR_H][FLOOR_W];     // upgrade on the altar of each upgrade / super secret room

@@ -136,22 +136,27 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             c->y1 = (y1 + 1) * 16 - 1;
         }
 
-    // Enemies come back each time, unless the room was cleared. Never in the start room.
-    // Their form is set every frame from their position (level_update).
+    // Enemies come back each time, except the ones killed (Thomas: the dead stay dead). Never in the
+    // start room. Their form is set every frame from their position (level_update).
     enemies_clear(&lv->enemies);
+    for (u8 i = 0; i < MAX_ENEMIES; i++) lv->spawnOf[i] = 0xFF;
     if (!lv->cleared[y][x] && lv->floor.type[y][x] != ROOM_START)
+    {
+        u8 n = 0;   // place of the enemy in the template
         for (u8 by = 0; by < t->hBlocks; by++)
             for (u8 bx = 0; bx < t->wBlocks; bx++)
             {
                 char c = t->rows[by][bx];
-                if (c == 'w') enemies_add(&lv->enemies, ENEMY_WALKER, bx * 16 + 8, (by + 1) * 16, 0);
-                if (c == 'f') enemies_add(&lv->enemies, ENEMY_FLYER, bx * 16 + 8, by * 16 + 14, 0);
-                if (c == 'B') enemies_add(&lv->enemies, ENEMY_BOSS, bx * 16 + 8, (by + 1) * 16, 0);
-                if (c == 'a') enemies_add(&lv->enemies, ENEMY_ARCHER, bx * 16 + 8, (by + 1) * 16, 0);
-                if (c == 'n') enemies_add(&lv->enemies, ENEMY_NINJA, bx * 16 + 8, (by + 1) * 16, 0);
-                if (c == 'g') enemies_add(&lv->enemies, ENEMY_GUARD, bx * 16 + 8, (by + 1) * 16, 0);
-                if (c == 'j') enemies_add(&lv->enemies, ENEMY_JELLY, bx * 16 + 8, (by + 1) * 16, 0);
+                u8 type = c == 'w' ? ENEMY_WALKER : c == 'f' ? ENEMY_FLYER : c == 'B' ? ENEMY_BOSS
+                        : c == 'a' ? ENEMY_ARCHER : c == 'n' ? ENEMY_NINJA : c == 'g' ? ENEMY_GUARD
+                        : c == 'j' ? ENEMY_JELLY : ENEMY_NONE;
+                if (type == ENEMY_NONE) continue;
+                u8 k = n++;
+                if (k < 16 && (lv->killed[y][x] & (1 << k))) continue;
+                Enemy *e = enemies_add(&lv->enemies, type, bx * 16 + 8, type == ENEMY_FLYER ? by * 16 + 14 : (by + 1) * 16, 0);
+                if (e) lv->spawnOf[e - lv->enemies.e] = k;
             }
+    }
 
     // Item on its altar, in the middle of the small room, until taken.
     lv->itemId = lv->taken[y][x] ? ITEM_NONE : itemFor(lv, x, y);
@@ -269,7 +274,7 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
     floor_generate(&lv->floor, seed, depth);
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++)
-            lv->visited[y][x] = lv->cleared[y][x] = lv->opened[y][x] = lv->taken[y][x] = 0,
+            lv->visited[y][x] = lv->cleared[y][x] = lv->opened[y][x] = lv->taken[y][x] = lv->killed[y][x] = 0,
             lv->propsBroken[y][x] = lv->shopBought[y][x] = 0;
     lv->rng = seed | 1;
     dealFloorItems(lv);
@@ -390,6 +395,7 @@ static void lootEnemies(Level *lv)
         Enemy *e = &lv->enemies.e[i];
         if (e->type == ENEMY_NONE || !e->deathTimer || e->looted) continue;
         e->looted = 1;
+        if (lv->spawnOf[i] < 16) lv->killed[lv->cellY][lv->cellX] |= 1 << lv->spawnOf[i];
         s16 x = e->x >> 8, y = (e->y >> 8) - 8;
         // Risk pays: Void forms always drop, and twice as much.
         if (e->type == ENEMY_BOSS) dropLoot(lv, x, y, e->voidForm ? 10 : 5, 0);
