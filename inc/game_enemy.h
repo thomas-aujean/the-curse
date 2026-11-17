@@ -80,6 +80,11 @@ typedef struct
     u8 hitTimer;
     u8 hitBlocked;       // the spark is a shield block, not a wound
     u8 hitStop;
+    // The enemy last hit, shown with its name and life bar for a moment (Thomas, 2026-11-17: as in
+    // Streets of Rage): type, Void form, life left and full life; barTimer = frames left to show it.
+    u8 barType, barVoid, barMax;
+    s8 barHp;
+    u8 barTimer;
 } EnemySet;
 
 void enemies_setRegion(u8 pal);

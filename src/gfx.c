@@ -235,6 +235,7 @@ static void artToTiles(const char *const *rows, PixelFn *pixel, u8 wTiles, u8 hT
 }
 
 static u32 digits[10][8];   // font digits, unpacked once (the font is compressed)
+static u32 letters[26][8];  // and its capitals, for the enemies' names
 
 const u32 *gfx_hudPicture(u8 i)
 {
@@ -244,6 +245,11 @@ const u32 *gfx_hudPicture(u8 i)
 const u32 *gfx_coinPicture(void)
 {
     return COIN_TILE;
+}
+
+const u32 *gfx_letterPicture(char c)
+{
+    return c >= 'A' && c <= 'Z' ? letters[c - 'A'] : 0;
 }
 
 const u32 *gfx_keyPicture(void)
@@ -364,6 +370,7 @@ void gfx_load(void)
     {
         TileSet *font = unpackTileSet(&font_default, NULL);
         memcpy(digits, font->tiles + ('0' - 32) * 8, sizeof(digits));   // the font starts at ' '
+        memcpy(letters, font->tiles + ('A' - 32) * 8, sizeof(letters));
         MEM_free(font);
     }
     gfx_loadDecor();

@@ -108,6 +108,8 @@
 // The key and the padlock (res/keys.png, tools/art/keys.py): 2 x 2 tiles each (PAL2).
 #define GFX_KEY            (TILE_USER_INDEX + 1190)
 #define GFX_PADLOCK        (TILE_USER_INDEX + 1194)
+// The life bar of the enemy last hit (main.c, drawEnemyBar): 8 tiles of name, 4 of bar, made in RAM.
+#define GFX_ENEMY_BAR      (TILE_USER_INDEX + 1198)   // up to 1209
 
 void gfx_load(void);
 void gfx_loadBoss(void);   // the boss's tiles (again after the exit door took their place)
@@ -119,6 +121,7 @@ const u32 *gfx_hudPicture(u8 i);
 const u32 *gfx_coinPicture(void);
 const u32 *gfx_keyPicture(void);
 const u32 *gfx_digitPicture(u8 d);
+const u32 *gfx_letterPicture(char c);   // A..Z (colour 15), 0 for anything else
 u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
 void gfx_loadDecor(void);   // decor tiles into video memory (again after a full-screen message)
 void gfx_drawFar(void);   // the parallax sky on FAR_PLANE

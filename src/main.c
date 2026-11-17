@@ -328,8 +328,9 @@ static void drawRoom(void)
 // An enemy pose is 1 to 4 sprites. The console shows 80 sprites in all: the enemies share a pool
 // instead of owning 4 each (12 enemies never show their widest pose on one screen together).
 #define SPRITE_ENEMIES 2
-#define ENEMY_SPRITES 35
-#define SPRITE_SHOTS (SPRITE_ENEMIES + ENEMY_SPRITES)
+#define ENEMY_SPRITES 32
+#define SPRITE_BAR (SPRITE_ENEMIES + ENEMY_SPRITES)   // 3 sprites: name of the enemy last hit, its life
+#define SPRITE_SHOTS (SPRITE_BAR + 3)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
 #define SPRITE_ITEM (SPRITE_GEM + 1)
 #define SPRITE_TRAP (SPRITE_ITEM + 1)     // arrow over the trapdoor
@@ -450,6 +451,56 @@ static u8 drawEnemyFrame(u8 n, const EnemyFrame *f, s16 cx, s16 feetY, u16 base,
 static u16 itemTile(u8 item)
 {
     return item >= ITEM_FIRST_UPGRADE && item < ITEM_COUNT ? GFX_ITEMS + (item - ITEM_FIRST_UPGRADE) * 4 : GFX_TILE_RELIC;
+}
+
+// The enemy last hit, top centre, as in Streets of Rage: its name, then its life bar (red, cyan in
+// the Void form), for two seconds after each blow. Tiles made in RAM when what they show changes.
+static void copyTile(u32 *dst, const u32 *src);
+static void recolourTile(u32 *dst, const u32 *src, u8 c);
+static void drawEnemyBar(void)
+{
+    static const char *const NAME[ENEMY_TYPES] =
+        { "", "SOLDAT", "SPECTRE", "GARDIEN", "ARCHER", "NINJA", "GARDE", "GELEE", "GELEE" };
+    static u32 tiles[12 * 8];
+    static u8 shownType = 0xFF, shownHp = 0xFF, shownMax;
+    const EnemySet *s = &lv.enemies;
+    u8 shown = s->barTimer && s->barType < ENEMY_TYPES;
+    if (shown && (s->barType != shownType || (u8) s->barHp != shownHp || s->barMax != shownMax))
+    {
+        shownType = s->barType;
+        shownHp = s->barHp;
+        shownMax = s->barMax;
+        const char *name = NAME[shownType];
+        u8 len = strlen(name), first = (8 - len) / 2;   // centred over the bar
+        for (u8 k = 0; k < 8; k++)
+        {
+            const u32 *glyph = k >= first && k < first + len ? gfx_letterPicture(name[k - first]) : 0;
+            if (glyph) recolourTile(&tiles[k * 8], glyph, 2);
+            else copyTile(&tiles[k * 8], NULL);
+        }
+        // Bar: 32 x 6 px, dark frame (1), life (4) over the lost part (3).
+        u16 fill = shownMax ? (u16) shownHp * 30 / shownMax : 0;
+        for (u8 k = 0; k < 4; k++)
+            for (u8 y = 0; y < 8; y++)
+            {
+                u32 line = 0;
+                for (u8 x = 0; x < 8; x++)
+                {
+                    u8 px = k * 8 + x, c = 0;
+                    if (y >= 1 && y <= 6)
+                        c = (y == 1 || y == 6 || px == 0 || px == 31) ? 1 : (px - 1 < fill ? 4 : 3);
+                    line = (line << 4) | c;
+                }
+                tiles[(8 + k) * 8 + y] = line;
+            }
+        VDP_loadTileData(tiles, GFX_ENEMY_BAR, 12, DMA_QUEUE);
+    }
+    u16 pal = s->barVoid ? PAL3 : PAL2;
+    s16 y = shown ? 3 : -64;
+    VDP_setSpriteFull(SPRITE_BAR, 128, y, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_ENEMY_BAR), SPRITE_BAR + 1);
+    VDP_setSpriteFull(SPRITE_BAR + 1, 160, y, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_ENEMY_BAR + 4), SPRITE_BAR + 2);
+    VDP_setSpriteFull(SPRITE_BAR + 2, 144, shown ? 12 : -64, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(pal, 1, 0, 0, GFX_ENEMY_BAR + 8),
+                      SPRITE_SHOTS);
 }
 
 static void drawSprites(void)
@@ -627,6 +678,7 @@ static void drawSprites(void)
     }
     // The rest of the pool stays in the chain (the sprites after it are fixed), out of sight.
     for (; n < SPRITE_ENEMIES + ENEMY_SPRITES; n++) VDP_setSpriteFull(n, 0, -64, SPRITE_SIZE(1, 1), 0, n + 1);
+    drawEnemyBar();
     for (u8 i = 0; i < MAX_SHOTS; i++)
     {
         const Shot *sh = &lv.enemies.shots[i];

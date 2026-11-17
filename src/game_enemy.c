@@ -100,6 +100,7 @@ void enemies_clear(EnemySet *s)
     for (u8 i = 0; i < MAX_ENEMIES; i++) s->e[i].type = ENEMY_NONE;
     for (u8 i = 0; i < MAX_SHOTS; i++) s->shots[i].active = 0;
     s->hitTimer = s->hitStop = s->hitBlocked = 0;
+    s->barTimer = 0;
 }
 
 Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
@@ -674,6 +675,7 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
 {
     s->blocked = 0;
     if (s->hitTimer) s->hitTimer--;
+    if (s->barTimer) s->barTimer--;
     s16 ax0 = 0, ay0 = 0, ax1 = 0, ay1 = 0;
     u8 slashing = player_attackActive(p);
     if (slashing) player_attackBox(p, &ax0, &ay0, &ax1, &ay1);
@@ -774,6 +776,11 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             if (p->attackDir == ATTACK_DOWN) player_bounce(p);
             if (p->attackDir == ATTACK_SIDE) player_recoil(p);
             e->hp -= player_slashDamage(p);
+            s->barType = e->type;
+            s->barVoid = e->voidForm;
+            s->barMax = STATS[e->type][e->voidForm].hp;
+            s->barHp = e->hp < 0 ? 0 : e->hp;
+            s->barTimer = 120;
             if (e->hp <= 0)
             {
                 e->deathTimer = e->type == ENEMY_BOSS ? deathFrames * 4 : deathFrames;
