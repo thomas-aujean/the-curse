@@ -71,7 +71,7 @@ int main(void)
     p.y = 200 << 8;
     p.facingLeft = 0;
     step(&p, 0, 2);
-    step(&p, PAD_ATTACK, 3);
+    step(&p, PAD_ATTACK, 5);
     CHECK(set.e[0].hp <= 0 || set.e[0].type == ENEMY_NONE, "second slash kills (hp %d)", set.e[0].hp);
     step(&p, 0, 30);
     CHECK(enemies_alive(&set) == 0, "walker gone");
@@ -85,7 +85,8 @@ int main(void)
     step(&p, 0, 10);
     CHECK(p.hp == 4, "invulnerable after a hit: hp %d", p.hp);
 
-    // Downward slash while falling onto a walker: the player bounces up.
+    // Downward slash while falling onto a walker: the player bounces up. The blow must be started ahead
+    // (3 frames of wind-up): too late, the walker is touched first.
     enemies_clear(&set);
     enemies_add(&set, ENEMY_WALKER, 250, 200, 0);   // normal form: slow enough to stay under
     player_init(&p, 250, 140);                      // clear of the platform
@@ -93,7 +94,7 @@ int main(void)
     for (int f = 0; f < 60 && !bounced; f++)
     {
         s16 vyBefore = p.vy;
-        step(&p, PAD_DOWN | (f == 8 ? PAD_ATTACK : 0), 1);
+        step(&p, PAD_DOWN | (f == 6 ? PAD_ATTACK : 0), 1);
         if (set.e[0].hp < 2) hit = 1;
         if (hit && vyBefore > 0 && p.vy < 0) bounced = 1;
     }

@@ -689,6 +689,7 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
                 if (p->attackDir == ATTACK_DOWN) e->vy = knockback;
             }
             if (p->attackDir == ATTACK_DOWN) player_bounce(p);
+            if (p->attackDir == ATTACK_SIDE) player_recoil(p);
             e->hp -= player_slashDamage(p);
             if (e->hp <= 0)
             {

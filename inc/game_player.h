@@ -88,6 +88,7 @@ const char *player_itemPhrase(u8 item);   // said when it is taken (21 character
 void player_update(Player *p, const Room *r, u16 pad);
 void player_boostUp(Player *p);
 void player_bounce(Player *p);   // downward slash hit something: small hop
+void player_recoil(Player *p);   // side slash hit something: pushed back a little
 void player_hurt(Player *p, u8 damage, u8 fromRight);   // ignored while invulnerable
 
 // Light protection: call once per frame with whether the current room is in the Void.

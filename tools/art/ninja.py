@@ -620,9 +620,9 @@ def header(offsets=None):
     first = 0
     for name in ORDER:
         e = offsets[name] if offsets else POSES[name].get("ext", [])
-        xs = [e[k][0] if k < len(e) else 0 for k in range(2)]
-        ys = [e[k][1] if k < len(e) else 0 for k in range(2)]
-        lines.append("    { %d, %d, { %d, %d }, { %d, %d } }, /* %s */ \\" % (len(e), first, xs[0], xs[1], ys[0], ys[1], name))
+        xs = [e[k][0] if k < len(e) else 0 for k in range(3)]
+        ys = [e[k][1] if k < len(e) else 0 for k in range(3)]
+        lines.append("    { %d, %d, { %d, %d, %d }, { %d, %d, %d } }, /* %s */ \\" % ((len(e), first) + tuple(xs) + tuple(ys) + (name,)))
         first += len(e)
     lines += ["}", "", "#endif", ""]
     return "\n".join(lines)

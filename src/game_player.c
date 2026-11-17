@@ -7,7 +7,7 @@ typedef struct
     s16 gravity, jumpVel, jumpCut, maxFall;
     u8 coyote, buffer, dropFrames, attackFrames, attackFrom, attackTo;
     u8 invulFrames, hurtFrames;
-    s16 knockX, knockY, bounceVel;
+    s16 knockX, knockY, bounceVel, recoil;
     u16 lightMax;
 } Tuning;
 
@@ -27,14 +27,17 @@ static const Tuning NTSC =
     .coyote = 6,       // can still jump a few frames after leaving a ledge
     .buffer = 6,       // a jump pressed just before landing is not lost
     .dropFrames = 10,
-    .attackFrames = 14,
-    .attackFrom = 2,   // hitbox active on frames [from, to) of the slash
-    .attackTo = 8,
+    // Hollow Knight-like slash (Thomas, 2026-11-17: "where timing really counts"): a short wind-up, the
+    // crescent hits for 4 frames only, then a recovery where no new slash can start: a missed blow costs.
+    .attackFrames = 20,
+    .attackFrom = 3,   // hitbox active on frames [from, to) of the slash
+    .attackTo = 7,
     .invulFrames = 90,  // 1.5 s of blinking after a hit
     .hurtFrames = 14,
     .knockX = 448,
     .knockY = 768,
     .bounceVel = 1280,  // ~40 px hop after a downward hit
+    .recoil = 640,      // a side slash that lands pushes the hero back a little
     .lightMax = 20 * 60, // 20 s of protection inside the Void
 };
 
@@ -68,6 +71,7 @@ void player_setRegion(u8 pal)
     t.knockX = NTSC.knockX * 6 / 5;
     t.knockY = NTSC.knockY * 6 / 5;
     t.bounceVel = NTSC.bounceVel * 6 / 5;
+    t.recoil = NTSC.recoil * 6 / 5;
     t.lightMax = 20 * 50;
 }
 
@@ -377,34 +381,34 @@ u8 player_attackTimer(const Player *p)
     return p->attackTimer;
 }
 
-// Slash hitboxes are a little larger than the drawn arcs and start inside the body, so an enemy
-// pressed against the ninja is still hit: generous to the player, as in most action games.
+// Slash hitboxes follow the drawn crescents (tools/art/knight.py, ARCS) and start inside the body, so an
+// enemy pressed against the hero is still hit.
 void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
 {
     s16 px = p->x >> 8, py = p->y >> 8;
-    s16 top = py - (p->crouching ? PLAYER_CROUCH_H : PLAYER_H);
-    // Boxes follow the drawn arcs (tools/art/ninja.py): 32 x 48 hero, 17 px blade at arm's length.
     if (p->attackDir == ATTACK_UP)
     {
-        *x0 = px - 16;
-        *x1 = px + 15;
-        *y0 = top - 26;
-        *y1 = top + 8;
+        // Over the head, from one shoulder to the other.
+        *x0 = px - 27;
+        *x1 = px + 26;
+        *y0 = py - 62;
+        *y1 = py - 36;
     }
     else if (p->attackDir == ATTACK_DOWN)
     {
-        *x0 = px - 12;
-        *x1 = px + 11;
-        *y0 = py - 10;
+        *x0 = px - 25;
+        *x1 = px + 24;
+        *y0 = py - 8;
         *y1 = py + 14;
     }
     else
     {
-        // Standing, the blade sweeps from above the head down to the shins (low enemies get hit).
-        *y0 = py - (p->crouching ? 26 : 44);
-        *y1 = p->crouching ? py - 2 : py - 4;
-        *x0 = p->facingLeft ? px - 34 - p->reachBonus : px - 4;
-        *x1 = p->facingLeft ? px + 3 : px + 33 + p->reachBonus;
+        // Standing, the crescent sweeps from above the head down to the feet (low enemies get hit).
+        s16 reach = (p->crouching ? 28 : 32) + p->reachBonus;
+        *y0 = py - (p->crouching ? 34 : 58);
+        *y1 = py - 2;
+        *x0 = p->facingLeft ? px - reach : px - 4;
+        *x1 = p->facingLeft ? px + 3 : px + reach - 1;
     }
 }
 void player_boostUp(Player *p)
@@ -412,6 +416,11 @@ void player_boostUp(Player *p)
     p->vy = -t.jumpVel;
     p->jumpHeld = 0;
     p->onGround = 0;
+}
+
+void player_recoil(Player *p)
+{
+    p->vx = p->facingLeft ? t.recoil : -t.recoil;
 }
 
 void player_bounce(Player *p)

@@ -29,7 +29,8 @@ BANDS = [
     (212, 256, 16, 0),  # forest
 ]
 # Free stretches of video memory for these tiles: (offset from TILE_USER_INDEX, length); see gfx.h.
-RANGES = [(228, 252), (576, 24), (656, 44), (716, 44), (1960, 72)]
+# The last 16 tiles of video memory (2016..2031) hold the hero's third slash cell (GFX_NINJA_EXT3).
+RANGES = [(228, 252), (576, 24), (656, 44), (716, 44), (1960, 56)]
 
 BAYER = [[0, 2], [3, 1]]
 SKY = [10, 11, 12, 13, 14]   # PAL0 slots, dark violet -> sun glow

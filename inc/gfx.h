@@ -54,7 +54,7 @@
 #define ROOM_PLANE         BG_A
 #define FAR_PLANE          BG_B
 // Far background (plane B, tools/art/far.py): its tiles fill free stretches of video memory listed in
-// far.py (RANGES) and far_map.h: 228..479, 576..599, 656..699, 716..759 and 1960..2031.
+// far.py (RANGES) and far_map.h: 228..479, 576..599, 656..699, 716..759 and 1960..2015.
 // Tile indices: CASTLE_* in game_room.h.
 
 // Zone-1 decor (res/decor.png, tools/art/outdoor.py, src/game_decor.c), in two stretches of video
@@ -73,6 +73,7 @@
 // 32 x 32 extension cells (slash arcs, res/ninja_fx.png) to GFX_NINJA_EXT.
 #define GFX_NINJA          (TILE_USER_INDEX + 600)   // 24 + 2 x 16 tiles, up to 656
 #define GFX_NINJA_EXT      (GFX_NINJA + 24)
+#define GFX_NINJA_EXT3     (TILE_USER_INDEX + 2016)  // third cell (big slash crescents), last 16 tiles of VRAM
 #define GFX_HERO_FEET 46
 #include "ninja_frames.h"
 

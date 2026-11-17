@@ -2,7 +2,7 @@
 
 Two PixelLab states of the same character: "sheathed" (sword at the hip) for moving around, "sword"
 (sword in hand) for the strikes. Every engine frame (ninja.ORDER) is mapped to one exported image;
-the slash arcs still come from ninja.py (smear layer only), drawn behind the knight.
+the slash arcs are crescents drawn here (crescent()), behind the knight.
 
 One 15-colour palette for the whole hero (PAL1). Reserved slots: 1 darkest (outline), 2-3 tunic blues
 (tinted by the Void corruption, gfx.c), 5 red (HUD hearts), 15 light red (HUD text).
@@ -105,6 +105,63 @@ def _blade(path, fr):
     return out
 TEXT_RED = (0xEE, 0x44, 0x44)
 
+# Slash crescents (Thomas, 2026-11-17: "an arc like Hollow Knight, where timing really counts"): a wide
+# crescent swept by the blade, whole on the first active frame, then thinning and breaking up.
+# Frame -> (centre x, centre y in body-cell coordinates, radius, start angle, end angle, stage).
+# Angles: 0 = down, 90 = forward, 180 = up; the sweep goes from start to end. Stage 0 fresh, 1 fading,
+# 2 last shreds.
+SIDE = (16, 18, 32, 170, 20)
+UP = (16, 12, 28, 100, 260)
+DOWN = (16, 34, 26, 75, -75)
+CROUCH = (18, 30, 26, 150, 30)
+ARCS = {
+    "slash1": SIDE + (0,), "slash2": SIDE + (1,), "slash3": SIDE + (2,),
+    "air1": SIDE + (0,), "air2": SIDE + (1,), "air3": SIDE + (2,),
+    "up1": UP + (0,), "up2": UP + (1,),
+    "down1": DOWN + (0,), "down2": DOWN + (1,),
+    "crouch_slash1": CROUCH + (0,),
+}
+ARC_WIDTH = 12
+ARC_CORE = (0xF8, 0xF8, 0xF8)
+ARC_EDGE = (0xA8, 0xC8, 0xE0)
+
+
+def crescent(spec):
+    """{(x, y): rgb} of one slash crescent: thickest two thirds along the sweep (where the blade is),
+    tapering to points at both ends; a white core on the outer edge, a pale blue rim inside."""
+    import math
+    cx, cy, radius, a0, a1, stage = spec
+    out = {}
+    for y in range(cy - radius - 2, cy + radius + 3):
+        for x in range(cx - radius - 2, cx + radius + 3):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = math.hypot(dx, dy)
+            ang = math.degrees(math.atan2(dx, dy))
+            u = None
+            for turn in (0, -360, 360):
+                v = (ang + turn - a0) / (a1 - a0)
+                if 0 <= v <= 1:
+                    u = v
+            if u is None:
+                continue
+            peak = 0.66
+            shape = math.sin(math.pi / 2 * u / peak) if u < peak else math.cos(math.pi / 2 * (u - peak) / (1 - peak))
+            thick = ARC_WIDTH * max(0.0, shape) ** 0.6
+            if stage == 1:
+                thick *= 0.55
+            elif stage == 2:
+                thick *= 0.3
+            depth = radius - r
+            if depth < 0 or depth > thick:
+                continue
+            if stage == 1 and u < 0.35 and (x + y) % 2:
+                continue
+            if stage == 2 and ((x + y) % 2 or u < 0.5):
+                continue
+            core = depth < thick * (0.6 if stage == 0 else 0.35)
+            out[(x, y)] = ARC_CORE if core else ARC_EDGE
+    return out
+
 _anims = {}
 
 
@@ -142,6 +199,9 @@ def _pixels(name):
     px = {(x - cx + W // 2, y - ground + FEET): c for (x, y), c in src.items()}
     if "low" in flags:
         px = _scaled(px, LOW_SCALE)
+    if name in ARCS:   # behind the knight
+        for q, c in crescent(ARCS[name]).items():
+            px.setdefault(q, c)
     if "breathe" in flags:   # chest and head sink by one pixel, the legs stay planted
         px = {(x, y + 1 if y < BREATH_ROW else y): c for (x, y), c in sorted(px.items(), key=lambda e: -e[0][1])
               if y != BREATH_ROW - 1 or (x, BREATH_ROW) not in px}
@@ -245,6 +305,30 @@ def _auto_pair(lost):
     return pair
 
 
+def _auto_triple(lost):
+    """The three extension cells that together cover the most lost pixels (bit masks: fast enough)."""
+    index = {q: i for i, q in enumerate(lost)}
+    spots, masks = [], []
+    for ex in range(-48, W + 17, 8):
+        for ey in range(-40, H, 8):
+            m = 0
+            for q in lost:
+                if ex <= q[0] < ex + EXT and ey <= q[1] < ey + EXT:
+                    m |= 1 << index[q]
+            if m and m not in masks:
+                spots.append((ex, ey))
+                masks.append(m)
+    best, triple = -1, None
+    for i in range(len(spots)):
+        for j in range(i + 1, len(spots)):
+            mij = masks[i] | masks[j]
+            for k in range(j + 1, len(spots)):
+                n = bin(mij | masks[k]).count("1")
+                if n > best:
+                    best, triple = n, [spots[i], spots[j], spots[k]]
+    return triple
+
+
 def build(ninja):
     """Every engine frame as indexed pixels: {name: (body cell, [extension cells], [their offsets],
     lost pixel count, {(x, y): index})}, plus the palette."""
@@ -265,12 +349,15 @@ def build(ninja):
             return [q for q in px if not (0 <= q[0] < W and 0 <= q[1] < H)
                     and not any(ex <= q[0] < ex + EXT and ey <= q[1] < ey + EXT for ex, ey in offsets)]
 
-        # The engine draws at most two extension sprites per frame. One cell where it covers the most;
-        # if that is not enough, the best pair of cells (one after the other can leave two remnants).
+        # The engine draws at most three extension sprites per frame. One cell where it covers the most;
+        # if that is not enough, the best pair of cells (one after the other can leave two remnants),
+        # then a third one for what the pair still leaves (the slash crescents).
         if len(lost()) > 2:
             offsets.append(_auto_cell(lost()))
             if len(lost()) > 2:
                 offsets[:] = _auto_pair([q for q in px if not (0 <= q[0] < W and 0 <= q[1] < H)])
+                if len(lost()) > 2:
+                    offsets[:] = _auto_triple([q for q in px if not (0 <= q[0] < W and 0 <= q[1] < H)])
         body = [[px.get((x, y), 0) for x in range(W)] for y in range(H)]
         cells = [[[px.get((ex + x, ey + y), 0) for x in range(EXT)] for y in range(EXT)] for ex, ey in offsets]
         out[name] = (body, cells, offsets, len(lost()), px)

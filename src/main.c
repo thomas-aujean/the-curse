@@ -336,7 +336,8 @@ static void drawRoom(void)
 #define SPRITE_PROPS (SPRITE_TRAP + 1)
 #define SPRITE_PICKUPS (SPRITE_PROPS + MAX_PROPS)
 #define SPRITE_EXT2 (SPRITE_PICKUPS + MAX_PICKUPS)   // second extension cell of the hero
-#define SPRITE_BODY_LOW (SPRITE_EXT2 + 1)   // hero below row 32 (hardware sprites are 4 x 4 tiles max)
+#define SPRITE_EXT3 (SPRITE_EXT2 + 1)       // third one (big slash crescents)
+#define SPRITE_BODY_LOW (SPRITE_EXT3 + 1)   // hero below row 32 (hardware sprites are 4 x 4 tiles max)
 #define SPRITE_HIT (SPRITE_BODY_LOW + 1)    // spark of a blow; chained right after the hero, over the enemies
 #define SPRITE_HUD (SPRITE_HIT + 1)        // 9 sprites: hearts 3, light 3, coins, minimap 2
 #define SPRITE_COUNT (SPRITE_HUD + 9)
@@ -353,10 +354,12 @@ static u8 ninjaFrame(void)
     if (player.hurtTimer) return NINJA_HURT;
     if (player.attackTimer)
     {
-        u8 phase = player_attackPhase(&player), step = player_attackStep(&player);
-        if (player.attackDir == ATTACK_UP) return NINJA_UP0 + phase;
-        if (player.attackDir == ATTACK_DOWN) return NINJA_DOWN0 + phase;
-        if (player.crouching) return phase ? NINJA_CROUCH_SLASH1 : NINJA_CROUCH_SLASH0;
+        u8 step = player_attackStep(&player);
+        // Up and down: wind-up, fresh crescent, fading crescent, back to the wind-up pose to recover.
+        static const u8 VERTICAL[5] = { 0, 1, 2, 2, 0 };
+        if (player.attackDir == ATTACK_UP) return NINJA_UP0 + VERTICAL[step];
+        if (player.attackDir == ATTACK_DOWN) return NINJA_DOWN0 + VERTICAL[step];
+        if (player.crouching) return step == 1 || step == 2 ? NINJA_CROUCH_SLASH1 : NINJA_CROUCH_SLASH0;
         if (!player.onGround) return NINJA_AIR0 + (step > 3 ? 3 : step);
         return NINJA_SLASH0 + step;
     }
@@ -386,7 +389,7 @@ static u8 ninjaFrame(void)
 typedef struct
 {
     u8 count, first;
-    s8 x[2], y[2];
+    s8 x[3], y[3];
 } HeroExt;
 
 // Rooms are several screens wide and the VDP's sprite coordinates wrap around every 512 pixels: what
@@ -469,8 +472,10 @@ static void drawSprites(void)
             VDP_loadTileData(src + (c * 6 + 4) * 8, GFX_NINJA + 16 + c * 2, 2, DMA_QUEUE);
         }
         if (ext->count)
-            VDP_loadTileData(ts_ninja_fx.tiles + (u32) ext->first * 16 * 8, GFX_NINJA_EXT, ext->count * 16,
-                             DMA_QUEUE);
+            VDP_loadTileData(ts_ninja_fx.tiles + (u32) ext->first * 16 * 8, GFX_NINJA_EXT,
+                             (ext->count > 2 ? 2 : ext->count) * 16, DMA_QUEUE);
+        if (ext->count > 2)   // the third cell lives apart, at the very end of video memory
+            VDP_loadTileData(ts_ninja_fx.tiles + (u32) (ext->first + 2) * 16 * 8, GFX_NINJA_EXT3, 16, DMA_QUEUE);
     }
     // The hero's sprites come first in the chain (in front of everything): body, lower body, slash
     // arcs, then the spark, the enemies... the pickups last. (The lower body used to come last: a
@@ -482,14 +487,15 @@ static void drawSprites(void)
     VDP_setSpriteFull(SPRITE_BODY_LOW, bx, hidden ? -64 : by + 32, SPRITE_SIZE(4, 2),
                       TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA + 16), 1);
 
-    // Sprite 1 and SPRITE_EXT2: 32 x 32 extension cells (slash arcs), mirrored with the body.
-    for (u8 k = 0; k < 2; k++)
+    // Sprites 1, SPRITE_EXT2 and SPRITE_EXT3: 32 x 32 extension cells (slash arcs), mirrored with the body.
+    static const u8 EXT_SPRITE[3] = { 1, SPRITE_EXT2, SPRITE_EXT3 };
+    static const u8 EXT_LINK[3] = { SPRITE_EXT2, SPRITE_EXT3, SPRITE_HIT };
+    for (u8 k = 0; k < 3; k++)
     {
-        u8 index = k ? SPRITE_EXT2 : 1;
         s16 ex = flip ? bx - ext->x[k] : bx + ext->x[k];
         s16 ey = (k < ext->count && !hidden) ? by + ext->y[k] : -64;
-        VDP_setSpriteFull(index, ex, ey, SPRITE_SIZE(4, 4),
-                          TILE_ATTR_FULL(PAL1, 1, 0, flip, GFX_NINJA_EXT + k * 16), k ? SPRITE_HIT : SPRITE_EXT2);
+        u16 tile = k < 2 ? GFX_NINJA_EXT + k * 16 : GFX_NINJA_EXT3;
+        VDP_setSpriteFull(EXT_SPRITE[k], ex, ey, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL1, 1, 0, flip, tile), EXT_LINK[k]);
     }
 
     // Spark where the last blow landed: big for two frames, then mirrored each frame so it flickers.
