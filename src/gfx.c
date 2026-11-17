@@ -108,6 +108,12 @@ static const u32 COIN_TILE[8] =
     0x00000000, 0x00166100, 0x01655610, 0x01656610, 0x01656610, 0x01666610, 0x00111100, 0x00000000,
 };
 
+// Small key for the HUD: gold (5, 6), dark outline (1).
+static const u32 KEY_TILE[8] =
+{
+    0x00000000, 0x01110000, 0x15651111, 0x16065555, 0x15651565, 0x01110151, 0x00000010, 0x00000000,
+};
+
 // Down arrow over a trapdoor: gold with a dark outline.
 // Spark of a blow: a four-pointed star, pale core (2) and gold rim (5). Mirrored from frame to frame.
 static const char *const HIT_SPARK[16] =
@@ -240,6 +246,11 @@ const u32 *gfx_coinPicture(void)
     return COIN_TILE;
 }
 
+const u32 *gfx_keyPicture(void)
+{
+    return KEY_TILE;
+}
+
 const u32 *gfx_digitPicture(u8 d)
 {
     return digits[d];
@@ -349,6 +360,7 @@ void gfx_load(void)
     VDP_loadTileSet(&ts_arrow, GFX_ARROWS, CPU);
     loadSlash();
     VDP_loadTileSet(&ts_crate, GFX_CRATE, CPU);
+    VDP_loadTileSet(&ts_keys, GFX_KEY, CPU);
     {
         TileSet *font = unpackTileSet(&font_default, NULL);
         memcpy(digits, font->tiles + ('0' - 32) * 8, sizeof(digits));   // the font starts at ' '

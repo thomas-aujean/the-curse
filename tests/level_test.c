@@ -165,6 +165,7 @@ int main(void)
             {
                 // The shop is reached through its caravan (tested below), not through a door.
                 if (x == lv.shopX && y == lv.shopY) continue;
+                if (x == lv.upX && y == lv.upY) continue;   // behind a padlocked door (tested below)
                 u8 doors = level_doors(&lv, x, y) & lv.floor.doors[y][x];
                 if (!doors) continue;
                 static const u8 BIT[4] = { DOOR_LEFT, DOOR_RIGHT, DOOR_UP, DOOR_DOWN };
@@ -232,6 +233,68 @@ int main(void)
         caravans++;
     }
     CHECK(caravans > 50, "only %d caravans", caravans);
+
+    // Keys: two lie on the ground of plain rooms; the locked chest only opens with one; the upgrade
+    // room's door is a wall with a padlock until the player walks into it with a key.
+    int keyFloors = 0;
+    for (unsigned seed = 1; seed < 1200; seed += 13)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        player_init(&p, 0, 0);
+        if (lv.keyX[0] == 0xFF || lv.upX == 0xFF || lv.lockedChestX == 0xFF) continue;
+        // Floor key: on the ground, picked up by touch.
+        level_enter(&lv, &p, lv.keyX[0], lv.keyY[0]);
+        enemies_clear(&lv.enemies);
+        Pickup *key = 0;
+        for (int i = 0; i < MAX_PICKUPS; i++)
+            if (lv.pickups[i].type == PICKUP_KEY) key = &lv.pickups[i];
+        CHECK(key != 0, "seed %u: no key in its room", seed);
+        if (!key) continue;
+        CHECK(room_tileAt(&lv.room, key->x >> 8, key->y >> 8) == TILE_SOLID, "seed %u: key not on the ground", seed);
+        player_place(&p, key->x >> 8, key->y >> 8);
+        CHECK((level_update(&lv, &p) & LEVEL_KEY) && p.keys == 1, "seed %u: key not picked up (%d)", seed, p.keys);
+        level_enter(&lv, &p, lv.keyX[0], lv.keyY[0]);
+        int again = 0;
+        for (int i = 0; i < MAX_PICKUPS; i++) again |= lv.pickups[i].type == PICKUP_KEY && lv.pickups[i].itemId == 0;
+        CHECK(!again, "seed %u: the key came back", seed);
+        // Locked chest: no key, it stays shut; with one, it opens and the key is spent.
+        level_enter(&lv, &p, lv.lockedChestX, lv.lockedChestY);
+        enemies_clear(&lv.enemies);
+        Prop *chest = 0;
+        for (int i = 0; i < lv.propCount; i++)
+            if (lv.props[i].type == PROP_CHEST_GOLD) chest = &lv.props[i];
+        CHECK(chest != 0, "seed %u: no locked chest in its room", seed);
+        if (!chest) continue;
+        for (int keys = 0; keys < 2; keys++)
+        {
+            p.keys = keys;
+            player_place(&p, chest->x - 20, chest->y);
+            p.facingLeft = 0;
+            for (int f = 0; f < 12; f++)
+            {
+                player_update(&p, &lv.room, f == 2 ? PAD_ATTACK : 0);
+                p.x = (s32) (chest->x - 20) << 8;
+                p.y = (s32) chest->y << 8;
+                level_update(&lv, &p);
+            }
+            CHECK(keys ? !chest->alive && p.keys == 0 : chest->alive && p.keys == 0,
+                  "seed %u: locked chest with %d keys: alive %d", seed, keys, chest->alive);
+        }
+        // The upgrade room's door.
+        level_enter(&lv, &p, lv.lockX, lv.lockY);
+        enemies_clear(&lv.enemies);
+        CHECK(!(level_doors(&lv, lv.lockX, lv.lockY) & lv.lockDir), "seed %u: the upgrade room is not locked", seed);
+        p.keys = 0;
+        player_place(&p, lv.padlockX, lv.padlockY + 16);
+        level_update(&lv, &p);
+        CHECK(!lv.lockOpen, "seed %u: opened without a key", seed);
+        p.keys = 1;
+        player_place(&p, lv.padlockX, lv.padlockY + 16);
+        CHECK((level_update(&lv, &p) & LEVEL_REDRAW) && lv.lockOpen && p.keys == 0
+              && (level_doors(&lv, lv.lockX, lv.lockY) & lv.lockDir), "seed %u: the key does not open the door", seed);
+        keyFloors++;
+    }
+    CHECK(keyFloors > 50, "only %d floors with keys tested", keyFloors);
 
     // The Void: every room is safe at the start, the circle closes on the boss in VOID_SECONDS.
     for (unsigned seed = 1; seed < 400; seed += 7)
@@ -418,6 +481,7 @@ int main(void)
                 player_place(&p, pr.x - 16, pr.y);
                 p.facingLeft = 0;
                 p.coins = 0;
+                p.keys = 1;   // in case it is the locked chest
                 for (int f = 0; f < 6; f++)
                 {
                     player_update(&p, &lv.room, f ? PAD_ATTACK : 0);

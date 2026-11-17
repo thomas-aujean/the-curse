@@ -22,6 +22,7 @@ import door  # noqa: E402
 import slash  # noqa: E402
 import shop  # noqa: E402
 import crate  # noqa: E402
+import keys  # noqa: E402
 import arrow  # noqa: E402
 import outdoor  # noqa: E402
 import far  # noqa: E402
@@ -276,6 +277,7 @@ def main():
     write_indexed(os.path.join(RES, "slash.png"), slash.sheet(), pal2)
     write_indexed(os.path.join(RES, "shop.png"), shop.sheet(pal2), pal2)
     write_indexed(os.path.join(RES, "crate.png"), crate.sheet(pal2), pal2)
+    write_indexed(os.path.join(RES, "keys.png"), keys.sheet(pal2), pal2)
     print("castle.png: %d tiles, far.png: 512x256, ninja.png: %d frames" % (count, len(ninja.ORDER)))
 
 

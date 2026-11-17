@@ -38,6 +38,7 @@
 // HUD sprites (main.c, drawHud): their tiles are composed in RAM and sent when what they show changes.
 #define GFX_HUD_MAP            (TILE_USER_INDEX + 34)   // 15 tiles: 5 x 3 rooms, column by column
 #define GFX_HUD_COINS          (TILE_USER_INDEX + 53)   // 4 tiles: coin and 3 digits
+#define GFX_HUD_KEYS           (TILE_USER_INDEX + 57)   // 2 tiles: key and 1 digit
 #define GFX_HUD_HEARTS         (TILE_USER_INDEX + 99)   // 12 tiles
 #define GFX_HUD_LIGHT          (TILE_USER_INDEX + 111)  // 10 tiles, up to 121
 
@@ -104,6 +105,9 @@
 #define GFX_MERCHANT       (GFX_CHESTS + 64)
 // The big wooden crate (res/crate.png, tools/art/crate.py): 4 x 4 tiles (PAL2), after the enemies.
 #define GFX_CRATE          (TILE_USER_INDEX + 1174)
+// The key and the padlock (res/keys.png, tools/art/keys.py): 2 x 2 tiles each (PAL2).
+#define GFX_KEY            (TILE_USER_INDEX + 1190)
+#define GFX_PADLOCK        (TILE_USER_INDEX + 1194)
 
 void gfx_load(void);
 void gfx_loadBoss(void);   // the boss's tiles (again after the exit door took their place)
@@ -113,6 +117,7 @@ void gfx_loadShop(u8 shop);   // 1: the caravan and the merchant on the chests' 
 // 5 map room here, 6 map room known (both in colour 15); the coin; the digits (colour 15).
 const u32 *gfx_hudPicture(u8 i);
 const u32 *gfx_coinPicture(void);
+const u32 *gfx_keyPicture(void);
 const u32 *gfx_digitPicture(u8 d);
 u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
 void gfx_loadDecor(void);   // decor tiles into video memory (again after a full-screen message)

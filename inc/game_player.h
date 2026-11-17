@@ -73,6 +73,7 @@ typedef struct
     u8 lightDrain;             // light lost per frame inside the Void
     s8 damageBonus;
     u16 coins;
+    u8 keys;             // open the locked chest and the upgrade room's door (one each)
     u8 corrupted;        // light ran out: touched by the Void (pact: hits harder, takes more)
     u16 prevPad;
     u8 upPressed;        // UP pressed this frame: buys the ware the player stands at (shop)

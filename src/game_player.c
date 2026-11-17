@@ -96,6 +96,7 @@ void player_init(Player *p, s16 px, s16 py)
     p->lightDrain = 1;
     p->damageBonus = 0;
     p->coins = 0;
+    p->keys = 0;
 }
 
 void player_place(Player *p, s16 px, s16 py)

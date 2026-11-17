@@ -24,12 +24,12 @@ extern const RoomTemplate ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT];
 #define SHOP_ITEM_PRICE 12
 #define MAX_PROPS 8        // one bit each in propsBroken
 
-enum { PICKUP_NONE, PICKUP_COIN, PICKUP_HEART, PICKUP_ITEM };
+enum { PICKUP_NONE, PICKUP_COIN, PICKUP_HEART, PICKUP_ITEM, PICKUP_KEY };
 
 typedef struct
 {
     u8 type;              // PICKUP_*
-    u8 itemId;            // PICKUP_ITEM: what is sold
+    u8 itemId;            // PICKUP_ITEM: what is sold; PICKUP_KEY: which floor key (0, 1) or 0xFF (a drop)
     u8 price;             // coins; 0 = free
     s32 x, y;             // 1/256 px, y = bottom
     s16 vx, vy;
@@ -80,6 +80,15 @@ typedef struct
     // shop's left opening leads back out in front of the caravan.
     u8 shopX, shopY, carX, carY;       // 0xFF: no shop on this floor
     u8 shopExit;                       // DOOR_LEFT, or DOOR_RIGHT when a secret wall takes the left
+    // Keys (Thomas, 2026-11-17): two lie in rooms of each floor, others drop by chance; one opens the
+    // locked chest (one per floor, it holds an upgrade), one the upgrade room's door.
+    u8 keyX[2], keyY[2];               // the rooms holding this floor's two keys
+    u8 keysTaken;                      // bit per floor key picked up
+    u8 lockedChestX, lockedChestY;     // the room of the locked chest
+    u8 upX, upY, lockX, lockY, lockDir; // upgrade room, the room before its door, that door (DOOR_*)
+    u8 lockOpen;                       // the upgrade room's door was unlocked
+    s16 padlockX, padlockY;            // in the room before it: the padlock on the door (px, centre)
+    u8 lockHitId;                      // the slash that last knocked on the locked chest
     s16 caravanX, caravanY;            // in the caravan's room: centre of its door, ground (px)
     u8 message, messageCooldown;       // MSG_* to show (LEVEL_MESSAGE)
     u8 messageItem;                    // MSG_BUY: the ware the player stands at
@@ -110,10 +119,11 @@ typedef struct
 #define LEVEL_REDRAW 1      // new room, or the doors just locked: redraw the room
 #define LEVEL_EXIT   2      // UP in front of the exit door: the floor is won
 #define LEVEL_GEM    16     // the gem was taken
+#define LEVEL_KEY    32     // a key was picked up
 #define LEVEL_ITEM   4      // an item was picked up (lastItem): show its name
 #define LEVEL_MESSAGE 8     // show lv->message
 
-enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT, MSG_ENTER };
+enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT, MSG_ENTER, MSG_NEED_KEY, MSG_UNLOCKED };
 #define MERCHANT_X_FROM_RIGHT 40       // the merchant stands this far from the shop's right edge
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);

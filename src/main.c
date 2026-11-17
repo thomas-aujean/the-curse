@@ -328,7 +328,7 @@ static void drawRoom(void)
 // An enemy pose is 1 to 4 sprites. The console shows 80 sprites in all: the enemies share a pool
 // instead of owning 4 each (12 enemies never show their widest pose on one screen together).
 #define SPRITE_ENEMIES 2
-#define ENEMY_SPRITES 36
+#define ENEMY_SPRITES 35
 #define SPRITE_SHOTS (SPRITE_ENEMIES + ENEMY_SPRITES)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
 #define SPRITE_ITEM (SPRITE_GEM + 1)
@@ -339,8 +339,8 @@ static void drawRoom(void)
 #define SPRITE_EXT3 (SPRITE_EXT2 + 1)       // third one (big slash crescents)
 #define SPRITE_BODY_LOW (SPRITE_EXT3 + 1)   // hero below row 32 (hardware sprites are 4 x 4 tiles max)
 #define SPRITE_HIT (SPRITE_BODY_LOW + 1)    // spark of a blow; chained right after the hero, over the enemies
-#define SPRITE_HUD (SPRITE_HIT + 1)        // 9 sprites: hearts 3, light 3, coins, minimap 2
-#define SPRITE_COUNT (SPRITE_HUD + 9)
+#define SPRITE_HUD (SPRITE_HIT + 1)        // 10 sprites: hearts 3, light 3, coins, minimap 2, keys
+#define SPRITE_COUNT (SPRITE_HUD + 10)
 
 // Animation frame from the player's state. Running advances one frame every 7 px travelled,
 // so the legs match the ground speed (and the upgrades that change it).
@@ -588,6 +588,14 @@ static void drawSprites(void)
             doorLoaded = 0;
         }
     }
+    // The padlock on the upgrade room's door, until a key opens it.
+    if (lv.cellX == lv.lockX && lv.cellY == lv.lockY && !lv.lockOpen && n < SPRITE_ENEMIES + ENEMY_SPRITES)
+    {
+        s16 lx = lv.padlockX - camX - 8, ly = lv.padlockY - camY - 8;
+        if (offScreen(lx, ly)) ly = -64;
+        VDP_setSpriteFull(n, lx, ly, SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_PADLOCK), n + 1);
+        n++;
+    }
     // The merchant's caravan in its room, the merchant in the shop (on the chests' tiles).
     {
         static u8 shopArt;
@@ -684,6 +692,8 @@ static void drawSprites(void)
             VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
         else if (pk->type == PICKUP_COIN)
             VDP_setSpriteFull(index, x - 4, y - 7, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL2, 1, 0, (vtimer >> 3) & 1, GFX_TILE_COIN), link);
+        else if (pk->type == PICKUP_KEY)   // bobbing a little over the ground
+            VDP_setSpriteFull(index, x - 8, y - 18 - ((vtimer >> 4) & 1), SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_KEY), link);
         else if (pk->type == PICKUP_HEART || (pk->type == PICKUP_ITEM && pk->itemId == ITEM_HEART))
             VDP_setSpriteFull(index, x - 4, y - 12, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), link);
         else if (pk->type == PICKUP_ITEM)
@@ -691,19 +701,20 @@ static void drawSprites(void)
         else VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
     }
     // HUD, last in the chain (behind the other sprites), over the room: the window's old rows.
-    static const u8 HUD[9][5] =   // x, y (tiles), width, height, first tile offset
+    static const u8 HUD[10][5] =   // x, y (tiles), width, height, first tile offset
     {
         { 1, 0, 4, 1, 0 }, { 5, 0, 4, 1, 4 }, { 9, 0, 4, 1, 8 },    // hearts
         { 1, 1, 4, 1, 0 }, { 5, 1, 4, 1, 4 }, { 9, 1, 2, 1, 8 },    // light
         { 1, 2, 4, 1, 0 },                                          // coins
         { 34, 0, 4, 3, 0 }, { 38, 0, 1, 3, 12 },                    // minimap
+        { 6, 2, 2, 1, 0 },                                          // keys
     };
-    for (u8 k = 0; k < 9; k++)
+    for (u8 k = 0; k < 10; k++)
     {
-        u16 base = k < 3 ? GFX_HUD_HEARTS : k < 6 ? GFX_HUD_LIGHT : k == 6 ? GFX_HUD_COINS : GFX_HUD_MAP;
+        u16 base = k < 3 ? GFX_HUD_HEARTS : k < 6 ? GFX_HUD_LIGHT : k == 6 ? GFX_HUD_COINS : k < 9 ? GFX_HUD_MAP : GFX_HUD_KEYS;
         u16 pal = k < 3 ? PAL1 : (k < 6 && player.corrupted) ? PAL3 : PAL2;
         VDP_setSpriteFull(SPRITE_HUD + k, HUD[k][0] * 8, HUD[k][1] * 8, SPRITE_SIZE(HUD[k][2], HUD[k][3]),
-                          TILE_ATTR_FULL(pal, 1, 0, 0, base + HUD[k][4]), k < 8 ? SPRITE_HUD + k + 1 : 0);
+                          TILE_ATTR_FULL(pal, 1, 0, 0, base + HUD[k][4]), k < 9 ? SPRITE_HUD + k + 1 : 0);
     }
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
@@ -716,14 +727,14 @@ static void hideSprites(void)
 
 // HUD (does not scroll): hearts and light bar top left, minimap of the rooms around
 // top right. Each part is redrawn only when what it shows has changed.
-static u8 hudHp = 0xFF, hudMaxHp = 0xFF, hudLight = 0xFF, hudCell = 0xFF, hudCorrupted = 0xFF;
+static u8 hudHp = 0xFF, hudMaxHp = 0xFF, hudLight = 0xFF, hudCell = 0xFF, hudCorrupted = 0xFF, hudKeys = 0xFF;
 static u16 hudCoins = 0xFFFF;
 static u16 itemMessage;   // frames left showing a message (the item just taken, its line)
 
 // The HUD is sprites, not the window plane: the window would hide plane A, the room, and its doors
 // in the top rows. Each part's tiles are composed in its own RAM buffer (the DMA queue reads them at
 // the next vertical blank) and sent only when what it shows changes.
-static u32 hudHearts[12 * 8], hudLightTiles[10 * 8], hudMap[15 * 8], hudCoinTiles[4 * 8];
+static u32 hudHearts[12 * 8], hudLightTiles[10 * 8], hudMap[15 * 8], hudCoinTiles[4 * 8], hudKeyTiles[2 * 8];
 
 static void copyTile(u32 *dst, const u32 *src)
 {
@@ -813,6 +824,15 @@ static void drawHud(void)
         }
         VDP_loadTileData(hudCoinTiles, GFX_HUD_COINS, 4, DMA_QUEUE);
     }
+    // Keys: the small key and how many (hidden while there are none).
+    if (player.keys != hudKeys)
+    {
+        hudKeys = player.keys;
+        copyTile(hudKeyTiles, hudKeys ? gfx_keyPicture() : NULL);
+        if (hudKeys) recolourTile(&hudKeyTiles[8], gfx_digitPicture(hudKeys > 9 ? 9 : hudKeys), 2);
+        else copyTile(&hudKeyTiles[8], NULL);
+        VDP_loadTileData(hudKeyTiles, GFX_HUD_KEYS, 2, DMA_QUEUE);
+    }
     // Shop price tags under the wares (the small shop room never scrolls).
     if (lv.shopChanged)
     {
@@ -863,6 +883,7 @@ static void forceHud(void)
 {
     hudHp = hudMaxHp = hudLight = hudCell = hudCorrupted = 0xFF;
     hudCoins = 0xFFFF;
+    hudKeys = 0xFF;
     lv.shopChanged = 1;
 }
 #ifdef DEBUG_HUD
@@ -1043,12 +1064,14 @@ static void updateRoom(u16 pad, u16 pressed)
         showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER"
                  : lv.message == MSG_TAKE ? "HAUT : PRENDRE" : lv.message == MSG_EXIT ? "HAUT : NIVEAU SUIVANT"
                  : lv.message == MSG_ENTER ? "HAUT : ENTRER"
+                 : lv.message == MSG_NEED_KEY ? "IL FAUT UNE CLE" : lv.message == MSG_UNLOCKED ? "LA PORTE S'OUVRE"
                  : "PAS ASSEZ DE PIECES");
     if (events & LEVEL_GEM)
     {
         gems++;
         showText2("GEMME DE LA VIE", "LE GARDIEN TE LA LEGUE");
     }
+    if (events & LEVEL_KEY) showText2("UNE CLE", "POUR UN CADENAS");
     if (events & LEVEL_EXIT)
     {
         startFloorWon();
@@ -1105,6 +1128,17 @@ int main(bool hardReset)
         level_enter(&lv, &player, lv.carX, lv.carY);
         enemies_clear(&lv.enemies);
         player_place(&player, lv.caravanX - 48, lv.caravanY);
+    }
+#endif
+#ifdef DEBUG_KEYS
+    // Diagnostic build: in the room before the upgrade room, by its padlock, with one key.
+    if (lv.lockX != 0xFF)
+    {
+        level_enter(&lv, &player, lv.lockX, lv.lockY);
+        enemies_clear(&lv.enemies);
+        player_place(&player, lv.padlockX + (lv.lockDir == DOOR_LEFT ? 40 : lv.lockDir == DOOR_RIGHT ? -40 : 24),
+                     lv.room.h * ROOM_TILE - 2 * ROOM_TILE);
+        player.keys = 1;
     }
 #endif
 #ifdef DEBUG_BOSS_DOWN

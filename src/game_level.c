@@ -46,35 +46,103 @@ u8 level_doors(const Level *lv, u8 x, u8 y)
     u8 d = lv->floor.doors[y][x] | secret;
     if (x == lv->carX && y == lv->carY)
         d &= ~(lv->shopX < x ? DOOR_LEFT : lv->shopX > x ? DOOR_RIGHT : lv->shopY < y ? DOOR_UP : DOOR_DOWN);
+    if (x == lv->lockX && y == lv->lockY && !lv->lockOpen) d &= ~lv->lockDir;   // a wall with a padlock
     return d;
 }
 
-// Where the caravan stands in its room: on the ground (solid under all its width, 48 px free above),
-// on the lowest ground that has room for it, as near the middle of the room as possible.
-static void placeCaravan(Level *lv)
+static u16 lootRandom(Level *lv);
+static u8 hasPropSpot(const Level *lv, u8 x, u8 y);
+static u8 levelMessage(Level *lv, u8 message);
+
+// Plain rooms (not the start, the shop's caravan room, nor the room before the upgrade room).
+static u8 plainRoom(const Level *lv, u8 x, u8 y)
+{
+    return lv->floor.type[y][x] == ROOM_NORMAL && !(x == lv->carX && y == lv->carY) && !(x == lv->lockX && y == lv->lockY);
+}
+
+// This floor's two key rooms and its locked chest (a room whose layout has a chest spot), at random;
+// the upgrade room's door gets its padlock.
+static void pickKeyRooms(Level *lv)
+{
+    lv->upX = lv->upY = lv->lockX = lv->lockY = 0xFF;
+    lv->lockOpen = 0;
+    lv->keysTaken = 0;
+    lv->lockHitId = 0xFF;
+    for (u8 y = 0; y < FLOOR_H; y++)
+        for (u8 x = 0; x < FLOOR_W; x++)
+            if (lv->floor.type[y][x] == ROOM_UPGRADE)
+            {
+                u8 d = lv->floor.doors[y][x];
+                lv->upX = x;
+                lv->upY = y;
+                lv->lockX = d & DOOR_LEFT ? x - 1 : d & DOOR_RIGHT ? x + 1 : x;
+                lv->lockY = d & DOOR_UP ? y - 1 : d & DOOR_DOWN ? y + 1 : y;
+                lv->lockDir = d & DOOR_LEFT ? DOOR_RIGHT : d & DOOR_RIGHT ? DOOR_LEFT : d & DOOR_UP ? DOOR_DOWN : DOOR_UP;
+            }
+    u8 count = 0;
+    for (u8 y = 0; y < FLOOR_H; y++)
+        for (u8 x = 0; x < FLOOR_W; x++)
+            if (plainRoom(lv, x, y)) count++;
+    lv->keyX[0] = lv->keyX[1] = lv->lockedChestX = 0xFF;
+    lv->keyY[0] = lv->keyY[1] = lv->lockedChestY = 0xFF;
+    if (!count) return;
+    for (u8 k = 0, tries = 0; k < 3 && tries < 40; k++, tries++)   // a few retries, never forever
+    {
+        u8 pick = lootRandom(lv) % count, n = 0;
+        for (u8 y = 0; y < FLOOR_H; y++)
+            for (u8 x = 0; x < FLOOR_W; x++)
+                if (plainRoom(lv, x, y) && n++ == pick)
+                {
+                    if (k == 1 && x == lv->keyX[0] && y == lv->keyY[0] && count > 1) { k--; continue; }   // two rooms
+                    if (k < 2) { lv->keyX[k] = x; lv->keyY[k] = y; }
+                    else if (hasPropSpot(lv, x, y)) { lv->lockedChestX = x; lv->lockedChestY = y; }
+                    else k--;   // another room for the chest (most layouts have a spot)
+                }
+    }
+}
+
+// A spot on the lowest ground of the room (solid under hw px on each side, `clear` px free above),
+// as near the middle (shifted by `bias` px) as possible. (x, y): centre, top of the ground.
+static void findGround(const Level *lv, s16 hw, s16 clear, s16 bias, s16 *x, s16 *y)
 {
     s16 w = lv->room.w * ROOM_TILE, h = lv->room.h * ROOM_TILE;
-    lv->caravanX = w / 2;
-    lv->caravanY = h - 2 * ROOM_TILE;
+    *x = w / 2;
+    *y = h - 2 * ROOM_TILE;
     for (s16 gy = h - ROOM_TILE; gy > 64; gy -= ROOM_TILE)
-        for (s16 k = 0; k < w / 16; k++)
+        for (s16 k = 0; k < w / 8; k++)
         {
-            s16 cx = w / 2 + ((k & 1) ? -1 : 1) * ((k + 1) / 2) * 16;
-            if (cx < 48 || cx > w - 48) continue;
+            s16 cx = w / 2 + bias + ((k & 1) ? -1 : 1) * ((k + 1) / 2) * 8;
+            if (cx < hw + 20 || cx > w - hw - 20) continue;
             u8 ok = 1;
-            for (s16 dx = -28; dx <= 28 && ok; dx += 8)
+            for (s16 dx = -hw; dx <= hw && ok; dx += 4)
             {
                 if (room_tileAt(&lv->room, cx + dx, gy) != TILE_SOLID) ok = 0;
-                for (s16 dy = ROOM_TILE; dy <= 56 && ok; dy += ROOM_TILE)
+                for (s16 dy = ROOM_TILE; dy <= clear && ok; dy += ROOM_TILE)
                     if (room_tileAt(&lv->room, cx + dx, gy - dy) != TILE_EMPTY) ok = 0;
             }
             if (ok)
             {
-                lv->caravanX = cx;
-                lv->caravanY = gy;
+                *x = cx;
+                *y = gy;
                 return;
             }
         }
+}
+
+// Where the caravan stands in its room: room for its 64 px.
+static void placeCaravan(Level *lv)
+{
+    findGround(lv, 28, 56, 0, &lv->caravanX, &lv->caravanY);
+}
+
+// Does the layout of this room have a spot for a jar or a chest?
+static u8 hasPropSpot(const Level *lv, u8 x, u8 y)
+{
+    const RoomTemplate *t = level_templateFor(lv, x, y);
+    for (u8 by = 0; by < t->hBlocks; by++)
+        for (u8 bx = 0; bx < t->wBlocks; bx++)
+            if (t->rows[by][bx] == 'o' || t->rows[by][bx] == 'c') return 1;
+    return 0;
 }
 
 // Bounding box of a door marker, in blocks.
@@ -156,6 +224,15 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
     level_buildRoom(&lv->room, t, level_doors(lv, x, y));
     if (x == lv->carX && y == lv->carY) placeCaravan(lv);
     u8 noChest = (x == lv->carX && y == lv->carY) || (x == lv->shopX && y == lv->shopY);   // their tiles hold the caravan
+    u8 lockedHere = x == lv->lockedChestX && y == lv->lockedChestY, lockedPlaced = 0;
+    if (x == lv->lockX && y == lv->lockY)
+    {
+        u8 x0, y0, x1, y1;
+        findDoor(t, lv->lockDir == DOOR_LEFT ? 'L' : lv->lockDir == DOOR_RIGHT ? 'R' : lv->lockDir == DOOR_UP ? 'U' : 'D',
+                 &x0, &y0, &x1, &y1);
+        lv->padlockX = (x0 + x1 + 1) * 8;
+        lv->padlockY = (y0 + y1 + 1) * 8;
+    }
 
     // Walls hiding a secret room: still solid, drawn cracked, broken by a slash.
     lv->crackedCount = 0;
@@ -211,17 +288,39 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
                 // Varied props, fixed per seed and room; chests: bronze 70 %, silver 25 %, gold 5 %.
                 u16 roll = (lv->floor.seed + x * 37 + y * 101 + lv->propCount * 13) * 0x9E37;
                 roll ^= roll >> 8;
+                // Chest spots: the floor's locked chest in its room, otherwise a chest one time in two
+                // (bronze 70 %, silver 30 %), else a crate (Thomas: not a chest in every room).
                 if (t->rows[by][bx] == 'o' || noChest) pr->type = PROP_JAR + (roll & 3);
+                else if (lockedHere && !lockedPlaced) { pr->type = PROP_CHEST_GOLD; lockedPlaced = 1; }
                 else
                 {
                     u8 r100 = roll % 100;
-                    pr->type = r100 < 70 ? PROP_CHEST_BRONZE : r100 < 95 ? PROP_CHEST_SILVER : PROP_CHEST_GOLD;
+                    pr->type = r100 < 50 ? PROP_CRATE : r100 < 85 ? PROP_CHEST_BRONZE : PROP_CHEST_SILVER;
                 }
                 pr->alive = !(lv->propsBroken[y][x] & (1 << lv->propCount));
                 pr->x = bx * 16 + 8;
                 pr->y = (by + 1) * 16;
                 lv->propCount++;
             }
+    // No chest spot left for the locked chest: it takes a jar's place.
+    if (lockedHere && !lockedPlaced && lv->propCount) lv->props[0].type = PROP_CHEST_GOLD;
+    // This floor's keys lie on the ground of their rooms until picked up.
+    for (u8 k = 0; k < 2; k++)
+        if (x == lv->keyX[k] && y == lv->keyY[k] && !(lv->keysTaken & (1 << k)))
+            for (u8 i = 0; i < MAX_PICKUPS; i++)
+                if (lv->pickups[i].type == PICKUP_NONE)
+                {
+                    Pickup *pk = &lv->pickups[i];
+                    s16 kx, ky;
+                    findGround(lv, 6, 24, k ? 48 : -48, &kx, &ky);
+                    pk->type = PICKUP_KEY;
+                    pk->itemId = k;
+                    pk->price = 0;
+                    pk->x = (s32) kx << 8;
+                    pk->y = (s32) ky << 8;
+                    pk->vx = pk->vy = 0;
+                    break;
+                }
 
     // Shop: a heart and two upgrades on display, with their price.
     if (lv->floor.type[y][x] == ROOM_SHOP)
@@ -328,6 +427,7 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
                 lv->carY = d & DOOR_UP ? y - 1 : d & DOOR_DOWN ? y + 1 : y;
                 lv->shopExit = lv->floor.hidden[y][x] & DOOR_LEFT ? DOOR_RIGHT : DOOR_LEFT;
             }
+    pickKeyRooms(lv);
     lv->gemActive = lv->gemTaken = lv->exitOpen = 0;
     lv->bossFight = 0;
 
@@ -443,6 +543,19 @@ static void dropLoot(Level *lv, s16 x, s16 y, u8 coins, u8 heartPercent)
     if (lootRandom(lv) % 100 < heartPercent) spawnPickup(lv, PICKUP_HEART, x, y, 0);
 }
 
+// Now and then a key falls out too (percent).
+static void dropKey(Level *lv, s16 x, s16 y, u8 percent)
+{
+    if (lootRandom(lv) % 100 >= percent) return;
+    for (u8 i = 0; i < MAX_PICKUPS; i++)
+        if (lv->pickups[i].type == PICKUP_NONE)
+        {
+            spawnPickup(lv, PICKUP_KEY, x, y, 0);
+            lv->pickups[i].itemId = 0xFF;
+            return;
+        }
+}
+
 static void lootEnemies(Level *lv)
 {
     for (u8 i = 0; i < MAX_ENEMIES; i++)
@@ -456,12 +569,14 @@ static void lootEnemies(Level *lv)
         if (e->type == ENEMY_BOSS) dropLoot(lv, x, y, e->voidForm ? 10 : 5, 0);
         else if (e->voidForm) dropLoot(lv, x, y, 2, 15);
         else if (lootRandom(lv) % 100 < 60) dropLoot(lv, x, y, 1, 5);
+        if (e->type != ENEMY_BOSS) dropKey(lv, x, y, e->voidForm ? 6 : 3);
     }
 }
 
-static u8 breakProps(Level *lv, const Player *p)
+static u8 breakProps(Level *lv, Player *p)
 {
     if (!player_attackActive(p)) return 0;
+    u8 result = 0;
     s16 ax0, ay0, ax1, ay1;
     player_attackBox(p, &ax0, &ay0, &ax1, &ay1);
     for (u8 i = 0; i < lv->propCount; i++)
@@ -471,6 +586,25 @@ static u8 breakProps(Level *lv, const Player *p)
         s16 hw = pr->type == PROP_CHEST_GOLD || pr->type == PROP_CRATE ? 13 : pr->type >= PROP_CHEST_BRONZE ? 11 : 6;
         s16 h = pr->type == PROP_CHEST_GOLD ? 26 : pr->type == PROP_CRATE ? 27 : pr->type >= PROP_CHEST_BRONZE ? 20 : 14;
         if (!pr->alive || ax0 > pr->x + hw || pr->x - hw > ax1 || ay0 > pr->y - 1 || pr->y - h > ay1) continue;
+        // The locked chest: a key opens it (and is spent), without one the blade rings on the padlock.
+        if (pr->type == PROP_CHEST_GOLD)
+        {
+            if (!p->keys)
+            {
+                if (lv->lockHitId != p->attackId)
+                {
+                    lv->lockHitId = p->attackId;
+                    EnemySet *s = &lv->enemies;
+                    s->hitX = pr->x;
+                    s->hitY = pr->y - 14;
+                    s->hitTimer = 8;
+                    s->hitBlocked = 1;
+                    result |= levelMessage(lv, MSG_NEED_KEY);
+                }
+                continue;
+            }
+            p->keys--;
+        }
         pr->alive = 0;
         lv->propsBroken[lv->cellY][lv->cellX] |= 1 << i;
         u8 inVoid = level_pointInVoid(lv, pr->x, pr->y - 8);
@@ -487,6 +621,8 @@ static u8 breakProps(Level *lv, const Player *p)
         }
         if (inVoid) coins *= 2;   // richer in the Void
         dropLoot(lv, pr->x, pr->y - 8, coins, inVoid ? heart + 15 : heart);
+        dropKey(lv, pr->x, pr->y - 8, pr->type == PROP_CHEST_BRONZE || pr->type == PROP_CHEST_SILVER ? 20
+                                      : pr->type == PROP_CRATE ? 8 : pr->type == PROP_CHEST_GOLD ? 0 : 3);
         if (pr->type == PROP_CHEST_GOLD)
         {
             // A gold chest holds an upgrade, popping out like the coins.
@@ -504,7 +640,7 @@ static u8 breakProps(Level *lv, const Player *p)
             }
         }
     }
-    return 0;
+    return result;
 }
 
 // A short message, at most once every two seconds (standing on a heart would spam it).
@@ -549,6 +685,12 @@ static u8 updatePickups(Level *lv, Player *p, s16 ppx, s16 ppy)
         s16 x = pk->x >> 8, y = pk->y >> 8;
         if (!nearPlayer(x, y - 4, ppx, ppy)) continue;
         if (pk->type == PICKUP_COIN) p->coins++;
+        else if (pk->type == PICKUP_KEY)
+        {
+            if (p->keys < 9) p->keys++;
+            if (pk->itemId < 2) lv->keysTaken |= 1 << pk->itemId;
+            result |= LEVEL_KEY;
+        }
         else if (pk->type == PICKUP_HEART)
         {
             if (p->hp >= p->maxHp)   // left on the floor for later, like Isaac
@@ -615,7 +757,7 @@ u8 level_update(Level *lv, Player *p)
     if (breakWalls(lv, p)) result |= LEVEL_REDRAW;
     if (lv->messageCooldown) lv->messageCooldown--;
     lootEnemies(lv);
-    breakProps(lv, p);
+    result |= breakProps(lv, p);
     result |= updatePickups(lv, p, ppx, ppy);
 
     if (lv->itemId != ITEM_NONE && nearPlayer(lv->itemX, lv->itemY - 8, ppx, ppy))
@@ -688,6 +830,21 @@ u8 level_update(Level *lv, Player *p)
     s16 w = lv->room.w * ROOM_TILE, h = lv->room.h * ROOM_TILE;
     u8 x = lv->cellX, y = lv->cellY, doors = level_doors(lv, x, y);
 
+    // The upgrade room's padlocked door: walking into it with a key opens it (the key is spent).
+    if (x == lv->lockX && y == lv->lockY && !lv->lockOpen && ppx > lv->padlockX - 28 && ppx < lv->padlockX + 28
+        && ppy > lv->padlockY - 16 && ppy < lv->padlockY + 48)
+    {
+        if (p->keys)
+        {
+            p->keys--;
+            lv->lockOpen = 1;
+            level_buildRoom(&lv->room, level_templateFor(lv, x, y), level_doors(lv, x, y));
+            lv->message = MSG_UNLOCKED;
+            lv->messageCooldown = fps * 2;
+            return result | LEVEL_REDRAW | LEVEL_MESSAGE;
+        }
+        result |= levelMessage(lv, MSG_NEED_KEY);
+    }
     // The caravan: UP in front of its door enters the shop; the shop's opening leads back out to it.
     if (x == lv->carX && y == lv->carY && ppx > lv->caravanX - 20 && ppx < lv->caravanX + 20
         && ppy > lv->caravanY - 24 && ppy <= lv->caravanY + 2)
