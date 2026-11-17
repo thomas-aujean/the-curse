@@ -271,6 +271,11 @@ void gfx_loadBoss(void)
     VDP_loadTileData(buffer, GFX_TILE_BOSS_BOTTOM, 8, CPU);
 }
 
+void gfx_loadSkull(void)
+{
+    VDP_loadTileSet(&ts_skull, GFX_TILE_BOSS_TOP, DMA_QUEUE);
+}
+
 void gfx_loadDoor(void)
 {
     // res/door.png in columns of 6 tiles: a 4 x 4 top sprite then a 4 x 2 bottom one, in hardware order.

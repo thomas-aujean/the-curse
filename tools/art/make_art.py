@@ -24,6 +24,7 @@ import shop  # noqa: E402
 import crate  # noqa: E402
 import keys  # noqa: E402
 import title  # noqa: E402
+import skull  # noqa: E402
 import arrow  # noqa: E402
 import outdoor  # noqa: E402
 import far  # noqa: E402
@@ -279,6 +280,7 @@ def main():
     write_indexed(os.path.join(RES, "shop.png"), shop.sheet(pal2), pal2)
     write_indexed(os.path.join(RES, "crate.png"), crate.sheet(pal2), pal2)
     write_indexed(os.path.join(RES, "keys.png"), keys.sheet(pal2), pal2)
+    write_indexed(os.path.join(RES, "skull.png"), skull.sheet(pal2), pal2)
     title_img, title_pal = title.build()
     write_indexed(os.path.join(RES, "title.png"), title_img, title_pal, opaque=True)
     write_indexed(os.path.join(RES, "title_cape.png"), title.cape_frames(title_pal), title_pal, opaque=True)

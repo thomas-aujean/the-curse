@@ -89,6 +89,7 @@ typedef struct
     u8 lockOpen;                       // the upgrade room's door was unlocked
     s16 padlockX, padlockY;            // in the room before it: the padlock on the door (px, centre)
     u8 lockHitId;                      // the slash that last knocked on the locked chest
+    s16 bossSignX, bossSignY;          // the skull over the way to the boss in this room (px, centre); x < 0: none
     s16 caravanX, caravanY;            // in the caravan's room: centre of its door, ground (px)
     u8 message, messageCooldown;       // MSG_* to show (LEVEL_MESSAGE)
     u8 messageItem;                    // MSG_BUY: the ware the player stands at

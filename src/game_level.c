@@ -234,6 +234,21 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
     lv->visited[y][x] = 1;
     level_buildRoom(&lv->room, t, level_doors(lv, x, y));
     if (x == lv->carX && y == lv->carY) placeCaravan(lv);
+    // The way to the boss, while it lives, is marked with a skull (Thomas: no more surprise): over a
+    // side door, beside a hole in the ceiling, above a trapdoor.
+    lv->bossSignX = -1;
+    {
+        u8 bx = lv->floor.voidX, by = lv->floor.voidY, d = level_doors(lv, x, y);
+        u8 dir = bx == x - 1 && by == y ? DOOR_LEFT : bx == x + 1 && by == y ? DOOR_RIGHT
+               : bx == x && by == y - 1 ? DOOR_UP : bx == x && by == y + 1 ? DOOR_DOWN : 0;
+        if ((d & dir) && !lv->cleared[by][bx])
+        {
+            u8 x0, y0, x1, y1;
+            findDoor(t, dir == DOOR_LEFT ? 'L' : dir == DOOR_RIGHT ? 'R' : dir == DOOR_UP ? 'U' : 'D', &x0, &y0, &x1, &y1);
+            lv->bossSignX = dir == DOOR_LEFT ? 24 : dir == DOOR_RIGHT ? t->wBlocks * 16 - 24 : (x0 + x1 + 1) * 8;
+            lv->bossSignY = dir == DOOR_UP ? (y1 + 1) * 16 + 18 : dir == DOOR_DOWN ? y0 * 16 - 44 : y0 * 16 - 18;
+        }
+    }
     u8 noChest = (x == lv->carX && y == lv->carY) || (x == lv->shopX && y == lv->shopY);   // their tiles hold the caravan
     u8 lockedHere = x == lv->lockedChestX && y == lv->lockedChestY, lockedPlaced = 0;
     if (x == lv->lockX && y == lv->lockY)

@@ -115,6 +115,7 @@
 void gfx_load(void);
 void gfx_loadBoss(void);   // the boss's tiles (again after the exit door took their place)
 void gfx_loadDoor(void);   // the exit door, on the boss's tiles (the boss is gone)
+void gfx_loadSkull(void);  // the skull over the way to the boss, on the boss's tiles (rooms next to it)
 void gfx_loadShop(u8 shop);   // 1: the caravan and the merchant on the chests' tiles, 0: the chests again
 // HUD tile pictures (4-bit pixels, 8 rows): 0 heart, 1 half, 2 empty, 3 light, 4 light empty,
 // 5 map room here, 6 map room known (both in colour 15); the coin; the digits (colour 15).

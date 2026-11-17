@@ -617,15 +617,23 @@ static void drawSprites(void)
             n = drawEnemyFrame(n, &ENEMY_FRAME[POSE_FRAME[e->type][e->pose]], ex, ey, base, e->facingLeft);
         }
     }
-    // The exit door, once the boss is gone: on the boss's tiles, given back on the next floor.
+    // The boss's tiles: the boss in its room, then the exit door once it is gone; elsewhere the skull
+    // over the way to the boss. Loaded again only when what they must show changes.
     {
-        static u8 doorLoaded;
+        static u8 bossArt;   // 0 boss, 1 exit door, 2 skull
         u8 bossThere = 0;
         for (u8 i = 0; i < MAX_ENEMIES; i++) bossThere |= lv.enemies.e[i].type == ENEMY_BOSS;
-        if (lv.exitOpen && !bossThere)
+        u8 inBossRoom = lv.cellX == lv.floor.voidX && lv.cellY == lv.floor.voidY;
+        u8 want = inBossRoom ? (lv.exitOpen && !bossThere ? 1 : 0) : lv.bossSignX >= 0 ? 2 : bossArt;
+        if (want != bossArt)
         {
-            if (!doorLoaded) gfx_loadDoor();
-            doorLoaded = 1;
+            bossArt = want;
+            if (want == 0) gfx_loadBoss();
+            else if (want == 1) gfx_loadDoor();
+            else gfx_loadSkull();
+        }
+        if (want == 1 && inBossRoom)
+        {
             s16 dx = lv.exitX - camX - 16, dy = lv.exitY - camY - 48;
             if (n + 1 < SPRITE_ENEMIES + ENEMY_SPRITES && !offScreen(dx, dy))
             {
@@ -634,10 +642,13 @@ static void drawSprites(void)
                 n += 2;
             }
         }
-        else if (doorLoaded && !lv.exitOpen)
+        if (want == 2 && !inBossRoom && n < SPRITE_ENEMIES + ENEMY_SPRITES)
         {
-            gfx_loadBoss();
-            doorLoaded = 0;
+            // Pulsing slowly up and down, the eyes watching.
+            s16 sx = lv.bossSignX - camX - 16, sy = lv.bossSignY - camY - 16 + (((vtimer >> 4) & 3) == 3 ? 1 : 0);
+            if (offScreen(sx, sy)) sy = -64;
+            VDP_setSpriteFull(n, sx, sy, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_BOSS_TOP), n + 1);
+            n++;
         }
     }
     // The padlock on the upgrade room's door, until a key opens it.
@@ -1255,6 +1266,16 @@ int main(bool hardReset)
         player_place(&player, lv.padlockX + (lv.lockDir == DOOR_LEFT ? 40 : lv.lockDir == DOOR_RIGHT ? -40 : 24),
                      lv.room.h * ROOM_TILE - 2 * ROOM_TILE);
         player.keys = 1;
+    }
+#endif
+#ifdef DEBUG_BOSS_SIGN
+    // Diagnostic build: in the room before the boss room, where the skull marks the way.
+    {
+        u8 bx = lv.floor.voidX, by = lv.floor.voidY, d = lv.floor.doors[by][bx];
+        u8 nx = d & DOOR_LEFT ? bx - 1 : d & DOOR_RIGHT ? bx + 1 : bx, ny = d & DOOR_UP ? by - 1 : d & DOOR_DOWN ? by + 1 : by;
+        level_enter(&lv, &player, nx, ny);
+        enemies_clear(&lv.enemies);
+        if (lv.bossSignX >= 0) player_place(&player, lv.bossSignX < 160 ? 80 : lv.room.w * ROOM_TILE - 80, lv.room.h * ROOM_TILE - 2 * ROOM_TILE);
     }
 #endif
 #ifdef DEBUG_BOSS_DOWN
