@@ -13,5 +13,7 @@ TILESET ts_items "items.png" NONE NONE COLUMN
 TILESET ts_arrow "arrow.png" NONE NONE COLUMN
 TILESET ts_door "door.png" NONE NONE COLUMN
 TILESET ts_slash "slash.png" NONE NONE COLUMN
+TILESET ts_shop "shop.png" NONE NONE COLUMN
+TILESET ts_crate "crate.png" NONE NONE COLUMN
 PALETTE pal_void "void.png"
 TILESET ts_enemies "enemies.png" NONE NONE ROW

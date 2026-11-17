@@ -163,7 +163,9 @@ int main(void)
         for (int y = 0; y < FLOOR_H; y++)
             for (int x = 0; x < FLOOR_W; x++)
             {
-                u8 doors = lv.floor.doors[y][x];
+                // The shop is reached through its caravan (tested below), not through a door.
+                if (x == lv.shopX && y == lv.shopY) continue;
+                u8 doors = level_doors(&lv, x, y) & lv.floor.doors[y][x];
                 if (!doors) continue;
                 static const u8 BIT[4] = { DOOR_LEFT, DOOR_RIGHT, DOOR_UP, DOOR_DOWN };
                 static const int DX[4] = { -1, 1, 0, 0 }, DY[4] = { 0, 0, -1, 1 };
@@ -194,6 +196,43 @@ int main(void)
                 }
             }
     }
+    // The merchant's caravan: the shop's only door is gone, the caravan stands on the ground of the
+    // neighbouring room; UP in front of it enters the shop, its left opening leads back to the caravan.
+    int caravans = 0;
+    for (unsigned seed = 1; seed < 2000; seed += 13)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        if (lv.shopX == 0xFF) continue;
+        u8 sd = lv.floor.doors[lv.shopY][lv.shopX];
+        CHECK(sd && !(sd & (sd - 1)), "seed %u: the shop has %d doors", seed, sd);
+        CHECK(lv.floor.type[lv.carY][lv.carX] != ROOM_NONE && lv.floor.type[lv.carY][lv.carX] != ROOM_SHOP,
+              "seed %u: no room for the caravan", seed);
+        level_enter(&lv, &p, lv.carX, lv.carY);
+        u8 cd = level_doors(&lv, lv.carX, lv.carY);
+        CHECK(!(cd & (lv.shopX < lv.carX ? DOOR_LEFT : lv.shopX > lv.carX ? DOOR_RIGHT : lv.shopY < lv.carY ? DOOR_UP : DOOR_DOWN)),
+              "seed %u: the caravan's room still opens on the shop", seed);
+        int ground = 1;
+        for (int dx = -28; dx <= 28; dx += 4)
+            if (room_tileAt(&lv.room, lv.caravanX + dx, lv.caravanY) != TILE_SOLID
+                || room_tileAt(&lv.room, lv.caravanX + dx, lv.caravanY - 1) != TILE_EMPTY)
+                ground = 0;
+        CHECK(ground, "seed %u: caravan at %d,%d not on the ground", seed, lv.caravanX, lv.caravanY);
+        player_place(&p, lv.caravanX, lv.caravanY);
+        p.upPressed = 0;
+        level_update(&lv, &p);
+        CHECK(lv.cellX == lv.carX && lv.cellY == lv.carY, "seed %u: entered without UP", seed);
+        p.upPressed = 1;
+        CHECK((level_update(&lv, &p) & LEVEL_REDRAW) && lv.cellX == lv.shopX && lv.cellY == lv.shopY,
+              "seed %u: UP at the caravan does not enter the shop", seed);
+        CHECK(bodyFree(&lv.room, &p), "seed %u: arrived in the shop inside a wall", seed);
+        p.upPressed = 0;
+        p.x = lv.shopExit == DOOR_LEFT ? -256 : (s32) lv.room.w * 8 << 8;
+        CHECK((level_update(&lv, &p) & LEVEL_REDRAW) && lv.cellX == lv.carX && lv.cellY == lv.carY
+              && (p.x >> 8) == lv.caravanX, "seed %u: the shop's opening does not lead to the caravan", seed);
+        caravans++;
+    }
+    CHECK(caravans > 50, "only %d caravans", caravans);
+
     // The Void: every room is safe at the start, the circle closes on the boss in VOID_SECONDS.
     for (unsigned seed = 1; seed < 400; seed += 7)
     {

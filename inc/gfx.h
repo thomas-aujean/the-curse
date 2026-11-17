@@ -85,8 +85,8 @@
 // The guard's crescents (res/slash.png, tools/art/slash.py, PAL2): side 4 x 4 + 4 x 2, then up
 // 4 x 4 + 2 x 4, 48 tiles after the enemies, up to the arrow.
 #define GFX_ENEMY_SLASH    (TILE_USER_INDEX + 1211)
-#if 760 + ENEMY_TILE_COUNT > 1211
-#error "enemy tiles run into the guard's crescents (inc/gfx.h)"
+#if 760 + ENEMY_TILE_COUNT > 1174
+#error "enemy tiles run into the crate (inc/gfx.h)"
 #endif
 // The archer's arrow (res/arrow.png, tools/art/arrow.py): 5 angles of 3 x 3 tiles (PAL2), after the
 // enemies (room freed by the ninja, out for now), up to the decor.
@@ -98,10 +98,17 @@
 // bronze, bronze open, silver, silver open, gold, gold open. In the old place of the enemies.
 #define GFX_CHESTS         (TILE_USER_INDEX + 480)
 #define GFX_CHEST_TILES    16
+// In the caravan's room and in the shop (no chest there), the same tiles hold the caravan (64 x 64:
+// left half 4 x 4 + 4 x 4, then right half) and the merchant (32 x 48: 4 x 4 + 4 x 2), tools/art/shop.py.
+#define GFX_CARAVAN        GFX_CHESTS
+#define GFX_MERCHANT       (GFX_CHESTS + 64)
+// The big wooden crate (res/crate.png, tools/art/crate.py): 4 x 4 tiles (PAL2), after the enemies.
+#define GFX_CRATE          (TILE_USER_INDEX + 1174)
 
 void gfx_load(void);
 void gfx_loadBoss(void);   // the boss's tiles (again after the exit door took their place)
 void gfx_loadDoor(void);   // the exit door, on the boss's tiles (the boss is gone)
+void gfx_loadShop(u8 shop);   // 1: the caravan and the merchant on the chests' tiles, 0: the chests again
 // HUD tile pictures (4-bit pixels, 8 rows): 0 heart, 1 half, 2 empty, 3 light, 4 light empty,
 // 5 map room here, 6 map room known (both in colour 15); the coin; the digits (colour 15).
 const u32 *gfx_hudPicture(u8 i);

@@ -39,7 +39,42 @@ const RoomTemplate *level_templateFor(const Level *lv, u8 x, u8 y)
 
 u8 level_doors(const Level *lv, u8 x, u8 y)
 {
-    return lv->floor.doors[y][x] | (lv->floor.hidden[y][x] & lv->opened[y][x]);
+    // The shop only has its opening on the left (out to the caravan); the caravan's room loses its
+    // door to the shop.
+    u8 secret = lv->floor.hidden[y][x] & lv->opened[y][x];
+    if (x == lv->shopX && y == lv->shopY) return lv->shopExit | secret;
+    u8 d = lv->floor.doors[y][x] | secret;
+    if (x == lv->carX && y == lv->carY)
+        d &= ~(lv->shopX < x ? DOOR_LEFT : lv->shopX > x ? DOOR_RIGHT : lv->shopY < y ? DOOR_UP : DOOR_DOWN);
+    return d;
+}
+
+// Where the caravan stands in its room: on the ground (solid under all its width, 48 px free above),
+// on the lowest ground that has room for it, as near the middle of the room as possible.
+static void placeCaravan(Level *lv)
+{
+    s16 w = lv->room.w * ROOM_TILE, h = lv->room.h * ROOM_TILE;
+    lv->caravanX = w / 2;
+    lv->caravanY = h - 2 * ROOM_TILE;
+    for (s16 gy = h - ROOM_TILE; gy > 64; gy -= ROOM_TILE)
+        for (s16 k = 0; k < w / 16; k++)
+        {
+            s16 cx = w / 2 + ((k & 1) ? -1 : 1) * ((k + 1) / 2) * 16;
+            if (cx < 48 || cx > w - 48) continue;
+            u8 ok = 1;
+            for (s16 dx = -28; dx <= 28 && ok; dx += 8)
+            {
+                if (room_tileAt(&lv->room, cx + dx, gy) != TILE_SOLID) ok = 0;
+                for (s16 dy = ROOM_TILE; dy <= 56 && ok; dy += ROOM_TILE)
+                    if (room_tileAt(&lv->room, cx + dx, gy - dy) != TILE_EMPTY) ok = 0;
+            }
+            if (ok)
+            {
+                lv->caravanX = cx;
+                lv->caravanY = gy;
+                return;
+            }
+        }
 }
 
 // Bounding box of a door marker, in blocks.
@@ -119,6 +154,8 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
     lv->cellY = y;
     lv->visited[y][x] = 1;
     level_buildRoom(&lv->room, t, level_doors(lv, x, y));
+    if (x == lv->carX && y == lv->carY) placeCaravan(lv);
+    u8 noChest = (x == lv->carX && y == lv->carY) || (x == lv->shopX && y == lv->shopY);   // their tiles hold the caravan
 
     // Walls hiding a secret room: still solid, drawn cracked, broken by a slash.
     lv->crackedCount = 0;
@@ -137,10 +174,10 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
         }
 
     // Enemies come back each time, except the ones killed (Thomas: the dead stay dead). Never in the
-    // start room. Their form is set every frame from their position (level_update).
+    // start room nor in the shop. Their form is set every frame from their position (level_update).
     enemies_clear(&lv->enemies);
     for (u8 i = 0; i < MAX_ENEMIES; i++) lv->spawnOf[i] = 0xFF;
-    if (!lv->cleared[y][x] && lv->floor.type[y][x] != ROOM_START)
+    if (!lv->cleared[y][x] && lv->floor.type[y][x] != ROOM_START && lv->floor.type[y][x] != ROOM_SHOP)
     {
         u8 n = 0;   // place of the enemy in the template
         for (u8 by = 0; by < t->hBlocks; by++)
@@ -174,7 +211,7 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
                 // Varied props, fixed per seed and room; chests: bronze 70 %, silver 25 %, gold 5 %.
                 u16 roll = (lv->floor.seed + x * 37 + y * 101 + lv->propCount * 13) * 0x9E37;
                 roll ^= roll >> 8;
-                if (t->rows[by][bx] == 'o') pr->type = PROP_JAR + (roll & 3);
+                if (t->rows[by][bx] == 'o' || noChest) pr->type = PROP_JAR + (roll & 3);
                 else
                 {
                     u8 r100 = roll % 100;
@@ -278,6 +315,19 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
             lv->propsBroken[y][x] = lv->shopBought[y][x] = 0;
     lv->rng = seed | 1;
     dealFloorItems(lv);
+    // The shop and the room its only door leads to (the caravan's).
+    lv->shopX = lv->shopY = lv->carX = lv->carY = 0xFF;
+    for (u8 y = 0; y < FLOOR_H; y++)
+        for (u8 x = 0; x < FLOOR_W; x++)
+            if (lv->floor.type[y][x] == ROOM_SHOP)
+            {
+                u8 d = lv->floor.doors[y][x];
+                lv->shopX = x;
+                lv->shopY = y;
+                lv->carX = d & DOOR_LEFT ? x - 1 : d & DOOR_RIGHT ? x + 1 : x;
+                lv->carY = d & DOOR_UP ? y - 1 : d & DOOR_DOWN ? y + 1 : y;
+                lv->shopExit = lv->floor.hidden[y][x] & DOOR_LEFT ? DOOR_RIGHT : DOOR_LEFT;
+            }
     lv->gemActive = lv->gemTaken = lv->exitOpen = 0;
     lv->bossFight = 0;
 
@@ -418,8 +468,8 @@ static u8 breakProps(Level *lv, const Player *p)
     {
         Prop *pr = &lv->props[i];
         // Chests are drawn 32 x 32 (small ones about 26 x 22, the gold one 30 x 28), props 16 x 16.
-        s16 hw = pr->type == PROP_CHEST_GOLD ? 13 : pr->type >= PROP_CHEST_BRONZE ? 11 : 6;
-        s16 h = pr->type == PROP_CHEST_GOLD ? 26 : pr->type >= PROP_CHEST_BRONZE ? 20 : 14;
+        s16 hw = pr->type == PROP_CHEST_GOLD || pr->type == PROP_CRATE ? 13 : pr->type >= PROP_CHEST_BRONZE ? 11 : 6;
+        s16 h = pr->type == PROP_CHEST_GOLD ? 26 : pr->type == PROP_CRATE ? 27 : pr->type >= PROP_CHEST_BRONZE ? 20 : 14;
         if (!pr->alive || ax0 > pr->x + hw || pr->x - hw > ax1 || ay0 > pr->y - 1 || pr->y - h > ay1) continue;
         pr->alive = 0;
         lv->propsBroken[lv->cellY][lv->cellX] |= 1 << i;
@@ -637,6 +687,24 @@ u8 level_update(Level *lv, Player *p)
     s16 px = p->x >> 8, cy = (p->y >> 8) - PLAYER_H / 2;
     s16 w = lv->room.w * ROOM_TILE, h = lv->room.h * ROOM_TILE;
     u8 x = lv->cellX, y = lv->cellY, doors = level_doors(lv, x, y);
+
+    // The caravan: UP in front of its door enters the shop; the shop's opening leads back out to it.
+    if (x == lv->carX && y == lv->carY && ppx > lv->caravanX - 20 && ppx < lv->caravanX + 20
+        && ppy > lv->caravanY - 24 && ppy <= lv->caravanY + 2)
+    {
+        if (p->upPressed)
+        {
+            enterRoom(lv, p, lv->shopX, lv->shopY, lv->shopExit);
+            return result | LEVEL_REDRAW;
+        }
+        result |= levelMessage(lv, MSG_ENTER);
+    }
+    if (x == lv->shopX && y == lv->shopY && (lv->shopExit == DOOR_LEFT ? px < 0 : px >= w))
+    {
+        enterRoom(lv, p, lv->carX, lv->carY, 0);
+        setPos(p, lv->caravanX, lv->caravanY);
+        return result | LEVEL_REDRAW;
+    }
 
     if (px < 0 && (doors & DOOR_LEFT)) enterRoom(lv, p, x - 1, y, DOOR_RIGHT);
     else if (px >= w && (doors & DOOR_RIGHT)) enterRoom(lv, p, x + 1, y, DOOR_LEFT);

@@ -75,6 +75,12 @@ typedef struct
     u8 propsBroken[FLOOR_H][FLOOR_W];  // bit per jar, so broken jars stay broken
     u8 shopBought[FLOOR_H][FLOOR_W];   // bit per shop slot
     u8 shopChanged;                    // a ware was bought: redraw the price tags
+    // The merchant's caravan (Thomas, 2026-11-17): the shop has no door to the floor any more; its
+    // caravan stands in the neighbouring room (carX, carY), UP in front of it enters the shop, the
+    // shop's left opening leads back out in front of the caravan.
+    u8 shopX, shopY, carX, carY;       // 0xFF: no shop on this floor
+    u8 shopExit;                       // DOOR_LEFT, or DOOR_RIGHT when a secret wall takes the left
+    s16 caravanX, caravanY;            // in the caravan's room: centre of its door, ground (px)
     u8 message, messageCooldown;       // MSG_* to show (LEVEL_MESSAGE)
     u8 messageItem;                    // MSG_BUY: the ware the player stands at
     u16 rng;
@@ -107,7 +113,8 @@ typedef struct
 #define LEVEL_ITEM   4      // an item was picked up (lastItem): show its name
 #define LEVEL_MESSAGE 8     // show lv->message
 
-enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT };
+enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT, MSG_ENTER };
+#define MERCHANT_X_FROM_RIGHT 40       // the merchant stands this far from the shop's right edge
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);
 void level_enter(Level *lv, Player *p, u8 x, u8 y);   // jump straight into a room (tests, debug)

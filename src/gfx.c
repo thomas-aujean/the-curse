@@ -278,6 +278,29 @@ static void loadSlash(void)
         VDP_loadTileData(t + (4 + c) * 6 * 8, GFX_ENEMY_SLASH + 24 + c * 4, 4, CPU);
 }
 
+void gfx_loadShop(u8 shop)
+{
+    if (!shop)
+    {
+        VDP_loadTileSet(&ts_chests, GFX_CHESTS, DMA_QUEUE);
+        return;
+    }
+    // res/shop.png: 12 columns of 8 tiles. Caravan columns 0..7: top 4 tiles then bottom 4, each half
+    // (4 columns) one 4 x 4 sprite over another; merchant columns 8..11, tiles 2..7 (4 x 4 + 4 x 2).
+    const u32 *t = ts_shop.tiles;
+    for (u8 c = 0; c < 8; c++)
+    {
+        u16 half = GFX_CARAVAN + (c >> 2) * 32 + (c & 3) * 4;
+        VDP_loadTileData(t + c * 8 * 8, half, 4, DMA_QUEUE);
+        VDP_loadTileData(t + (c * 8 + 4) * 8, half + 16, 4, DMA_QUEUE);
+    }
+    for (u8 c = 0; c < 4; c++)
+    {
+        VDP_loadTileData(t + ((8 + c) * 8 + 2) * 8, GFX_MERCHANT + c * 4, 4, DMA_QUEUE);
+        VDP_loadTileData(t + ((8 + c) * 8 + 6) * 8, GFX_MERCHANT + 16 + c * 2, 2, DMA_QUEUE);
+    }
+}
+
 void gfx_load(void)
 {
     static u32 buffer[16 * 8];
@@ -325,6 +348,7 @@ void gfx_load(void)
     VDP_loadTileSet(&ts_items, GFX_ITEMS, CPU);
     VDP_loadTileSet(&ts_arrow, GFX_ARROWS, CPU);
     loadSlash();
+    VDP_loadTileSet(&ts_crate, GFX_CRATE, CPU);
     {
         TileSet *font = unpackTileSet(&font_default, NULL);
         memcpy(digits, font->tiles + ('0' - 32) * 8, sizeof(digits));   // the font starts at ' '

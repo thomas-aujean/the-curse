@@ -588,6 +588,35 @@ static void drawSprites(void)
             doorLoaded = 0;
         }
     }
+    // The merchant's caravan in its room, the merchant in the shop (on the chests' tiles).
+    {
+        static u8 shopArt;
+        u8 inCar = lv.cellX == lv.carX && lv.cellY == lv.carY, inShop = lv.cellX == lv.shopX && lv.cellY == lv.shopY;
+        if ((inCar || inShop) != shopArt)
+        {
+            shopArt = inCar || inShop;
+            gfx_loadShop(shopArt);
+        }
+        if (inCar && n + 3 < SPRITE_ENEMIES + ENEMY_SPRITES)
+        {
+            s16 cx = lv.caravanX - camX - 32, cy = lv.caravanY - camY - 64;
+            for (u8 k = 0; k < 4; k++)
+            {
+                s16 sx = cx + (k >> 1) * 32, sy = cy + (k & 1) * 32;
+                if (offScreen(sx, sy)) sy = -64;
+                VDP_setSpriteFull(n, sx, sy, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL2, 0, 0, 0, GFX_CARAVAN + k * 16), n + 1);
+                n++;
+            }
+        }
+        if (inShop && n + 1 < SPRITE_ENEMIES + ENEMY_SPRITES)
+        {
+            s16 mx = lv.room.w * ROOM_TILE - MERCHANT_X_FROM_RIGHT - camX - 16;
+            s16 my = lv.room.h * ROOM_TILE - 2 * 16 - camY - 48 + ((vtimer >> 5) & 1);   // breathing
+            VDP_setSpriteFull(n, mx, my, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL2, 0, 0, 0, GFX_MERCHANT), n + 1);
+            VDP_setSpriteFull(n + 1, mx, my + 32, SPRITE_SIZE(4, 2), TILE_ATTR_FULL(PAL2, 0, 0, 0, GFX_MERCHANT + 16), n + 2);
+            n += 2;
+        }
+    }
     // The rest of the pool stays in the chain (the sprites after it are fixed), out of sight.
     for (; n < SPRITE_ENEMIES + ENEMY_SPRITES; n++) VDP_setSpriteFull(n, 0, -64, SPRITE_SIZE(1, 1), 0, n + 1);
     for (u8 i = 0; i < MAX_SHOTS; i++)
@@ -636,15 +665,15 @@ static void drawSprites(void)
     for (u8 i = 0; i < MAX_PROPS; i++)
     {
         const Prop *pr = &lv.props[i];
-        u8 chest = pr->type >= PROP_CHEST_BRONZE;
-        u8 half = chest ? 16 : 8;   // chests: 32 x 32, props: 16 x 16, both bottom-centred
+        u8 chest = pr->type >= PROP_CHEST_BRONZE, crate = pr->type == PROP_CRATE;
+        u8 half = chest || crate ? 16 : 8;   // chests and crates: 32 x 32, props: 16 x 16, bottom-centred
         u8 shown = i < lv.propCount && (pr->alive || chest)   // opened chests stay, open
             && !offScreen(pr->x - camX - half, pr->y - camY - half * 2);
         u16 flicker = pr->type == PROP_CANDLE && ((vtimer >> 3) & 1);   // candle flame wavers
         u16 tile = chest ? GFX_CHESTS + ((pr->type - PROP_CHEST_BRONZE) * 2 + !pr->alive) * GFX_CHEST_TILES
-                         : GFX_PROPS + pr->type * 4;
+                 : crate ? GFX_CRATE : GFX_PROPS + pr->type * 4;
         VDP_setSpriteFull(SPRITE_PROPS + i, pr->x - camX - half, shown ? pr->y - camY - half * 2 : -64,
-                          chest ? SPRITE_SIZE(4, 4) : SPRITE_SIZE(2, 2),
+                          chest || crate ? SPRITE_SIZE(4, 4) : SPRITE_SIZE(2, 2),
                           TILE_ATTR_FULL(PAL2, 1, 0, flicker, tile), SPRITE_PROPS + i + 1);
     }    for (u8 i = 0; i < MAX_PICKUPS; i++)
     {
@@ -1013,6 +1042,7 @@ static void updateRoom(u16 pad, u16 pressed)
         // No name on a ware (Isaac-style: the items are known by their look).
         showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER"
                  : lv.message == MSG_TAKE ? "HAUT : PRENDRE" : lv.message == MSG_EXIT ? "HAUT : NIVEAU SUIVANT"
+                 : lv.message == MSG_ENTER ? "HAUT : ENTRER"
                  : "PAS ASSEZ DE PIECES");
     if (events & LEVEL_GEM)
     {
@@ -1066,6 +1096,15 @@ int main(bool hardReset)
         for (u8 i = 0; i < 5; i++)
             enemies_add(&lv.enemies, SPAWN[i][0], (player.x >> 8) + SPAWN[i][1],
                         (player.y >> 8) - (SPAWN[i][0] == ENEMY_FLYER ? 70 : 0), 0);
+    }
+#endif
+#ifdef DEBUG_CARAVAN
+    // Diagnostic build: in the caravan's room, a little left of the caravan.
+    if (lv.shopX != 0xFF)
+    {
+        level_enter(&lv, &player, lv.carX, lv.carY);
+        enemies_clear(&lv.enemies);
+        player_place(&player, lv.caravanX - 48, lv.caravanY);
     }
 #endif
 #ifdef DEBUG_BOSS_DOWN
