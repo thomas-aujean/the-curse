@@ -716,6 +716,24 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
         s16 ex = e->x >> 8, ey = e->y >> 8;
         s16 x0 = ex - w / 2, x1 = ex + w / 2 - 1, y0 = ey - h, y1 = ey - 1;
 
+        // Clash (Thomas, 2026-11-17): the guard's upward crescent meets the player's downward slash: the
+        // weapons ring, nobody is hurt, the player bounces off and the guard's blow is spent.
+        if (slashing && e->slash == GUARD_SLASH_UP && p->attackDir == ATTACK_DOWN && e->lastHitId != p->attackId
+            && overlap(ax0, ay0, ax1, ay1, ex - 24, ey - 84, ex + 24, ey - 52))
+        {
+            e->lastHitId = p->attackId;
+            e->slash = GUARD_SLASH_NONE;
+            e->attackTimer = guardRest;
+            e->pose = ENEMY_POSE_A;
+            s->blocked = 1;
+            s->hitBlocked = 1;
+            s->hitX = (ax0 + ax1) / 2;
+            s->hitY = ay1 > ey - 52 ? ey - 52 : ay1;
+            s->hitTimer = sparkFrames;
+            s->hitStop = hitStopFrames;
+            player_bounce(p);
+            continue;
+        }
         if (slashing && e->lastHitId != p->attackId && overlap(ax0, ay0, ax1, ay1, x0, y0, x1, y1))
         {
             e->lastHitId = p->attackId;

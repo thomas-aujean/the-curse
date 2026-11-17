@@ -366,6 +366,28 @@ int main(void)
         }
         CHECK(up && p.hp < p.maxHp, "guard strikes upwards (up %d, hp %d)", up, p.hp);
     }
+    // Clash: a downward slash on the guard's upward crescent: nobody hurt, the player bounces.
+    {
+        enemies_clear(&set);
+        Enemy *g = enemies_add(&set, ENEMY_GUARD, 120, 200, 0);
+        player_init(&p, 122, 120);
+        p.onGround = 0;
+        int hp = g->hp, clashed = 0;
+        for (int f = 0; f < 80 && !clashed; f++)
+        {
+            u16 pad = PAD_DOWN;
+            if (g->pose == ENEMY_POSE_WINDUP && g->attackTimer == 53) pad |= PAD_ATTACK;   // just before its crescent
+            p.y = 120 << 8;    // hovering above it
+            p.vy = 0;
+            p.onGround = 0;
+            player_update(&p, &room, pad);
+            p.y = 120 << 8;
+            p.onGround = 0;
+            enemies_update(&set, &room, &p);
+            if (set.blocked && p.vy < 0) clashed = 1;
+        }
+        CHECK(clashed && p.hp == p.maxHp && g->hp == hp, "clash: %d, player hp %d, guard hp %d", clashed, p.hp, g->hp);
+    }
 
     // Poses for the display: walking legs alternate, the archer aims before shooting, the jelly
     // stretches in the air, the spectre lunges when it chases.
