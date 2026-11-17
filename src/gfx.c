@@ -338,6 +338,7 @@ void gfx_load(void)
     VDP_loadTileSet(img_far.tileset, GFX_FAR, CPU);
     PAL_setColors(16, pal_ninja.data, 16, CPU);
     VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);
+    VDP_loadTileSet(&ts_chests, GFX_CHESTS, CPU);
 
     artToTiles(NINJA, plainPixel, 2, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_STAND, 8, CPU);

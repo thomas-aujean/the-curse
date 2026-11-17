@@ -537,12 +537,15 @@ static void drawSprites(void)
     {
         const Prop *pr = &lv.props[i];
         u8 chest = pr->type >= PROP_CHEST_BRONZE;
+        u8 half = chest ? 16 : 8;   // chests: 32 x 32, props: 16 x 16, both bottom-centred
         u8 shown = i < lv.propCount && (pr->alive || chest)   // opened chests stay, open
-            && !offScreen(pr->x - camX - 8, pr->y - camY - 16);
-        u16 frame = chest ? PROP_CHEST_BRONZE + (pr->type - PROP_CHEST_BRONZE) * 2 + !pr->alive : pr->type;
+            && !offScreen(pr->x - camX - half, pr->y - camY - half * 2);
         u16 flicker = pr->type == PROP_CANDLE && ((vtimer >> 3) & 1);   // candle flame wavers
-        VDP_setSpriteFull(SPRITE_PROPS + i, pr->x - camX - 8, shown ? pr->y - camY - 16 : -64, SPRITE_SIZE(2, 2),
-                          TILE_ATTR_FULL(PAL2, 1, 0, flicker, GFX_PROPS + frame * 4), SPRITE_PROPS + i + 1);
+        u16 tile = chest ? GFX_CHESTS + ((pr->type - PROP_CHEST_BRONZE) * 2 + !pr->alive) * GFX_CHEST_TILES
+                         : GFX_PROPS + pr->type * 4;
+        VDP_setSpriteFull(SPRITE_PROPS + i, pr->x - camX - half, shown ? pr->y - camY - half * 2 : -64,
+                          chest ? SPRITE_SIZE(4, 4) : SPRITE_SIZE(2, 2),
+                          TILE_ATTR_FULL(PAL2, 1, 0, flicker, tile), SPRITE_PROPS + i + 1);
     }    for (u8 i = 0; i < MAX_PICKUPS; i++)
     {
         const Pickup *pk = &lv.pickups[i];

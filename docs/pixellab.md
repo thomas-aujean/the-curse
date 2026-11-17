@@ -13,7 +13,8 @@ puis passent par `tools/art/` qui les adapte à la Mega Drive. Voir aussi `docs/
 
 Aperçu sans lancer le jeu : `wsl python3 tools/art/preview.py knight OUT.png 2 10` (ou `enemies`).
 Voir les ennemis en jeu, un de chaque dans la première salle :
-`.	oolseplay.ps1 -Name poses -Steps "-:50" -Flags "-DDEBUG_ENEMIES"`.
+`.	ools
+eplay.ps1 -Name poses -Steps "-:50" -Flags "-DDEBUG_ENEMIES"`.
 
 ## Identifiants PixelLab
 | Quoi | Identifiant |
@@ -44,7 +45,7 @@ Reste à faire :
 - ennemis : poses clés branchées (voir « Ennemis ») ; restent touché, saut, chauve-souris ;
 - supprimer les anciens en vue plongeante une fois les nouveaux en jeu (chevalier `229a6c03…`/`5febe386…`,
   garde `7dfee3ab…`, soldat et archers `a7cb6b5f…`, `863d0ab9…`, `659e2501…`) ;
-- objets (candélabres, coffres, table, chaise, caisses) : pas commencé.
+- objets (candélabres, table, chaise, caisses) : pas commencé (coffres faits, voir « Coffres »).
 
 Limite du Tier 1 : 8 générations en même temps.
 
@@ -128,3 +129,10 @@ Ennemis (états de profil, même méthode) :
 
 Téléchargement d'une pose : `https://backblaze.pixellab.ai/file/pixellab-characters/1f4ad84c-b4e4-40e6-9923-41b6cf028790/<id complet>/rotations/east.png`
 (l'id complet est donné par `get_character`).
+
+## Coffres (, 2026-11-17)
+Objets 1 direction, vue , générés avec les couleurs de PAL2 (), version ouverte = state .
+Source :  et . En jeu : un sprite de 32 x 32 par image, posé au bas centre.
+- petit bronze : fermé 03f1c876, ouvert 4ded3485 (26 x 22)
+- petit argent : fermé 56c367e2, ouvert 04a4468a (même forme)
+- gros or : fermé 7ee031ce, ouvert 9fed1de8 (30 x 28, toile de 38)

@@ -185,6 +185,13 @@ sur 64) plutôt qu'en blocs : le code de collision la lit telle quelle. 12 ennem
 salle. `tests/level_test.c` vérifie que chaque gabarit est franchissable (toutes les portes reliées, coffres
 à portée) ; lancer `wsl sh tools/test.sh`. Le retour en arrière et le Néant v2 restent à faire.
 
+## Décors des niveaux (Thomas, 2026-11-17)
+- **Niveau 1 = extérieur** : on approche du château, qu'on voit au loin (fond en parallaxe). Plateformes =
+  plutôt des arbres (branches, souches), grillages, cimetière, et des passages en sous-sol (caves, cryptes).
+- **Niveaux suivants = intérieur du château** : murs de pierre, fenêtres sur le couchant, bannières,
+  candélabres. Quelques salles sur les remparts au crépuscule restent possibles.
+- Coffres : petits (bronze, argent) et gros (or), refaits avec PixelLab.
+
 ## À décider
 - Histoire, type de sauvegarde (SRAM à pile ou FRAM ; mots de passe exclus), périmètre v1 (classes, coop 2 ou 4), graphismes et musique.
 - Nombre d'étages, taille de la grille, ce qui ouvre un mur secret (arme normale, bombe, pouvoir).

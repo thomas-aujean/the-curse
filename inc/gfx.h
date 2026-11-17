@@ -59,13 +59,16 @@
 
 // PixelLab enemies (res/enemies.png, tools/art/enemies.py), facing right: every pose of every enemy stays
 // in video memory (ENEMY_TILE_COUNT tiles, after the props and up to the font), cut into 1 to 4 sprites
-// per pose (enemy_frames.h). The old place of the enemies (TILE_USER_INDEX + 480..607) is free.
+// per pose (enemy_frames.h). The old place of the enemies (TILE_USER_INDEX + 480..607) holds the chests.
 #define GFX_ENEMIES        (TILE_USER_INDEX + 760)
 #include "enemy_frames.h"
 
-// Props and chests (res/props.png, tools/art/props.py): 2 x 2 tiles each, order of PROP_* (game_level.h)
-// with each chest followed by its open frame.
+// Breakable props (res/props.png, tools/art/props.py): 2 x 2 tiles each, order of PROP_* (game_level.h).
 #define GFX_PROPS          (TILE_USER_INDEX + 700)
+// PixelLab chests (res/chests.png, tools/art/chests.py): 4 x 4 tiles each, bottom-centred, in the order
+// bronze, bronze open, silver, silver open, gold, gold open. In the old place of the enemies.
+#define GFX_CHESTS         (TILE_USER_INDEX + 480)
+#define GFX_CHEST_TILES    16
 
 void gfx_load(void);
 void gfx_drawFar(void);   // the parallax sky on plane B

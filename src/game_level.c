@@ -376,7 +376,10 @@ static u8 breakProps(Level *lv, const Player *p)
     for (u8 i = 0; i < lv->propCount; i++)
     {
         Prop *pr = &lv->props[i];
-        if (!pr->alive || ax0 > pr->x + 6 || pr->x - 6 > ax1 || ay0 > pr->y - 1 || pr->y - 14 > ay1) continue;
+        // Chests are drawn 32 x 32 (small ones about 26 x 22, the gold one 30 x 28), props 16 x 16.
+        s16 hw = pr->type == PROP_CHEST_GOLD ? 13 : pr->type >= PROP_CHEST_BRONZE ? 11 : 6;
+        s16 h = pr->type == PROP_CHEST_GOLD ? 26 : pr->type >= PROP_CHEST_BRONZE ? 20 : 14;
+        if (!pr->alive || ax0 > pr->x + hw || pr->x - hw > ax1 || ay0 > pr->y - 1 || pr->y - h > ay1) continue;
         pr->alive = 0;
         lv->propsBroken[lv->cellY][lv->cellX] |= 1 << i;
         u8 inVoid = level_pointInVoid(lv, pr->x, pr->y - 8);

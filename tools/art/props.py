@@ -1,4 +1,4 @@
-"""Breakable props and Rogue Legacy style chests, 16 x 16 each, bottom on row 15 (PAL2).
+"""Breakable props, 16 x 16 each, bottom on row 15 (PAL2).
 
 PAL2: 1 outline, 2 bone, 3 bone shadow, 4 red, 5 gold, 6 gold shadow (coins), 7 wood, 8 wood shadow,
 9 silver, 10 silver shadow, 11 flame, 12 flame orange, 13 clay, 14 clay shadow, 15 map text.
@@ -89,55 +89,9 @@ CANDLE = [
 ]
 
 
-def chest(band, band_dark, opened):
-    """Small chest: wooden body, metal bands (bronze = gold tones, silver, gold)."""
-    b, d = band, band_dark
-    if opened:
-        top = [
-            "................",
-            "...1111111111...",
-            "..1" + d * 10 + "1..",
-            "..1" + "8" * 10 + "1..",
-            "..1111111111111.",
-            "..1" + "8" * 10 + "1..",
-            "..1" + "8" * 10 + "1..",
-        ]
-    else:
-        top = [
-            "................",
-            "................",
-            "................",
-            "...1111111111...",
-            "..1" + "7" * 10 + "1..",
-            "..1" + b * 10 + "1..",
-            "..1" + "7" * 4 + "11" + "7" * 4 + "1..",
-        ]
-    body = [
-        "..111111111111..",
-        "..1" + "7777" + b + d + "7777" + "1..",
-        "..1" + "7777" + d + d + "7777" + "1..",
-        "..1" + b * 10 + "1..",
-        "..1" + "7" * 10 + "1..",
-        "..1" + "8" * 10 + "1..",
-        "..111111111111..",
-        "................",
-        "................",
-    ]
-    rows = (top + body)[:16]
-    while len(rows) < 16:
-        rows.insert(0, "................")
-    return rows
+ORDER = ["jar", "urn", "crate", "candle"]   # chests: chests.py (PixelLab)
 
-
-ORDER = ["jar", "urn", "crate", "candle",
-         "bronze", "bronze_open", "silver", "silver_open", "gold", "gold_open"]
-
-ART = {
-    "jar": JAR, "urn": URN, "crate": CRATE, "candle": CANDLE,
-    "bronze": chest("6", "5", False), "bronze_open": chest("6", "5", True),
-    "silver": chest("9", "a", False), "silver_open": chest("9", "a", True),
-    "gold": chest("5", "b", False), "gold_open": chest("5", "b", True),
-}
+ART = {"jar": JAR, "urn": URN, "crate": CRATE, "candle": CANDLE}
 
 
 def pixel(ch):
