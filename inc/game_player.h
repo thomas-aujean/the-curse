@@ -84,6 +84,7 @@ void player_init(Player *p, s16 px, s16 py);    // new game: full health, no upg
 void player_place(Player *p, s16 px, s16 py);   // new floor: keeps health and upgrades
 void player_takeItem(Player *p, u8 item);
 const char *player_itemName(u8 item);
+const char *player_itemPhrase(u8 item);   // said when it is taken (21 characters at most)
 void player_update(Player *p, const Room *r, u16 pad);
 void player_boostUp(Player *p);
 void player_bounce(Player *p);   // downward slash hit something: small hop

@@ -431,6 +431,12 @@ static u8 drawEnemyFrame(u8 n, const EnemyFrame *f, s16 cx, s16 feetY, u16 base,
     return n;
 }
 
+// The icon of an upgrade (PixelLab, one each); the old relic for anything else.
+static u16 itemTile(u8 item)
+{
+    return item >= ITEM_FIRST_UPGRADE && item < ITEM_COUNT ? GFX_ITEMS + (item - ITEM_FIRST_UPGRADE) * 4 : GFX_TILE_RELIC;
+}
+
 static void drawSprites(void)
 {
     static u8 loadedFrame = 0xFF;
@@ -545,7 +551,7 @@ static void drawSprites(void)
                           SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), SPRITE_TRAP);
     else
         VDP_setSpriteFull(SPRITE_ITEM, lv.itemX - camX - 8, itemShown ? lv.itemY - camY - 20 - bob : -64,
-                          SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), SPRITE_TRAP);
+                          SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, itemTile(lv.itemId)), SPRITE_TRAP);
 
     // Arrow over the trapdoor, dipping towards it.
     s16 ax = trapX - camX - 8, ay = trapY - camY - 22 + ((vtimer >> 3) & 3);
@@ -578,7 +584,7 @@ static void drawSprites(void)
         else if (pk->type == PICKUP_HEART || (pk->type == PICKUP_ITEM && pk->itemId == ITEM_HEART))
             VDP_setSpriteFull(index, x - 4, y - 12, SPRITE_SIZE(1, 1), TILE_ATTR_FULL(PAL1, 1, 0, 0, GFX_TILE_HEART), link);
         else if (pk->type == PICKUP_ITEM)
-            VDP_setSpriteFull(index, x - 8, y - 20, SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_TILE_RELIC), link);
+            VDP_setSpriteFull(index, x - 8, y - 20, SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, itemTile(pk->itemId)), link);
         else VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
     }
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
@@ -594,7 +600,7 @@ static void hideSprites(void)
 // top right. Each part is redrawn only when what it shows has changed.
 static u8 hudHp = 0xFF, hudMaxHp = 0xFF, hudLight = 0xFF, hudCell = 0xFF, hudCorrupted = 0xFF;
 static u16 hudCoins = 0xFFFF;
-static u16 itemMessage;   // frames left showing the name of the item just taken
+static u16 itemMessage;   // frames left showing a message (the item just taken, its line)
 
 static void hudTile(u16 x, u16 y, u16 pal, u16 tile)
 {
@@ -678,18 +684,30 @@ static void drawHud(void)
             VDP_drawTextBG(ROOM_PLANE, tag, (pk->x >> 8) / 8 - (pk->price >= 10), (pk->y >> 8) / 8 - 4);
         }
     }
-    if (itemMessage && --itemMessage == 0) VDP_clearTextArea(12, 2, 21, 1);
+    if (itemMessage && --itemMessage == 0) VDP_clearTextArea(12, 1, 21, 2);
 }
 
-static void showText(const char *name)
+static void drawCentred(const char *text, u16 row)
 {
     u16 len = 0;
-    while (name[len]) len++;
-    // Window row 2, between the coins and the minimap.
-    VDP_clearTextArea(12, 2, 21, 1);
+    while (text[len]) len++;
+    VDP_drawText(text, 22 - len / 2, row);
+}
+
+// Window rows 1 and 2, between the light bar / coins and the minimap: a line (row 2), or a
+// title over it (row 1).
+static void showText2(const char *title, const char *line)
+{
+    VDP_clearTextArea(12, 1, 21, 2);
     VDP_setTextPalette(PAL0);
-    VDP_drawText(name, 22 - len / 2, 2);
+    if (title) drawCentred(title, 1);
+    drawCentred(line, 2);
     itemMessage = IS_PAL_SYSTEM ? 100 : 120;
+}
+
+static void showText(const char *line)
+{
+    showText2(NULL, line);
 }
 
 static void forceHud(void)
@@ -874,13 +892,10 @@ static void updateRoom(u16 pad, u16 pressed)
     hitStop = lv.enemies.hitStop;
     lv.enemies.hitStop = 0;
     if (events & LEVEL_REDRAW) drawRoom();
-    if (events & LEVEL_ITEM) showText(player_itemName(lv.lastItem));
+    if (events & LEVEL_ITEM) showText2(player_itemName(lv.lastItem), player_itemPhrase(lv.lastItem));
     if (events & LEVEL_MESSAGE)
-    {
-        char buy[24];
-        if (lv.message == MSG_BUY) sprintf(buy, "HAUT: %s", player_itemName(lv.messageItem));   // 21 chars max
-        showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? buy : "PAS ASSEZ DE PIECES");
-    }
+        // No name on a ware (Isaac-style: the items are known by their look).
+        showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER" : "PAS ASSEZ DE PIECES");
     if (events & LEVEL_GEM)
     {
         startFloorWon();

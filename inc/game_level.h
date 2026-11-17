@@ -60,6 +60,9 @@ typedef struct
     u8 cleared[FLOOR_H][FLOOR_W];      // all enemies killed: the room stays empty
     u8 opened[FLOOR_H][FLOOR_W];       // hidden passages broken open (DOOR_* bits, both sides)
     u8 taken[FLOOR_H][FLOOR_W];        // the room's item was picked up
+    u8 roomItem[FLOOR_H][FLOOR_W];     // upgrade on the altar of each upgrade / super secret room
+    u8 shopWares[2];                   // the shop's two upgrades (one shop per floor)
+    u16 itemsDealt;                    // bit per upgrade already placed on this floor: no twice
     Cracked cracked[4];                // cracked walls of the current room
     u8 crackedCount;
     u8 itemId, lastItem;               // item on the altar of the current room (ITEM_*)

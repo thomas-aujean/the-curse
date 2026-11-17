@@ -147,3 +147,7 @@ Palette PAL0 1..9 commune : 5 couleurs pour le sol (verts de l'herbe gardés), 4
 - Tombes (objet `1ab648de`, gardées : b54d1ef8, 34c07c62, e7fead90, d44c1164, 01f76217) → `art_in/decor/grave_*.png`
 Vérifier une salle sans BlastEm : `wsl sh tools/test.sh` puis
 `wsl python3 tools/art/render_room.py out/room_7.txt out/room_7.png`.
+
+## Icônes des objets (17/11)
+
+Objet PixelLab `268344c0-2642-4698-b30c-c29ba1ac0aad` : 64 candidats 16 x 16 (8 par objet), dessinés dans les couleurs de PAL2. Retenus : 6 cœur de pierre, 10 bottes de vent, 16 ailes de corbeau, 29 lame longue, 33 lanterne, 42 cœur de verre, 55 bottes de plomb, 59 sang du Néant -> `art_in/items/`, importés par `tools/art/items.py`.

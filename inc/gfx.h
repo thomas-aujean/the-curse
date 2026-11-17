@@ -6,11 +6,9 @@
 // Placeholder graphics, built from ASCII art at boot until real art goes through rescomp.
 #define GFX_TILE_SOLID    (TILE_USER_INDEX + 0)
 #define GFX_TILE_PLATFORM (TILE_USER_INDEX + 1)
-#define GFX_TILE_STAND    (TILE_USER_INDEX + 2)    // 2 x 4 tiles
-#define GFX_TILE_CROUCH   (TILE_USER_INDEX + 10)   // 2 x 4 tiles
-#define GFX_TILE_SLASH    (TILE_USER_INDEX + 18)   // 3 x 2 tiles
-#define GFX_TILE_SLASH_UP (TILE_USER_INDEX + 24)   // 2 x 3 tiles
-#define GFX_TILE_SLASH_DOWN (TILE_USER_INDEX + 30) // 2 x 3 tiles
+// PixelLab item icons (res/items.png, tools/art/items.py): 2 x 2 tiles (PAL2) each, in the order of
+// the upgrades (ITEM_STONE_HEART ...). In the place of the old placeholder ninja, up to 34.
+#define GFX_ITEMS         (TILE_USER_INDEX + 2)    // 8 x 4 tiles
 
 #define GFX_TILE_SOLID_VOID    (TILE_USER_INDEX + 50)   // room tiles outside the circle (PAL3)
 #define GFX_TILE_PLATFORM_VOID (TILE_USER_INDEX + 51)

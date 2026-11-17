@@ -71,15 +71,44 @@ static u8 nearPlayer(s16 x, s16 y, s16 ppx, s16 ppy);
 static const u8 DIR_BITS[4] = { DOOR_LEFT, DOOR_RIGHT, DOOR_UP, DOOR_DOWN };
 static const char DIR_MARKER[4] = { 'L', 'R', 'U', 'D' };
 
-// Which item a room holds: fixed per seed and cell, so the same floor always gives the same items.
+// An upgrade not yet placed on this floor (Thomas: never the same one twice in a floor), from a
+// random start; any once all of them are out.
+static u8 dealItem(Level *lv, u16 h)
+{
+    u8 start = h % UPGRADE_COUNT;
+    for (u8 k = 0; k < UPGRADE_COUNT; k++)
+    {
+        u8 i = (start + k) % UPGRADE_COUNT;
+        if (lv->itemsDealt & (1 << i)) continue;
+        lv->itemsDealt |= 1 << i;
+        return ITEM_FIRST_UPGRADE + i;
+    }
+    return ITEM_FIRST_UPGRADE + start;
+}
+
+// Altars and shop dealt when the floor starts: fixed per seed, so the same floor gives the same items.
+static void dealFloorItems(Level *lv)
+{
+    lv->itemsDealt = 0;
+    for (u8 y = 0; y < FLOOR_H; y++)
+        for (u8 x = 0; x < FLOOR_W; x++)
+        {
+            u8 type = lv->floor.type[y][x];
+            u16 h = lv->floor.seed * 13 + x * 7 + y * 3 + type;
+            h ^= h >> 5;
+            lv->roomItem[y][x] = type == ROOM_UPGRADE || type == ROOM_SUPER_SECRET ? dealItem(lv, h) : ITEM_NONE;
+            if (type == ROOM_SHOP)
+            {
+                lv->shopWares[0] = dealItem(lv, h);
+                lv->shopWares[1] = dealItem(lv, h >> 3);
+            }
+        }
+}
+
+// Which item a room holds.
 static u8 itemFor(const Level *lv, u8 x, u8 y)
 {
-    u8 type = lv->floor.type[y][x];
-    if (type == ROOM_SECRET) return ITEM_HEART;
-    if (type != ROOM_UPGRADE && type != ROOM_SUPER_SECRET) return ITEM_NONE;
-    u16 h = lv->floor.seed * 13 + x * 7 + y * 3 + type;
-    h ^= h >> 5;
-    return ITEM_FIRST_UPGRADE + h % UPGRADE_COUNT;
+    return lv->floor.type[y][x] == ROOM_SECRET ? ITEM_HEART : lv->roomItem[y][x];
 }
 
 // enteredBy: the door of the new room the player comes through (0 = level start).
@@ -159,8 +188,7 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             if (lv->shopBought[y][x] & (1 << slot)) continue;
             Pickup *pk = &lv->pickups[slot];
             pk->type = PICKUP_ITEM;
-            pk->itemId = slot == 0 ? ITEM_HEART
-                : ITEM_FIRST_UPGRADE + (lv->floor.seed + slot * 5 + x) % UPGRADE_COUNT;
+            pk->itemId = slot == 0 ? ITEM_HEART : lv->shopWares[slot - 1];
             pk->price = slot == 0 ? SHOP_HEART_PRICE : SHOP_ITEM_PRICE;
             static const s8 SLOT_X[3] = { -96, -48, 48 };   // the middle is the trapdoor and its arrow
             pk->x = (s32) (t->wBlocks * 8 + SLOT_X[slot]) << 8;
@@ -244,6 +272,7 @@ void level_start(Level *lv, Player *p, u16 seed, u8 depth)
             lv->visited[y][x] = lv->cleared[y][x] = lv->opened[y][x] = lv->taken[y][x] = 0,
             lv->propsBroken[y][x] = lv->shopBought[y][x] = 0;
     lv->rng = seed | 1;
+    dealFloorItems(lv);
     lv->gemActive = 0;
     lv->bossFight = 0;
 
@@ -405,7 +434,7 @@ static u8 breakProps(Level *lv, const Player *p)
                 Pickup *pk = &lv->pickups[k];
                 if (pk->type != PICKUP_NONE) continue;
                 pk->type = PICKUP_ITEM;
-                pk->itemId = ITEM_FIRST_UPGRADE + lootRandom(lv) % UPGRADE_COUNT;
+                pk->itemId = dealItem(lv, lootRandom(lv));
                 pk->price = 0;
                 pk->x = (s32) pr->x << 8;
                 pk->y = (s32) (pr->y - 16) << 8;

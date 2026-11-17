@@ -304,6 +304,22 @@ int main(void)
     for (unsigned seed = 2; seed < 200; seed += 3)
     {
         level_start(&lv, &p, (u16) seed, 3);
+        // No upgrade twice on a floor: altars and the shop's wares are all different.
+        {
+            unsigned seen = 0;
+            for (int y = 0; y < FLOOR_H; y++)
+                for (int x = 0; x < FLOOR_W; x++)
+                {
+                    u8 items[3] = { lv.roomItem[y][x], ITEM_NONE, ITEM_NONE };
+                    if (lv.floor.type[y][x] == ROOM_SHOP) items[1] = lv.shopWares[0], items[2] = lv.shopWares[1];
+                    for (int k = 0; k < 3; k++)
+                        if (items[k] != ITEM_NONE)
+                        {
+                            CHECK(!(seen & (1u << items[k])), "seed %u: item %d twice on the floor", seed, items[k]);
+                            seen |= 1u << items[k];
+                        }
+                }
+        }
         for (int y = 0; y < FLOOR_H; y++)
             for (int x = 0; x < FLOOR_W; x++)
             {

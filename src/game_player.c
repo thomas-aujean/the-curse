@@ -157,6 +157,18 @@ const char *player_itemName(u8 item)
     return item < ITEM_COUNT ? NAMES[item] : "";
 }
 
+// Isaac-style: the items are known by their look, a short line hints at what one does.
+const char *player_itemPhrase(u8 item)
+{
+    static const char *const PHRASES[ITEM_COUNT] =
+    {
+        "", "LA VIE REVIENT",
+        "LOURD MAIS SOLIDE", "LE VENT TE PORTE", "PRENDS TON ENVOL", "LA LAME S'ALLONGE",
+        "LA NUIT RECULE", "FRAGILE ET FEROCE", "CHAQUE PAS PESE", "LE NEANT A SOIF",
+    };
+    return item < ITEM_COUNT ? PHRASES[item] : "";
+}
+
 static u8 solidAt(const Room *r, s16 px, s16 py)
 {
     return room_tileAt(r, px, py) == TILE_SOLID;

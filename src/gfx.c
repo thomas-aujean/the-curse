@@ -6,62 +6,6 @@
 // PAL0 (room): 1-3 bricks, 4-5 platform, 15 text.  PAL1 (ninja): 1 outline, 2-3 suit, 4 skin,
 // 5 red scarf, 6 blade.
 
-static const char *const NINJA[32] =
-{
-    "......1111......",
-    ".....133331.....",
-    "....13333331....",
-    "....13444441.55.",
-    "....13444441155.",
-    "....13333331..5.",
-    ".....133331.....",
-    "......1331......",
-    "....11333311....",
-    "...1333333331...",
-    "..133133331331..",
-    "..131133331131..",
-    "..131133331131..",
-    "..131155551131..",
-    "..144133331441..",
-    "...11.3333.11...",
-    ".....133331.....",
-    ".....133331.....",
-    "....13311331....",
-    "....1331.1331...",
-    "....1331..1331..",
-    "...1331...1331..",
-    "...1331....1331.",
-    "...1331....1331.",
-    "...1331.....131.",
-    "..13331.....1331",
-    "..1331......1331",
-    "..1331......1331",
-    ".13331.....13331",
-    ".11111.....11111",
-    "................",
-    "................",
-};
-
-static const char *const SLASH[16] =
-{
-    "..........666666........",
-    "............66666666....",
-    "...............6666666..",
-    ".................666666.",
-    "..................66666.",
-    "...................6666.",
-    "...................6666.",
-    "..................66666.",
-    ".................666666.",
-    "...............6666666..",
-    "............66666666....",
-    "..........666666........",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
-};
-
 static const char *const WALKER[24] =
 {
     "......1111......",
@@ -265,22 +209,10 @@ static u8 plainPixel(const char *const *rows, u8 x, u8 y)
     return artPixel(rows[y], x);
 }
 
-// Horizontal art turned a quarter: its right side (the edge of the arc) ends up on top.
-static u8 rotatedPixel(const char *const *rows, u8 x, u8 y)
-{
-    return artPixel(rows[x], 23 - y);
-}
-
 // Art drawn at double size (placeholder boss).
 static u8 doubledPixel(const char *const *rows, u8 x, u8 y)
 {
     return artPixel(rows[y >> 1], x >> 1);
-}
-
-// The other quarter turn: the edge of the arc ends up at the bottom.
-static u8 rotatedDownPixel(const char *const *rows, u8 x, u8 y)
-{
-    return artPixel(rows[15 - x], y);
 }
 
 // Sprite tiles are stored column by column (all rows of column 0, then column 1...).
@@ -299,7 +231,6 @@ static void artToTiles(const char *const *rows, PixelFn *pixel, u8 wTiles, u8 hT
 void gfx_load(void)
 {
     static u32 buffer[16 * 8];
-    const char *crouch[32];
 
     PAL_setColor(0, RGB24_TO_VDPCOLOR(0x101028));   // background
     PAL_setColor(1, RGB24_TO_VDPCOLOR(0x442222));
@@ -341,22 +272,9 @@ void gfx_load(void)
     PAL_setColors(16, pal_ninja.data, 16, CPU);
     VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);
     VDP_loadTileSet(&ts_chests, GFX_CHESTS, CPU);
+    VDP_loadTileSet(&ts_items, GFX_ITEMS, CPU);
     gfx_loadDecor();
 
-    artToTiles(NINJA, plainPixel, 2, 4, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_STAND, 8, CPU);
-
-    // Crouch: upper body lowered by 10 rows over the bottom of the legs, feet stay on the same row.
-    for (u8 y = 0; y < 32; y++) crouch[y] = y < 10 ? "" : y < 24 ? NINJA[y - 10] : NINJA[y];
-    artToTiles(crouch, plainPixel, 2, 4, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_CROUCH, 8, CPU);
-
-    artToTiles(SLASH, plainPixel, 3, 2, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_SLASH, 6, CPU);
-    artToTiles(SLASH, rotatedPixel, 2, 3, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_SLASH_UP, 6, CPU);
-    artToTiles(SLASH, rotatedDownPixel, 2, 3, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_SLASH_DOWN, 6, CPU);
 
     artToTiles(WALKER, doubledPixel, 4, 4, buffer);
     VDP_loadTileData(buffer, GFX_TILE_BOSS_TOP, 16, CPU);
