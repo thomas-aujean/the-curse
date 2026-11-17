@@ -29,7 +29,7 @@ BANDS = [
     (212, 256, 16, 0),  # forest
 ]
 # Free stretches of video memory for these tiles: (offset from TILE_USER_INDEX, length); see gfx.h.
-RANGES = [(223, 257), (576, 24), (656, 44), (716, 44), (1960, 72)]
+RANGES = [(228, 252), (576, 24), (656, 44), (716, 44), (1960, 72)]
 
 BAYER = [[0, 2], [3, 1]]
 SKY = [10, 11, 12, 13, 14]   # PAL0 slots, dark violet -> sun glow
@@ -110,7 +110,16 @@ def compose(pal):
                          (0xF8, 0xB0, 0x60)], key=lambda c: dist(c, p[:3]))]
     x0, y0 = min(x for x, _ in castle), min(y for _, y in castle)
     castle = {(x - x0, y - y0): c for (x, y), c in castle.items()}
-    _paste(img, castle, 300, 175, 96, 176)
+    # Lower than its picture: the foot of its peak goes behind the hills, and its last rows melt into
+    # the hills' base colour (Thomas: "the castle looks like it floats").
+    cw_, ch_ = _size(castle)
+    _paste(img, castle, 300, 175 + 14, 96, 176)
+    for y in range(160, 176):
+        k = (y - 160) * 4 // 16          # 0..3: share of pixels melted, by ordered dither
+        for x in range(300, 300 + cw_):
+            yy = y - (175 + 14 - (ch_ - 1))
+            if (x - 300, yy) in castle and (k >= 3 or BAYER[y % 2][x % 2] < k):
+                img[y][x % W] = 11
 
     # Hills in front of the mountains' flat base colour.
     for y in range(176, 212):

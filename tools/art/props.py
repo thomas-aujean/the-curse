@@ -103,9 +103,12 @@ def pixel(ch):
 
 
 def sheet():
+    """Every prop is moved down so its lowest pixel is on row 15: it stands on the floor."""
     img = [[0] * (16 * len(ORDER)) for _ in range(16)]
     for i, name in enumerate(ORDER):
         art = ART[name]
+        last = max(y for y in range(16) if art[y].strip("."))
+        art = ["." * 16] * (15 - last) + art[:16 - (15 - last)]
         for y in range(16):
             row = art[y].ljust(16, ".")[:16]
             for x in range(16):

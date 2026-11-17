@@ -38,8 +38,9 @@ void room_buildTest(Room *r);
 #define CASTLE_CRACKED     65       // + quarter (drawn by main.c: walls hiding a secret room)
 #define CASTLE_BRANCH      69       // + piece: middle A, middle B, end, tip 1, tip 2 (right side; mirrored on the left)
 #define CASTLE_BRANCH_LOW  74       // + piece: the same, on the row under the platform
-#define CASTLE_DEEP        79       // + quarter: inner ground far from the air, darker
-#define CASTLE_TILES       83
+#define CASTLE_BRANCH_HIGH 79       // + piece: the same, on the row above (twigs)
+#define CASTLE_DEEP        84       // + quarter: inner ground far from the air, darker
+#define CASTLE_TILES       88
 #define CASTLE_FLIP        0x8000   // mirror the tile
 u16 room_artTile(const Room *r, s16 tx, s16 ty);   // index | CASTLE_FLIP, 0 = empty
 

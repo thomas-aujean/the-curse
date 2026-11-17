@@ -134,5 +134,7 @@ u16 room_artTile(const Room *r, s16 tx, s16 ty)
     if (piece >= 0) return branchTile(CASTLE_BRANCH, piece);
     if (tileOr(r, tx, ty - 1) != TILE_SOLID && (piece = branchPiece(r, tx, ty - 1)) >= 0)
         return branchTile(CASTLE_BRANCH_LOW, piece);
+    if (tileOr(r, tx, ty + 1) != TILE_SOLID && (piece = branchPiece(r, tx, ty + 1)) >= 0)
+        return branchTile(CASTLE_BRANCH_HIGH, piece);
     return 0;
 }

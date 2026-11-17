@@ -5,6 +5,7 @@ Room tiles (res/castle.png, contract in inc/gfx.h): the ground's Wang quarters a
 castle.py, then the branch pieces instead of the planks:
   69..73  branch, platform row:   middle A, middle B, end, tip 1, tip 2
   74..78  branch, row under it:   same order
+  79..83  branch, row above it:   same order (twigs over the walking surface)
 A platform run is middle tiles (A / B by column parity) between two ends; the ends and the tips past
 them are the same tiles mirrored on the left. Tips and the row under a branch only go on empty tiles.
 
@@ -83,11 +84,15 @@ def _indexer(pal):
 
 
 def branch_tiles(pal):
+    """Three rows of 5 pieces: the platform row starts where the wood starts in the middle of the
+    branch (what stands on it must touch it), the row under it, and the twigs above it."""
     index = _indexer(pal)
     px = _load(BRANCH)
-    top = min(y for _, y in px)
+    x0 = BRANCH_COLUMNS[0]
+    tops = [min(y for (x, y) in px if x == c) for c in range(x0, x0 + 16)]
+    top = sorted(tops)[len(tops) // 2]   # the wood's top surface (median: twigs stick out above it)
     tiles = []
-    for row in (0, 1):
+    for row in (0, 1, -1):
         for x0 in BRANCH_COLUMNS:
             tiles.append([[index(px[(x0 + x, top + row * 8 + y)]) if (x0 + x, top + row * 8 + y) in px else 0
                            for x in range(8)] for y in range(8)])
