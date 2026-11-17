@@ -74,7 +74,7 @@ def compose(pal):
 
     # Clouds, a few per band, drifting.
     clouds = [_load("cloud_%d.png" % i, pal) for i in range(6)]
-    for (x, y, k) in [(20, 22, 0), (330, 16, 2), (430, 46, 5),
+    for (x, y, k) in [(20, 22, 0), (330, 16, 2),
                       (70, 76, 3), (250, 88, 4)]:
         band = next(b for b in BANDS if b[0] <= y < b[1])
         _paste(img, clouds[k], x, y, band[0], band[1])
@@ -110,29 +110,39 @@ def compose(pal):
                          (0xF8, 0xB0, 0x60)], key=lambda c: dist(c, p[:3]))]
     x0, y0 = min(x for x, _ in castle), min(y for _, y in castle)
     castle = {(x - x0, y - y0): c for (x, y), c in castle.items()}
-    # Lower than its picture: the foot of its peak goes behind the hills, and its last rows melt into
-    # the hills' base colour (Thomas: "the castle looks like it floats").
-    cw_, ch_ = _size(castle)
-    _paste(img, castle, 300, 175 + 14, 96, 176)
-    for y in range(160, 176):
-        k = (y - 160) * 4 // 16          # 0..3: share of pixels melted, by ordered dither
-        for x in range(300, 300 + cw_):
-            yy = y - (175 + 14 - (ch_ - 1))
-            if (x - 300, yy) in castle and (k >= 3 or BAYER[y % 2][x % 2] < k):
-                img[y][x % W] = 11
+    # Lower than its picture (Thomas: "it still looks like it floats"): its peak stands behind a dark
+    # ridge running the whole width at the bottom of the band. The ridge's colour (10) carries on as the
+    # flat colour of the next band, so nothing ends in mid-air at the band's edge.
+    _paste(img, castle, 300, 175 + 16, 96, 176)
+    ridge = {}
+    pieces = [_load("hill_a.png", pal), _load("hill_b.png", pal)]
+    for x0, k in ((0, 0), (128, 0), (256, 0), (384, 0)):   # period 128: its tiles repeat
+        pw, ph = _size(pieces[k])
+        for (x, y), c in pieces[k].items():
+            yy = 175 + 4 - (ph - 1) + y         # sunk 4 px: a low ridge
+            if yy < 176:
+                key = ((x0 + x) % W, yy)
+                ridge[key] = c
+    for x in range(W):
+        ys = [y for (xx, y) in ridge if xx == x]
+        if not ys:
+            continue
+        for y in range(min(ys), 176):
+            img[y][x] = ridge.get((x, y), 10)
 
-    # Hills in front of the mountains' flat base colour.
+    # Hills in front of the ridge's flat colour, one step darker than the ridge.
     for y in range(176, 212):
         for x in range(W):
-            img[y][x] = 11
-    hills = [_load("hill_a.png", pal), _load("hill_b.png", pal)]
+            img[y][x] = 10
+    darker = {10: 2, 11: 10, 12: 11}
+    hills = [{p: darker.get(c, c) for p, c in _load(n, pal).items()} for n in ("hill_a.png", "hill_b.png")]
     for x0, k in ((0, 0), (150, 1), (310, 0), (390, 1)):
         _paste(img, hills[k], x0, 211, 176, 212)
 
     # Forest in front of the hills' flat base colour; period 256 to save tiles.
     for y in range(212, 256):
         for x in range(W):
-            img[y][x] = 10
+            img[y][x] = 2
     forest = [_load("forest_a.png", pal), _load("forest_b.png", pal)]
     for x0, k in ((0, 0), (110, 1), (256, 0), (366, 1)):
         _paste(img, forest[k], x0, 212 + _size(forest[k])[1] - 1, 212, 256)
