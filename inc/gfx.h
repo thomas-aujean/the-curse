@@ -35,6 +35,11 @@
 #define GFX_TILE_JAR           (TILE_USER_INDEX + 127)  // 2 x 2 (PAL2), bottom on row 15
 #define GFX_TILE_HIT           (TILE_USER_INDEX + 135)  // 2 x 2 (PAL2), spark of a blow that lands
 #define GFX_TILE_TRAP_ARROW    (TILE_USER_INDEX + 131)  // 2 x 2 (PAL2), gold arrow shown over a trapdoor
+// HUD sprites (main.c, drawHud): their tiles are composed in RAM and sent when what they show changes.
+#define GFX_HUD_MAP            (TILE_USER_INDEX + 34)   // 15 tiles: 5 x 3 rooms, column by column
+#define GFX_HUD_COINS          (TILE_USER_INDEX + 53)   // 4 tiles: coin and 3 digits
+#define GFX_HUD_HEARTS         (TILE_USER_INDEX + 99)   // 12 tiles
+#define GFX_HUD_LIGHT          (TILE_USER_INDEX + 111)  // 10 tiles, up to 121
 
 
 #define GFX_FEET_ROW 29   // last pixel row of the feet in the 32-row ninja art
@@ -43,11 +48,12 @@
 // 16 x 16 block, drawn from the solid neighbours around the nearest block corner. Then cracked walls
 // and the branches of zone 1 (outside: earth and grass, branches as one-way platforms).
 #define GFX_CASTLE         (TILE_USER_INDEX + 140)   // 88 tiles (CASTLE_TILES), up to 228
-// The room is on plane B and the far background on plane A: the HUD (window, top 3 rows) replaces
-// plane A only, so the top of the room, its doors, still shows under the hearts.
-#define ROOM_PLANE         BG_B
-#define FAR_PLANE          BG_A
-// Far background (plane A, tools/art/far.py): its tiles fill free stretches of video memory listed in
+// The room is on plane A, in front of the far background (plane B): the Void darkens the room with
+// the shadow mode (low priority on both planes), which needs the room in front. The HUD is sprites,
+// so the top of the room, its doors, shows under the hearts.
+#define ROOM_PLANE         BG_A
+#define FAR_PLANE          BG_B
+// Far background (plane B, tools/art/far.py): its tiles fill free stretches of video memory listed in
 // far.py (RANGES) and far_map.h: 228..479, 576..599, 656..699, 716..759 and 1960..2031.
 // Tile indices: CASTLE_* in game_room.h.
 
@@ -84,6 +90,11 @@
 #define GFX_CHEST_TILES    16
 
 void gfx_load(void);
+// HUD tile pictures (4-bit pixels, 8 rows): 0 heart, 1 half, 2 empty, 3 light, 4 light empty,
+// 5 map room here, 6 map room known (both in colour 15); the coin; the digits (colour 15).
+const u32 *gfx_hudPicture(u8 i);
+const u32 *gfx_coinPicture(void);
+const u32 *gfx_digitPicture(u8 d);
 u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
 void gfx_loadDecor(void);   // decor tiles into video memory (again after a full-screen message)
 void gfx_drawFar(void);   // the parallax sky on FAR_PLANE

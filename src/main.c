@@ -327,7 +327,8 @@ static void drawRoom(void)
 #define SPRITE_EXT2 (SPRITE_PICKUPS + MAX_PICKUPS)   // second extension cell of the hero
 #define SPRITE_BODY_LOW (SPRITE_EXT2 + 1)   // hero below row 32 (hardware sprites are 4 x 4 tiles max)
 #define SPRITE_HIT (SPRITE_BODY_LOW + 1)    // spark of a blow; chained right after the hero, over the enemies
-#define SPRITE_COUNT (SPRITE_HIT + 1)
+#define SPRITE_HUD (SPRITE_HIT + 1)        // 9 sprites: hearts 3, light 3, coins, minimap 2
+#define SPRITE_COUNT (SPRITE_HUD + 9)
 
 // Animation frame from the player's state. Running advances one frame every 7 px travelled,
 // so the legs match the ground speed (and the upgrades that change it).
@@ -575,7 +576,7 @@ static void drawSprites(void)
     }    for (u8 i = 0; i < MAX_PICKUPS; i++)
     {
         const Pickup *pk = &lv.pickups[i];
-        u8 index = SPRITE_PICKUPS + i, link = i + 1 < MAX_PICKUPS ? index + 1 : 0;
+        u8 index = SPRITE_PICKUPS + i, link = i + 1 < MAX_PICKUPS ? index + 1 : SPRITE_HUD;
         s16 x = (pk->x >> 8) - camX, y = (pk->y >> 8) - camY;
         if (pk->type == PICKUP_NONE || offScreen(x - 8, y - 20))
             VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
@@ -587,6 +588,21 @@ static void drawSprites(void)
             VDP_setSpriteFull(index, x - 8, y - 20, SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, itemTile(pk->itemId)), link);
         else VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
     }
+    // HUD, last in the chain (behind the other sprites), over the room: the window's old rows.
+    static const u8 HUD[9][5] =   // x, y (tiles), width, height, first tile offset
+    {
+        { 1, 0, 4, 1, 0 }, { 5, 0, 4, 1, 4 }, { 9, 0, 4, 1, 8 },    // hearts
+        { 1, 1, 4, 1, 0 }, { 5, 1, 4, 1, 4 }, { 9, 1, 2, 1, 8 },    // light
+        { 1, 2, 4, 1, 0 },                                          // coins
+        { 34, 0, 4, 3, 0 }, { 38, 0, 1, 3, 12 },                    // minimap
+    };
+    for (u8 k = 0; k < 9; k++)
+    {
+        u16 base = k < 3 ? GFX_HUD_HEARTS : k < 6 ? GFX_HUD_LIGHT : k == 6 ? GFX_HUD_COINS : GFX_HUD_MAP;
+        u16 pal = k < 3 ? PAL1 : (k < 6 && player.corrupted) ? PAL3 : PAL2;
+        VDP_setSpriteFull(SPRITE_HUD + k, HUD[k][0] * 8, HUD[k][1] * 8, SPRITE_SIZE(HUD[k][2], HUD[k][3]),
+                          TILE_ATTR_FULL(pal, 1, 0, 0, base + HUD[k][4]), k < 8 ? SPRITE_HUD + k + 1 : 0);
+    }
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
 
@@ -596,35 +612,59 @@ static void hideSprites(void)
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
 
-// HUD in the window plane (does not scroll): hearts and light bar top left, minimap of the rooms around
+// HUD (does not scroll): hearts and light bar top left, minimap of the rooms around
 // top right. Each part is redrawn only when what it shows has changed.
 static u8 hudHp = 0xFF, hudMaxHp = 0xFF, hudLight = 0xFF, hudCell = 0xFF, hudCorrupted = 0xFF;
 static u16 hudCoins = 0xFFFF;
 static u16 itemMessage;   // frames left showing a message (the item just taken, its line)
 
-static void hudTile(u16 x, u16 y, u16 pal, u16 tile)
+// The HUD is sprites, not the window plane: the window would hide plane A, the room, and its doors
+// in the top rows. Each part's tiles are composed in its own RAM buffer (the DMA queue reads them at
+// the next vertical blank) and sent only when what it shows changes.
+static u32 hudHearts[12 * 8], hudLightTiles[10 * 8], hudMap[15 * 8], hudCoinTiles[4 * 8];
+
+static void copyTile(u32 *dst, const u32 *src)
 {
-    VDP_setTileMapXY(WINDOW, TILE_ATTR_FULL(pal, 1, 0, 0, tile), x, y);
+    if (src) memcpy(dst, src, 32);
+    else memset(dst, 0, 32);
+}
+
+// A picture drawn in colour 15, in colour c instead.
+static void recolourTile(u32 *dst, const u32 *src, u8 c)
+{
+    for (u8 y = 0; y < 8; y++)
+    {
+        u32 line = 0;
+        for (s8 x = 7; x >= 0; x--)
+        {
+            u8 v = (src[y] >> (x * 4)) & 15;
+            line = (line << 4) | (v ? c : 0);
+        }
+        dst[y] = line;
+    }
 }
 
 static void drawMinimap(void)
 {
-    // 5 x 3 rooms around the current one, Isaac-style: filled = here, outline = known.
-    for (s8 dy = -1; dy <= 1; dy++)
-        for (s8 dx = -2; dx <= 2; dx++)
+    // 5 x 3 rooms around the current one, Isaac-style: filled = here, outline = known. One sprite
+    // palette (PAL2) for all: the kind of room is the colour (2 plain, 15 special, 4 boss, 13 Void).
+    for (s8 dx = -2; dx <= 2; dx++)
+        for (s8 dy = -1; dy <= 1; dy++)
         {
+            u32 *dst = &hudMap[((dx + 2) * 3 + dy + 1) * 8];   // sprite tiles go column by column
             s16 x = lv.cellX + dx, y = lv.cellY + dy;
-            u16 tile = 0, pal = PAL0;
-            if (x >= 0 && y >= 0 && x < FLOOR_W && y < FLOOR_H && lv.visited[y][x])
+            if (x < 0 || y < 0 || x >= FLOOR_W || y >= FLOOR_H || !lv.visited[y][x])
             {
-                u8 t = lv.floor.type[y][x];
-                tile = (dx == 0 && dy == 0) ? GFX_TILE_MAP_FILLED : GFX_TILE_MAP_OUTLINE;
-                if (t == ROOM_BOSS) pal = PAL1;
-                else if (t >= ROOM_UPGRADE) pal = PAL2;
-                if (level_cellInVoid(&lv, x, y) && t != ROOM_SECRET && t != ROOM_SUPER_SECRET) pal = PAL3;
+                copyTile(dst, NULL);
+                continue;
             }
-            hudTile(36 + dx, 1 + dy, pal, tile);
+            u8 t = lv.floor.type[y][x], c = 2;
+            if (t == ROOM_BOSS) c = 4;
+            else if (t >= ROOM_UPGRADE) c = 15;
+            if (level_cellInVoid(&lv, x, y) && t != ROOM_SECRET && t != ROOM_SUPER_SECRET) c = 13;
+            recolourTile(dst, gfx_hudPicture(dx == 0 && dy == 0 ? 5 : 6), c);
         }
+    VDP_loadTileData(hudMap, GFX_HUD_MAP, 15, DMA_QUEUE);
 }
 
 static void drawHud(void)
@@ -634,19 +674,16 @@ static void drawHud(void)
         hudHp = player.hp;
         hudMaxHp = player.maxHp;
         for (u8 i = 0; i < 12; i++)   // one heart = 2 hit points
-        {
-            u16 tile = 0;
-            if (i * 2 < player.maxHp)
-                tile = player.hp >= i * 2 + 2 ? GFX_TILE_HEART : player.hp == i * 2 + 1 ? GFX_TILE_HEART_HALF : GFX_TILE_HEART_EMPTY;
-            hudTile(1 + i, 0, PAL1, tile);
-        }
+            copyTile(&hudHearts[i * 8], i * 2 >= player.maxHp ? NULL
+                     : gfx_hudPicture(player.hp >= i * 2 + 2 ? 0 : player.hp == i * 2 + 1 ? 1 : 2));
+        VDP_loadTileData(hudHearts, GFX_HUD_HEARTS, 12, DMA_QUEUE);
     }
     u8 steps = (u32) player.light * 10 / player.lightMax;
-    if (steps != hudLight || player.corrupted != hudCorrupted)
+    if (steps != hudLight)
     {
         hudLight = steps;
-        for (u8 i = 0; i < 10; i++)
-            hudTile(1 + i, 1, player.corrupted ? PAL3 : PAL2, i < steps ? GFX_TILE_LIGHT : GFX_TILE_LIGHT_EMPTY);
+        for (u8 i = 0; i < 10; i++) copyTile(&hudLightTiles[i * 8], gfx_hudPicture(i < steps ? 3 : 4));
+        VDP_loadTileData(hudLightTiles, GFX_HUD_LIGHT, 10, DMA_QUEUE);
     }
     if (player.corrupted != hudCorrupted)
     {
@@ -662,12 +699,17 @@ static void drawHud(void)
     }
     if (player.coins != hudCoins)
     {
-        char line[8];
         hudCoins = player.coins;
-        hudTile(1, 2, PAL2, GFX_TILE_COIN);
-        sprintf(line, "%u  ", player.coins);
-        VDP_setTextPalette(PAL0);
-        VDP_drawText(line, 2, 2);
+        u16 n = player.coins > 999 ? 999 : player.coins;
+        copyTile(hudCoinTiles, gfx_coinPicture());
+        u8 d[3] = { n / 100, n / 10 % 10, n % 10 }, first = n >= 100 ? 0 : n >= 10 ? 1 : 2;
+        for (u8 k = 0; k < 3; k++)   // left-aligned after the coin, light (colour 2)
+        {
+            u8 at = k + first;
+            if (at < 3) recolourTile(&hudCoinTiles[(k + 1) * 8], gfx_digitPicture(d[at]), 2);
+            else copyTile(&hudCoinTiles[(k + 1) * 8], NULL);
+        }
+        VDP_loadTileData(hudCoinTiles, GFX_HUD_COINS, 4, DMA_QUEUE);
     }
     // Shop price tags under the wares (the small shop room never scrolls).
     if (lv.shopChanged)
@@ -684,7 +726,11 @@ static void drawHud(void)
             VDP_drawTextBG(ROOM_PLANE, tag, (pk->x >> 8) / 8 - (pk->price >= 10), (pk->y >> 8) / 8 - 4);
         }
     }
-    if (itemMessage && --itemMessage == 0) VDP_clearTextArea(12, 1, 21, 2);
+    if (itemMessage && --itemMessage == 0)
+    {
+        VDP_clearTileMapRect(WINDOW, 0, 0, 64, 3);
+        VDP_setWindowVPos(FALSE, 0);
+    }
 }
 
 static void drawCentred(const char *text, u16 row)
@@ -695,10 +741,11 @@ static void drawCentred(const char *text, u16 row)
 }
 
 // Window rows 1 and 2, between the light bar / coins and the minimap: a line (row 2), or a
-// title over it (row 1).
+// title over it (row 1). The window covers the top 3 rows only while a message is up.
 static void showText2(const char *title, const char *line)
 {
-    VDP_clearTextArea(12, 1, 21, 2);
+    VDP_clearTileMapRect(WINDOW, 0, 0, 64, 3);   // the rest of the window map holds decor tiles (gfx.h)
+    VDP_setWindowVPos(FALSE, 3);
     VDP_setTextPalette(PAL0);
     if (title) drawCentred(title, 1);
     drawCentred(line, 2);
@@ -728,14 +775,12 @@ static void drawDebug(void)
 }
 #endif
 
-// Room screen: sky on FAR_PLANE (A, parallax), room on ROOM_PLANE (B, high priority), HUD in the window
-// plane over the top 3 rows (the window replaces plane A there; the room still shows through, over the
-// backdrop colour, the top of the sky).
+// Room screen: sky on FAR_PLANE (B, parallax), room on ROOM_PLANE (A, high priority), HUD in sprites;
+// the window plane only for messages.
 static void enterRoom(void)
 {
     mode = MODE_ROOM;
-    VDP_setWindowVPos(FALSE, 3);
-    VDP_setBackgroundColor(10);   // PAL0: the sky's top colour
+    VDP_setWindowVPos(FALSE, 0);
     VDP_setHilightShadow(TRUE);
     VDP_setScrollingMode(HSCROLL_LINE, VSCROLL_PLANE);
     VDP_setTextPlane(WINDOW);
@@ -752,7 +797,6 @@ static void enterMap(void)
 {
     mode = MODE_MAP;
     VDP_setWindowVPos(FALSE, 0);
-    VDP_setBackgroundColor(0);
     VDP_setHilightShadow(FALSE);
     VDP_setTextPlane(BG_A);
     VDP_setScrollingMode(HSCROLL_PLANE, VSCROLL_PLANE);

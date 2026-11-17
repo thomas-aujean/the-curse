@@ -228,6 +228,23 @@ static void artToTiles(const char *const *rows, PixelFn *pixel, u8 wTiles, u8 hT
             }
 }
 
+static u32 digits[10][8];   // font digits, unpacked once (the font is compressed)
+
+const u32 *gfx_hudPicture(u8 i)
+{
+    return HUD_TILES[i];
+}
+
+const u32 *gfx_coinPicture(void)
+{
+    return COIN_TILE;
+}
+
+const u32 *gfx_digitPicture(u8 d)
+{
+    return digits[d];
+}
+
 void gfx_load(void)
 {
     static u32 buffer[16 * 8];
@@ -273,6 +290,11 @@ void gfx_load(void)
     VDP_loadTileSet(&ts_props, GFX_PROPS, CPU);
     VDP_loadTileSet(&ts_chests, GFX_CHESTS, CPU);
     VDP_loadTileSet(&ts_items, GFX_ITEMS, CPU);
+    {
+        TileSet *font = unpackTileSet(&font_default, NULL);
+        memcpy(digits, font->tiles + ('0' - 32) * 8, sizeof(digits));   // the font starts at ' '
+        MEM_free(font);
+    }
     gfx_loadDecor();
 
 
