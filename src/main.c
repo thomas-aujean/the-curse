@@ -1161,6 +1161,27 @@ static void updateRoom(u16 pad, u16 pressed)
 // Title screen (Thomas, 2026-11-17): the hero on his cliff over the castle (res/title.png, plane B),
 // "PRESS START" blinking. Shown before the game loads its own tiles, which take the picture's place.
 // Returns the frames waited: the floor's seed (every game a new floor).
+// The RetroMaru logo (Thomas, 2026-11-17), before the title: fades in from black, stays two seconds
+// (a button skips it), fades out. Returns the frames it stayed (they feed the floor's seed too).
+static u16 logoScreen(void)
+{
+    PAL_setColors(0, palette_black, 64, CPU);
+    VDP_drawImageEx(BG_B, &img_logo, TILE_ATTR_FULL(PAL0, FALSE, FALSE, FALSE, TILE_USER_INDEX), 0, 0, FALSE, TRUE);
+    PAL_fadeIn(0, 15, img_logo.palette->data, 30, FALSE);
+    u16 frames = 0, prev = JOY_readJoypad(JOY_1);
+    while (frames < 120)
+    {
+        u16 pad = JOY_readJoypad(JOY_1);
+        if ((pad & ~prev) & (BUTTON_START | BUTTON_A | BUTTON_B | BUTTON_C)) break;
+        prev = pad;
+        frames++;
+        SYS_doVBlankProcess();
+    }
+    PAL_fadeOut(0, 15, 20, FALSE);
+    VDP_clearPlane(BG_B, TRUE);
+    return frames;
+}
+
 // Bats far away over the valley: 8 x 8, wings up then spread (PAL0 colour 1, the darkest but one).
 static const u32 TITLE_BAT[2][8] =
 {
@@ -1170,8 +1191,12 @@ static const u32 TITLE_BAT[2][8] =
 
 static u16 titleScreen(void)
 {
-    PAL_setPalette(PAL0, img_title.palette->data, CPU);
-    PAL_setColor(16 + 15, RGB24_TO_VDPCOLOR(0xF8E0B0));   // text: warm white (PAL1, loaded again later)
+    // Drawn in the dark, then faded in: the picture (PAL0) and the text (PAL1 colour 15, warm white).
+    u16 pal[32];
+    memcpy(pal, img_title.palette->data, 16 * 2);
+    memset(&pal[16], 0, 16 * 2);
+    pal[16 + 15] = RGB24_TO_VDPCOLOR(0xF8E0B0);
+    PAL_setColors(0, palette_black, 32, CPU);
     VDP_drawImageEx(BG_B, &img_title, TILE_ATTR_FULL(PAL0, FALSE, FALSE, FALSE, TILE_USER_INDEX), 0, 0, FALSE, TRUE);
     // The knight's corner (tiles 0..11 x 7..18) shows the cape's frames, streamed in turn into one
     // place of video memory after the picture (tools/art/title.py).
@@ -1184,6 +1209,7 @@ static u16 titleScreen(void)
     VDP_loadTileData(TITLE_BAT[0], batBase, 2, CPU);
     VDP_setTextPalette(PAL1);
     VDP_drawTextBG(BG_A, "THE CURSE", 15, 2);
+    PAL_fadeIn(0, 31, pal, 40, FALSE);
     static const s16 BAT[4][3] = { { 340, 70, 3 }, { 420, 92, 4 }, { 520, 60, 5 }, { 610, 84, 3 } };   // x, y, speed
     static const u8 CAPE_STEP[8] = { 0, 1, 2, 3, 4, 3, 2, 1 };   // ping-pong
     u16 frames = 0, prev = 0xFFFF;
@@ -1224,7 +1250,8 @@ int main(bool hardReset)
 #ifdef DEBUG_SCRIPT
     u16 seed = 0x1234;   // replays: the same floor every time, no title to wait for
 #else
-    u16 seed = 0x1234 ^ (titleScreen() * 0x9E37);
+    u16 seed = logoScreen();
+    seed = 0x1234 ^ ((seed + titleScreen()) * 0x9E37);
 #endif
     gfx_load();
     VDP_resetSprites();
