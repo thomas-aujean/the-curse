@@ -32,9 +32,20 @@ const RoomTemplate *level_templateFor(const Level *lv, u8 x, u8 y)
     u16 h = lv->floor.seed ^ (u16) ((x * 31 + y * 17) * 0x9E37);
     h ^= h >> 7;
     h ^= h << 5;
-    // Medium rooms are the most common; the 4 x 3 keep is the rare landmark of a floor.
-    static const u8 PICK[16] = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 3, 4, 4, 5, 6, 6, 7 };
-    return &ROOM_TEMPLATES[PICK[h & 15]];
+    // Weighted like Isaac's rooms: the medium ones are common, the 4 x 3 keep is the rare landmark of a
+    // floor, the treasure room and the ambush rarer still. Order of ROOM_TEMPLATES (rooms.c).
+    static const u8 ROOM_WEIGHT[ROOM_TEMPLATE_COUNT] =
+    {
+        8, 10, 8, 8, 6, 4, 5, 2,   // small, corridor, shaft, hall, long, deep, great, keep
+        8, 1, 10, 2, 8, 7, 6,      // pillars, treasure, stairs, ambush, zigzag, tower, bridges
+        0,                         // the boss arena, never drawn at random
+    };
+    u16 total = 0;
+    for (u8 i = 0; i < ROOM_TEMPLATE_COUNT; i++) total += ROOM_WEIGHT[i];
+    u16 roll = h % total;
+    u8 i = 0;
+    while (roll >= ROOM_WEIGHT[i]) roll -= ROOM_WEIGHT[i++];
+    return &ROOM_TEMPLATES[i];
 }
 
 u8 level_doors(const Level *lv, u8 x, u8 y)

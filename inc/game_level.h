@@ -15,7 +15,7 @@ typedef struct
     const char *const *rows;
 } RoomTemplate;
 
-#define ROOM_TEMPLATE_COUNT 9
+#define ROOM_TEMPLATE_COUNT 16
 #define ROOM_TEMPLATE_RANDOM 8   // the first ones fill ordinary rooms; the last is the boss arena
 extern const RoomTemplate ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT];
 
