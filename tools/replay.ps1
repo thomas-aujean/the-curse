@@ -24,7 +24,7 @@ $entries = foreach ($step in $Steps) {
 $header = "// Généré par tools/replay.ps1 — ne pas modifier.`n#include <genesis.h>`nstatic const u16 SCRIPT[][2] =`n{`n$($entries -join "`n")`n};`n"
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot 'script.h'), $header)
 
-# 2. Build de diagnostic (script + HUD de debug), dans un dossier de sortie séparé.
+# 2. Build de diagnostic (script + HUD de debug), copié dans tools\shots\replay.bin (out\ est vidé).
 $env:GDK = 'D:/code/tools/sgdk'
 $env:Path = "D:\code\tools\jre\bin;D:\code\tools\sgdk\bin;$env:Path"
 Push-Location $root
@@ -35,10 +35,17 @@ try {
     $log = & make -f D:/code/tools/sgdk/makefile.gen release "EXTRA_FLAGS=-DDEBUG_HUD -DDEBUG_SCRIPT -Itools $Flags" 2>&1
     $ErrorActionPreference = 'Stop'
     if (-not (Test-Path out\rom.bin)) { $log | Select-String 'error' | Select-Object -First 10; throw 'Build échoué' }
-} finally { Pop-Location }
+    # La ROM de diagnostic sort de out\ : sinon build.bat, qui croit tout à jour, la garde comme ROM
+    # normale (le perso court tout seul puis le jeu se fige sur « FIN DU SCRIPT »).
+    New-Item -ItemType Directory -Force (Join-Path $PSScriptRoot 'shots') | Out-Null
+    Copy-Item out\rom.bin (Join-Path $PSScriptRoot 'shots\replay.bin') -Force
+} finally {
+    Remove-Item -Recurse -Force out -ErrorAction SilentlyContinue
+    Pop-Location
+}
 
 # 3. Exécution : durée du script + marge, puis capture.
 $totalFrames = ($Steps | ForEach-Object { [int](($_ -split ':')[1]) } | Measure-Object -Sum).Sum
 # The emulator can run behind real time at start-up: wait twice the script length.
 # Waiting too long is harmless, the game freezes when the script ends.
-& (Join-Path $PSScriptRoot 'play.ps1') -Rom (Join-Path $root 'out\rom.bin') -Steps "wait:$([int]($totalFrames * 2000 / 60) + 3000)", "shot:$Name"
+& (Join-Path $PSScriptRoot 'play.ps1') -Rom (Join-Path $PSScriptRoot 'shots\replay.bin') -Steps "wait:$([int]($totalFrames * 2000 / 60) + 3000)", "shot:$Name"
