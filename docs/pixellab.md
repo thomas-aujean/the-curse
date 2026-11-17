@@ -130,9 +130,9 @@ Ennemis (états de profil, même méthode) :
 Téléchargement d'une pose : `https://backblaze.pixellab.ai/file/pixellab-characters/1f4ad84c-b4e4-40e6-9923-41b6cf028790/<id complet>/rotations/east.png`
 (l'id complet est donné par `get_character`).
 
-## Coffres (, 2026-11-17)
-Objets 1 direction, vue , générés avec les couleurs de PAL2 (), version ouverte = state .
-Source :  et . En jeu : un sprite de 32 x 32 par image, posé au bas centre.
+## Coffres (`tools/art/chests.py`, 2026-11-17)
+Objets 1 direction, vue `sidescroller`, générés avec les couleurs de PAL2 (`palette`), version ouverte = state `open`.
+Source : `art_in/props/<nom>.png` et `<nom>_open.png`. En jeu : un sprite de 32 x 32 par image, posé au bas centre.
 - petit bronze : fermé 03f1c876, ouvert 4ded3485 (26 x 22)
 - petit argent : fermé 56c367e2, ouvert 04a4468a (même forme)
 - gros or : fermé 7ee031ce, ouvert 9fed1de8 (30 x 28, toile de 38)
