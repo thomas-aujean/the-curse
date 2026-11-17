@@ -11,7 +11,7 @@ from pngread import read_png
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 COLOURS = [(0x0D, 0x0D, 0x0D), (0xF1, 0xEC, 0xE2), (0x26, 0x95, 0x8C), (0xF2, 0xC4, 0x64),
            (0xF3, 0xA2, 0x62), (0xE9, 0x70, 0x4F)]   # black, cream, teal, yellow, apricot, coral
-HEIGHT = 184                                         # on screen (224 px high)
+HEIGHT = 96                                          # on screen (224 px high): small, the sun pixelated
 
 
 def build():
