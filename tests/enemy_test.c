@@ -334,6 +334,39 @@ int main(void)
     step(&p, PAD_DOWN, 60);
     CHECK(p.hp < p.maxHp, "the guard's spear reaches a crouching player (hp %d)", p.hp);
 
+    // Guard: spear behind the back, then a crescent while lunging: it reaches a player 50 px away
+    // (the lunge), and hits harder than a touch.
+    {
+        enemies_clear(&set);
+        Enemy *g = enemies_add(&set, ENEMY_GUARD, 120, 200, 0);
+        g->facingLeft = 0;
+        player_init(&p, 170, 200);
+        int windup = 0, slashSeen = 0;
+        s32 x0 = g->x;
+        for (int f = 0; f < 60 && p.hp == p.maxHp; f++)
+        {
+            p.x = 170 << 8;   // the player stands still
+            enemies_update(&set, &room, &p);
+            if (g->pose == ENEMY_POSE_WINDUP && !slashSeen) windup++;
+            if (g->slash == GUARD_SLASH_SIDE) slashSeen = 1;
+        }
+        CHECK(windup > 10 && slashSeen && g->x - x0 > (20 << 8) && p.hp <= p.maxHp - 2,
+              "guard lunge: windup %d slash %d moved %d hp %d", windup, slashSeen, (int) ((g->x - x0) >> 8), p.hp);
+    }
+    // Guard: the player above it gets the crescent upwards.
+    {
+        enemies_clear(&set);
+        Enemy *g = enemies_add(&set, ENEMY_GUARD, 120, 200, 0);
+        player_init(&p, 125, 144);   // on the platform over it
+        int up = 0;
+        for (int f = 0; f < 60 && p.hp == p.maxHp; f++)
+        {
+            enemies_update(&set, &room, &p);
+            if (g->pose == ENEMY_POSE_UP && g->slash == GUARD_SLASH_UP) up = 1;
+        }
+        CHECK(up && p.hp < p.maxHp, "guard strikes upwards (up %d, hp %d)", up, p.hp);
+    }
+
     // Poses for the display: walking legs alternate, the archer aims before shooting, the jelly
     // stretches in the air, the spectre lunges when it chases.
     enemies_clear(&set);

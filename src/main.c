@@ -413,15 +413,15 @@ static const EnemyFrame ENEMY_FRAME[EF_COUNT] = ENEMY_FRAME_TABLE;
 // Drawing of each pose (ENEMY_POSE_*) of each enemy; the boss and the small jelly are drawn apart.
 static const u8 POSE_FRAME[ENEMY_TYPES][ENEMY_POSES] =
 {
-    { 0, 0, 0, 0 },
-    { EF_SOLDIER_WALK_A, EF_SOLDIER_WALK_B, EF_SOLDIER_WINDUP, EF_SOLDIER_STRIKE },
-    { EF_SPECTRE_FLOAT_A, EF_SPECTRE_FLOAT_B, EF_SPECTRE_LUNGE, EF_SPECTRE_LUNGE },
-    { 0, 0, 0, 0 },
-    { EF_ARCHER_IDLE, EF_ARCHER_IDLE, EF_ARCHER_AIM, EF_ARCHER_RELEASE },
-    { 0, 0, 0, 0 },   // ninja: out for now, no drawing (never spawned)
-    { EF_GUARD_WALK_A, EF_GUARD_WALK_B, EF_GUARD_BRACE, EF_GUARD_THRUST },
-    { EF_JELLY_SQUASH, EF_JELLY_STRETCH, EF_JELLY_SQUASH, EF_JELLY_STRETCH },
-    { 0, 0, 0, 0 },
+    { 0, 0, 0, 0, 0 },
+    { EF_SOLDIER_WALK_A, EF_SOLDIER_WALK_B, EF_SOLDIER_WINDUP, EF_SOLDIER_STRIKE, EF_SOLDIER_STRIKE },
+    { EF_SPECTRE_FLOAT_A, EF_SPECTRE_FLOAT_B, EF_SPECTRE_LUNGE, EF_SPECTRE_LUNGE, EF_SPECTRE_LUNGE },
+    { 0, 0, 0, 0, 0 },
+    { EF_ARCHER_IDLE, EF_ARCHER_IDLE, EF_ARCHER_AIM, EF_ARCHER_RELEASE, EF_ARCHER_RELEASE },
+    { 0, 0, 0, 0, 0 },   // ninja: out for now, no drawing (never spawned)
+    { EF_GUARD_WALK_A, EF_GUARD_WALK_B, EF_GUARD_WINDUP, EF_GUARD_THRUST, EF_GUARD_UP },
+    { EF_JELLY_SQUASH, EF_JELLY_STRETCH, EF_JELLY_SQUASH, EF_JELLY_STRETCH, EF_JELLY_STRETCH },
+    { 0, 0, 0, 0, 0 },
 };
 
 // One pose = up to four sprites side by side (tools/art/enemies.py). Mirrored, the cell flips around
@@ -541,7 +541,29 @@ static void drawSprites(void)
                 n += 2;
             }
         }
-        else n = drawEnemyFrame(n, &ENEMY_FRAME[POSE_FRAME[e->type][e->pose]], ex, ey, base, e->facingLeft);
+        else
+        {
+            // The guard's crescent (tools/art/slash.py), in front of its body: side 32 x 48, up 48 x 32.
+            if (e->slash && n + 1 < SPRITE_ENEMIES + ENEMY_SPRITES)
+            {
+                u16 attr = base + GFX_ENEMY_SLASH;
+                if (e->slash == GUARD_SLASH_SIDE)
+                {
+                    s16 sx = e->facingLeft ? ex - 2 - 32 : ex + 2;
+                    VDP_setSpriteFull(n, sx, ey - 50, SPRITE_SIZE(4, 4), attr, n + 1);
+                    VDP_setSpriteFull(n + 1, sx, ey - 18, SPRITE_SIZE(4, 2), attr + 16, n + 2);
+                }
+                else
+                {
+                    s16 l = ex - 24, rx = ex + 8;   // mirrored, the 32 px part goes to the right
+                    if (e->facingLeft) { l = ex + 24 - 32; rx = ex - 24; }
+                    VDP_setSpriteFull(n, l, ey - 84, SPRITE_SIZE(4, 4), attr + 24, n + 1);
+                    VDP_setSpriteFull(n + 1, rx, ey - 84, SPRITE_SIZE(2, 4), attr + 40, n + 2);
+                }
+                n += 2;
+            }
+            n = drawEnemyFrame(n, &ENEMY_FRAME[POSE_FRAME[e->type][e->pose]], ex, ey, base, e->facingLeft);
+        }
     }
     // The exit door, once the boss is gone: on the boss's tiles, given back on the next floor.
     {

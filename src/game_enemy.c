@@ -29,6 +29,8 @@ static s16 ninjaJump, jellyJump, homingAccel;
 static u8 guardTurn;
 static u8 flashFrames, sparkFrames, hitStopFrames, killStopFrames;
 static u8 meleeWindup, meleeStrike, meleeRest, aimFrames, releaseFrames, ninjaWarn;
+static u8 guardWindup, guardStrike, guardRest;
+static s16 guardLunge;
 static u16 sporeLife;
 static s16 arrowGravity;
 static u8 arrowMinFrames, arrowMaxFrames;
@@ -68,6 +70,10 @@ void enemies_setRegion(u8 isPal)
     meleeWindup = isPal ? 24 * 5 / 6 : 24;
     meleeStrike = isPal ? 10 * 5 / 6 : 10;
     meleeRest = isPal ? 30 * 5 / 6 : 30;
+    guardWindup = isPal ? 22 * 5 / 6 : 22;   // spear behind the back: the cue
+    guardStrike = isPal ? 10 * 5 / 6 : 10;   // the crescent, lunging forward
+    guardRest = isPal ? 40 * 5 / 6 : 40;
+    guardLunge = isPal ? 900 * 6 / 5 : 900;  // 3.5 px a frame: ~35 px during the blow
     aimFrames = isPal ? 30 * 5 / 6 : 30;
     releaseFrames = isPal ? 12 * 5 / 6 : 12;
     ninjaWarn = isPal ? 12 * 5 / 6 : 12;
@@ -118,6 +124,7 @@ Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
         e->pose = ENEMY_POSE_A;
         e->attackTimer = 0;
         e->flashTimer = 0;
+        e->slash = GUARD_SLASH_NONE;
         e->hp = STATS[type][0].hp;
         if (voidForm) enemy_setVoidForm(e, 1);
         return e;
@@ -213,7 +220,50 @@ static u8 stridePose(const Enemy *e)
 // How far the blow reaches in front of the body's centre, px (0: this enemy has no blow).
 static s16 meleeReach(u8 type)
 {
-    return type == ENEMY_WALKER ? 24 : type == ENEMY_GUARD ? 28 : 0;
+    return type == ENEMY_WALKER ? 24 : 0;
+}
+
+// Guard (Thomas, 2026-11-17): a powerful blow in two moves, the spear drawn behind the back, then a
+// crescent swept forward while lunging; or the same upwards when the player is above (its weak spot:
+// the shield only covers the front). Returns 1 while the blow is under way (it does not walk).
+static u8 guardAttack(Enemy *e, const Player *p)
+{
+    e->slash = GUARD_SLASH_NONE;
+    if (e->attackTimer)
+    {
+        e->attackTimer--;
+        u8 up = e->state;
+        if (e->attackTimer >= guardRest + guardStrike)
+        {
+            e->pose = ENEMY_POSE_WINDUP;
+            e->vx = 0;
+        }
+        else if (e->attackTimer >= guardRest)
+        {
+            e->pose = up ? ENEMY_POSE_UP : ENEMY_POSE_STRIKE;
+            e->slash = up ? GUARD_SLASH_UP : GUARD_SLASH_SIDE;
+            e->vx = up ? 0 : e->facingLeft ? -guardLunge : guardLunge;
+        }
+        else
+        {
+            e->vx = 0;
+            return 0;
+        }
+        return 1;
+    }
+    if (e->hurtTimer) return 0;
+    s32 dx = (p->x - e->x) >> 8, dy = (p->y - e->y) >> 8;
+    u8 above = absS32(dx) < 28 && dy < -28 && dy > -100;
+    if (e->facingLeft) dx = -dx;
+    if (above || (dx > 0 && dx < 56 && absS32(dy) < 24))
+    {
+        e->state = above;
+        e->attackTimer = guardWindup + guardStrike + guardRest;
+        e->pose = ENEMY_POSE_WINDUP;
+        e->vx = 0;
+        return 1;
+    }
+    return 0;
 }
 
 // Soldier and guard: when the player stands in front, within reach, the enemy stops, raises its
@@ -518,9 +568,11 @@ static void updateGuard(Enemy *e, const EnemyStats *st, const Room *r, const Pla
     s16 w, h;
     enemy_size(e->type, &w, &h);
     s16 px = e->x >> 8, py = e->y >> 8;
-    if (updateMelee(e, p))
+    if (guardAttack(e, p))
     {
-        e->vx = 0;
+        // The lunge stops at walls and ledges.
+        s16 ahead = px + (e->vx < 0 ? -1 : 1) * (w / 2 + 1);
+        if (e->vx && (isSolid(r, ahead, py - 4) || room_tileAt(r, ahead, py) == TILE_EMPTY)) e->vx = 0;
         moveBody(e, r, w, h);
         return;
     }
@@ -689,10 +741,11 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             e->flashTimer = flashFrames;
             s->hitStop = hitStopFrames;
             // A hit breaks the blow being prepared, and the enemy needs a moment to try again.
-            if (meleeReach(e->type))
+            if (meleeReach(e->type) || e->type == ENEMY_GUARD)
             {
-                e->attackTimer = meleeRest;
+                e->attackTimer = e->type == ENEMY_GUARD ? guardRest : meleeRest;
                 e->pose = ENEMY_POSE_A;
+                e->slash = GUARD_SLASH_NONE;
             }
             if (e->type != ENEMY_BOSS)   // the boss is too heavy to be pushed around
             {
@@ -732,6 +785,14 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             player_hurt(p, st->damage, ex > ppx);
         // The blow itself: the weapon reaches further than the body. The soldier swings at chest
         // height, so crouching dodges it; the guard's spear comes lower and does not miss.
+        // The guard's crescent: in front, from above its head to its feet, or over its head.
+        if (e->slash && !e->hurtTimer)
+        {
+            u8 up = e->slash == GUARD_SLASH_UP;
+            s16 bx0 = up ? ex - 24 : e->facingLeft ? ex - 28 : ex + 2, by0 = up ? ey - 84 : ey - 50;
+            s16 bx1 = up ? ex + 24 : e->facingLeft ? ex - 2 : ex + 28, by1 = up ? ey - 52 : ey - 2;
+            if (overlap(px0, py0, px1, py1, bx0, by0, bx1, by1)) player_hurt(p, st->damage + 1, e->facingLeft);
+        }
         s16 reach = meleeReach(e->type);
         if (reach && e->pose == ENEMY_POSE_STRIKE && !e->hurtTimer)
         {

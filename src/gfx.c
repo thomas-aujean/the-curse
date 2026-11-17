@@ -264,6 +264,20 @@ void gfx_loadDoor(void)
     }
 }
 
+// res/slash.png in columns of 6 tiles: side drawing in 4 columns (4 + 2 tiles), up drawing in 6
+// columns (4 tiles used): cut into the guard's sprites (main.c), in hardware column order.
+static void loadSlash(void)
+{
+    const u32 *t = ts_slash.tiles;
+    for (u8 c = 0; c < 4; c++)
+    {
+        VDP_loadTileData(t + c * 6 * 8, GFX_ENEMY_SLASH + c * 4, 4, CPU);
+        VDP_loadTileData(t + (c * 6 + 4) * 8, GFX_ENEMY_SLASH + 16 + c * 2, 2, CPU);
+    }
+    for (u8 c = 0; c < 6; c++)
+        VDP_loadTileData(t + (4 + c) * 6 * 8, GFX_ENEMY_SLASH + 24 + c * 4, 4, CPU);
+}
+
 void gfx_load(void)
 {
     static u32 buffer[16 * 8];
@@ -310,6 +324,7 @@ void gfx_load(void)
     VDP_loadTileSet(&ts_chests, GFX_CHESTS, CPU);
     VDP_loadTileSet(&ts_items, GFX_ITEMS, CPU);
     VDP_loadTileSet(&ts_arrow, GFX_ARROWS, CPU);
+    loadSlash();
     {
         TileSet *font = unpackTileSet(&font_default, NULL);
         memcpy(digits, font->tiles + ('0' - 32) * 8, sizeof(digits));   // the font starts at ' '

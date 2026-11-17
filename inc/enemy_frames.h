@@ -13,8 +13,9 @@ enum
     EF_ARCHER_RELEASE,
     EF_GUARD_WALK_A,
     EF_GUARD_WALK_B,
-    EF_GUARD_BRACE,
+    EF_GUARD_WINDUP,
     EF_GUARD_THRUST,
+    EF_GUARD_UP,
     EF_SPECTRE_FLOAT_A,
     EF_SPECTRE_FLOAT_B,
     EF_SPECTRE_LUNGE,
@@ -23,7 +24,7 @@ enum
     EF_COUNT
 };
 
-#define ENEMY_TILE_COUNT 390
+#define ENEMY_TILE_COUNT 414
 
 // First tile, cell x from the enemy's centre (facing right), cell y from just below its feet,
 // parts: bit 0 = 4x4 at (0, 0), 1 = strip x4 at (32, 0), 2 = 4x2 at (0, 32), 3 = strip x2 at (32, 32),
@@ -39,13 +40,14 @@ enum
     { 162, -14, -48, 0x07 },   /* archer_release */ \
     { 190, -15, -48, 0x05 },   /* guard_walk_a */ \
     { 214, -15, -48, 0x05 },   /* guard_walk_b */ \
-    { 238, -19, -48, 0x1F },   /* guard_brace */ \
+    { 238, -24, -48, 0x1F },   /* guard_windup */ \
     { 274, -16, -48, 0x1F },   /* guard_thrust */ \
-    { 310, -16, -32, 0x01 },   /* spectre_float_a */ \
-    { 326, -16, -32, 0x01 },   /* spectre_float_b */ \
-    { 342, -16, -32, 0x01 },   /* spectre_lunge */ \
-    { 358, -16, -32, 0x01 },   /* jelly_squash */ \
-    { 374, -16, -32, 0x01 },   /* jelly_stretch */ \
+    { 310, -17, -48, 0x05 },   /* guard_up */ \
+    { 334, -16, -32, 0x01 },   /* spectre_float_a */ \
+    { 350, -16, -32, 0x01 },   /* spectre_float_b */ \
+    { 366, -16, -32, 0x01 },   /* spectre_lunge */ \
+    { 382, -16, -32, 0x01 },   /* jelly_squash */ \
+    { 398, -16, -32, 0x01 },   /* jelly_stretch */ \
 }
 
 #endif

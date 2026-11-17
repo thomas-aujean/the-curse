@@ -31,7 +31,9 @@ HUMANS = [
     ("soldier_windup", "soldier/windup"), ("soldier_strike", "soldier/strike"),
     ("archer_idle", "archer/walk_a"), ("archer_aim", "archer/aim_sky"), ("archer_release", "archer/release_sky"),
     ("guard_walk_a", "guard/walk_a"), ("guard_walk_b", "guard/walk_b"),
-    ("guard_brace", "guard/brace"), ("guard_thrust", "guard/thrust"),
+    # Guard (2026-11-17): spear drawn back behind the shoulder (PixelLab state 1822e872), then the
+    # thrust with its crescent (slash.py); upwards: state 20f0ab0f. The old "brace" pose is unused.
+    ("guard_windup", "guard/windup_back"), ("guard_thrust", "guard/thrust"), ("guard_up", "guard/strike_up"),
     # The ninja is out for now (Thomas, 2026-11-17: "the ninjas are no good"); its art stays in
     # art_in/enemies/poses/ninja.
 ]
@@ -58,6 +60,9 @@ def _human(px):
     # Centre on the legs (lower third): a weapon held out must not push the body sideways.
     legs = [x for x, y in px if y >= ground - (ground - min(ys)) // 3]
     cx = (min(legs) + max(legs) + 1) // 2
+    if max(xs) - min(xs) + 1 > 48:   # a weapon held far out: its ends go, 24 px kept on each side
+        px = {(x, y): c for (x, y), c in px.items() if cx - 24 <= x < cx + 24}
+        xs = [x for x, _ in px]
     width = max(xs) - min(xs) + 1
     left = min(xs) - max(0, (32 - width) // 2)
     top = ground - 47

@@ -82,12 +82,15 @@
 // per pose (enemy_frames.h). The old place of the enemies (TILE_USER_INDEX + 480..607) holds the chests.
 #define GFX_ENEMIES        (TILE_USER_INDEX + 760)
 #include "enemy_frames.h"
+// The guard's crescents (res/slash.png, tools/art/slash.py, PAL2): side 4 x 4 + 4 x 2, then up
+// 4 x 4 + 2 x 4, 48 tiles after the enemies, up to the arrow.
+#define GFX_ENEMY_SLASH    (TILE_USER_INDEX + 1211)
+#if 760 + ENEMY_TILE_COUNT > 1211
+#error "enemy tiles run into the guard's crescents (inc/gfx.h)"
+#endif
 // The archer's arrow (res/arrow.png, tools/art/arrow.py): 5 angles of 3 x 3 tiles (PAL2), after the
 // enemies (room freed by the ninja, out for now), up to the decor.
 #define GFX_ARROWS         (TILE_USER_INDEX + 1259)
-#if 760 + ENEMY_TILE_COUNT > 1259
-#error "enemy tiles run into the arrow (inc/gfx.h)"
-#endif
 
 // Breakable props (res/props.png, tools/art/props.py): 2 x 2 tiles each, order of PROP_* (game_level.h).
 #define GFX_PROPS          (TILE_USER_INDEX + 700)
