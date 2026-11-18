@@ -293,7 +293,7 @@ static const char *const ROOM_SHOP_ROWS[] =
     "####............####",
     "####............####",
     "####............####",
-    "####################",
+    "####............####",   // the floor of the picture: its light planks, in front of the furniture
     "####################",
 };
 const RoomTemplate ROOM_SHOP_TEMPLATE = { 20, 14, ROOM_SHOP_ROWS };

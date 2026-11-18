@@ -714,7 +714,7 @@ static void drawSprites(void)
         VDP_setSpriteFull(n, lx, ly, SPRITE_SIZE(2, 2), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_PADLOCK), n + 1);
         n++;
     }
-    // The merchant's caravan in its room, the merchant in the shop (on the chests' tiles).
+    // The merchant's caravan in its room (on the chests' tiles); the merchant is in the shop's picture.
     {
         static u8 shopArt;
         u8 inCar = lv.cellX == lv.carX && lv.cellY == lv.carY, inShop = lv.cellX == lv.shopX && lv.cellY == lv.shopY;
@@ -733,14 +733,6 @@ static void drawSprites(void)
                 VDP_setSpriteFull(n, sx, sy, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL2, 0, 0, 0, GFX_CARAVAN + k * 16), n + 1);
                 n++;
             }
-        }
-        if (inShop && n + 1 < SPRITE_ENEMIES + ENEMY_SPRITES)
-        {
-            s16 mx = lv.room.w * ROOM_TILE - MERCHANT_X_FROM_RIGHT - camX - 16;
-            s16 my = lv.room.h * ROOM_TILE - 2 * 16 - camY - 48 + ((vtimer >> 5) & 1);   // breathing
-            VDP_setSpriteFull(n, mx, my, SPRITE_SIZE(4, 4), TILE_ATTR_FULL(PAL2, 0, 0, 0, GFX_MERCHANT), n + 1);
-            VDP_setSpriteFull(n + 1, mx, my + 32, SPRITE_SIZE(4, 2), TILE_ATTR_FULL(PAL2, 0, 0, 0, GFX_MERCHANT + 16), n + 2);
-            n += 2;
         }
     }
     // The rest of the pool stays in the chain (the sprites after it are fixed), out of sight.

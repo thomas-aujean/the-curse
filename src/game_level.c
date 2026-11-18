@@ -370,9 +370,9 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             pk->type = PICKUP_ITEM;
             pk->itemId = slot == 0 ? ITEM_HEART : lv->shopWares[slot - 1];
             pk->price = slot == 0 ? SHOP_HEART_PRICE : SHOP_ITEM_PRICE;
-            static const s8 SLOT_X[3] = { -60, -24, 12 };   // on the floor, between the left counter and the door
+            static const s8 SLOT_X[3] = { -48, -12, 24 };   // together on the open floor, left of the door
             pk->x = (s32) (t->wBlocks * 8 + SLOT_X[slot]) << 8;
-            pk->y = (s32) ((t->hBlocks - 2) * 16) << 8;
+            pk->y = (s32) ((t->hBlocks - 1) * 16) << 8;   // on the shop's floor (its last row)
             pk->vx = pk->vy = 0;
         }
     lv->shopChanged = 1;
@@ -902,7 +902,7 @@ u8 level_update(Level *lv, Player *p)
         if (p->upPressed)
         {
             enterRoom(lv, p, lv->shopX, lv->shopY, 0);
-            setPos(p, SHOP_DOOR_X, (lv->room.h - 4) * ROOM_TILE);   // in through the back door, on the floor
+            setPos(p, SHOP_DOOR_X, (lv->room.h - 2) * ROOM_TILE);   // in through the back door, on the floor
             return result | LEVEL_REDRAW;
         }
         result |= levelMessage(lv, MSG_ENTER);

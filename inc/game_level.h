@@ -126,7 +126,6 @@ typedef struct
 #define LEVEL_MESSAGE 8     // show lv->message
 
 enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT, MSG_ENTER, MSG_NEED_KEY, MSG_UNLOCKED, MSG_UNLOCK, MSG_LEAVE };
-#define MERCHANT_X_FROM_RIGHT 70       // the merchant stands this far from the shop's right edge (at the counter)
 #define SHOP_DOOR_X 217                // the caravan's back door in the shop picture: UP there goes out
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);

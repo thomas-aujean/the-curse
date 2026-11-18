@@ -17,6 +17,9 @@ from pngread import read_png
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 SRC = os.path.join(ROOT, "art_in", "shop", "interior.png")
+# Only the three wares in the shop (Thomas, 2026-11-18: no merchant, nothing else): the odd grey
+# object PixelLab left on the floor outside the caravan's wall is painted out (x0, y0, x1, y1).
+ERASE = (281, 176, 308, 218)
 W, H = 320, 224
 HUD_ROWS = 3           # under the window (HUD): never seen, not loaded
 TILE_USER_INDEX = 16   # SGDK 2.11
@@ -31,6 +34,9 @@ def build(pal0):
     shop_room.h)."""
     rows, (w, h) = read_png(SRC)
     assert (w, h) == (W, H), "the shop picture must be %d x %d" % (W, H)
+    for y in range(ERASE[1], ERASE[3]):
+        for x in range(ERASE[0], ERASE[2]):
+            rows[y][x] = rows[H - 1][W - 1]   # the black around the caravan
     counts = {}
     for y in range(HUD_ROWS * 8, H):
         for x in range(W):
