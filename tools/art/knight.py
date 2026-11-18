@@ -24,7 +24,7 @@ FRAMES = {
     # state each, same 48 x 48 canvas, so the knight keeps his size from pose to pose).
     "rise": ("poses/rise", 0, "air legs"),
     "fall": ("poses/fall", 0, "air legs"),
-    "land": ("poses/land", 0, "legs"),
+    "land": ("poses/land", 0, "legs low"),   # kneels as tall as he stands: brought to crouch height
     # A slash (Thomas, 2026-11-17: "the sword is too static", "no end pose at all"): wind-up, then the
     # crescent alone, whole then fading (the blade is lost in its sweep, "noblade"); right after it the
     # hero is back to his normal animation (main.c, ninjaFrame). slash3, slash4 and air3 are unused.
