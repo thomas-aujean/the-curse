@@ -1166,7 +1166,7 @@ static void updateRoom(u16 pad, u16 pressed)
         showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER"
                  : lv.message == MSG_TAKE ? "HAUT : PRENDRE" : lv.message == MSG_EXIT ? "HAUT : NIVEAU SUIVANT"
                  : lv.message == MSG_ENTER ? "HAUT : ENTRER"
-                 : lv.message == MSG_NEED_KEY ? "IL FAUT UNE CLE" : lv.message == MSG_UNLOCKED ? "LA PORTE S'OUVRE"
+                 : lv.message == MSG_NEED_KEY ? "IL FAUT UNE CLE" : lv.message == MSG_UNLOCKED ? "LA PORTE S'OUVRE" : lv.message == MSG_UNLOCK ? "HAUT : OUVRIR (1 CLE)"
                  : "PAS ASSEZ DE PIECES");
     if (events & LEVEL_GEM)
     {

@@ -875,13 +875,14 @@ u8 level_update(Level *lv, Player *p)
     s16 w = lv->room.w * ROOM_TILE, h = lv->room.h * ROOM_TILE;
     u8 x = lv->cellX, y = lv->cellY, doors = level_doors(lv, x, y);
 
-    // The upgrade room's padlocked door: walking into it with a key opens it (the key is spent). The
-    // body (feet ppy, PLAYER_H tall) touching the padlock: standing on it in a floor opening, jumping
-    // into it in a ceiling one.
+    // The upgrade room's padlocked door: UP at it with a key opens it (the key is spent; Thomas,
+    // 2026-11-18: not just by walking over it, keys may be kept for something else). The body (feet
+    // ppy, PLAYER_H tall) touching the padlock: standing on it in a floor opening, jumping into it in a
+    // ceiling one.
     if (x == lv->lockX && y == lv->lockY && !lv->lockOpen && ppx > lv->padlockX - 28 && ppx < lv->padlockX + 28
         && ppy + 12 > lv->padlockY - 12 && ppy - PLAYER_H - 12 < lv->padlockY + 12)
     {
-        if (p->keys)
+        if (p->keys && p->upPressed)
         {
             p->keys--;
             lv->lockOpen = 1;
@@ -890,7 +891,7 @@ u8 level_update(Level *lv, Player *p)
             lv->messageCooldown = fps * 2;
             return result | LEVEL_REDRAW | LEVEL_MESSAGE;
         }
-        result |= levelMessage(lv, MSG_NEED_KEY);
+        result |= levelMessage(lv, p->keys ? MSG_UNLOCK : MSG_NEED_KEY);
     }
     // The caravan: UP in front of its door enters the shop; the shop's opening leads back out to it.
     if (x == lv->carX && y == lv->carY && ppx > lv->caravanX - 20 && ppx < lv->caravanX + 20

@@ -327,6 +327,9 @@ int main(void)
         CHECK(!lv.lockOpen, "seed %u: opened without a key", seed);
         p.keys = 1;
         player_place(&p, lv.padlockX, feet);
+        level_update(&lv, &p);
+        CHECK(!lv.lockOpen && p.keys == 1, "seed %u: opened by walking over it", seed);
+        p.upPressed = 1;
         CHECK((level_update(&lv, &p) & LEVEL_REDRAW) && lv.lockOpen && p.keys == 0
               && (level_doors(&lv, lv.lockX, lv.lockY) & lv.lockDir), "seed %u: the key does not open the door", seed);
         keyFloors++;

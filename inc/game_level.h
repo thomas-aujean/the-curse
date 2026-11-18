@@ -124,7 +124,7 @@ typedef struct
 #define LEVEL_ITEM   4      // an item was picked up (lastItem): show its name
 #define LEVEL_MESSAGE 8     // show lv->message
 
-enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT, MSG_ENTER, MSG_NEED_KEY, MSG_UNLOCKED };
+enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT, MSG_ENTER, MSG_NEED_KEY, MSG_UNLOCKED, MSG_UNLOCK };
 #define MERCHANT_X_FROM_RIGHT 40       // the merchant stands this far from the shop's right edge
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);
