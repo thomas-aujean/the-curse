@@ -14,7 +14,7 @@
 #define GFX_TILE_PLATFORM_VOID (TILE_USER_INDEX + 51)
 #define GFX_TILE_VOID          (TILE_USER_INDEX + 52)   // empty space swallowed by the Void
 
-#define GFX_TILE_BOSS_TOP      (TILE_USER_INDEX + 60)   // 4 x 4 tiles (walker art doubled)
+#define GFX_TILE_BOSS_TOP      (TILE_USER_INDEX + 60)   // 4 x 4 tiles: the exit door or the skull
 #define GFX_TILE_BOSS_BOTTOM   (TILE_USER_INDEX + 76)   // 4 x 2 tiles
 #define GFX_TILE_SHOT          (TILE_USER_INDEX + 84)
 #define GFX_TILE_GEM           (TILE_USER_INDEX + 85)
@@ -118,7 +118,6 @@
 #define GFX_ENEMY_BAR      (TILE_USER_INDEX + 740)   // up to 751
 
 void gfx_load(void);
-void gfx_loadBoss(void);   // the boss's tiles (again after the exit door took their place)
 void gfx_loadDoor(void);   // the exit door, on the boss's tiles (the boss is gone)
 void gfx_loadSkull(void);  // the skull over the way to the boss, on the boss's tiles (rooms next to it)
 void gfx_loadShop(u8 shop);       // 1: the caravan and the merchant on the chests' tiles, 0: the chests again

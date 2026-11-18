@@ -665,10 +665,10 @@ static void drawSprites(void)
             n = drawEnemyFrame(n, &ENEMY_FRAME[POSE_FRAME[e->type][e->pose]], ex, ey, base, e->facingLeft);
         }
     }
-    // The boss's tiles: the boss in its room, then the exit door once it is gone; elsewhere the skull
-    // over the way to the boss. Loaded again only when what they must show changes.
+    // GFX_TILE_BOSS_*: the exit door in the boss room once the boss is gone, the skull
+    // over the way to the boss elsewhere. Loaded again only when what they must show changes.
     {
-        static u8 bossArt;   // 0 boss, 1 exit door, 2 skull
+        static u8 bossArt;   // 0 nothing, 1 exit door, 2 skull
         u8 bossThere = 0;
         for (u8 i = 0; i < MAX_ENEMIES; i++) bossThere |= lv.enemies.e[i].type == ENEMY_BOSS;
         u8 inBossRoom = lv.cellX == lv.floor.voidX && lv.cellY == lv.floor.voidY;
@@ -683,9 +683,10 @@ static void drawSprites(void)
         if (want != bossArt)
         {
             bossArt = want;
-            if (want == 0) gfx_loadBoss();
-            else if (want == 1) gfx_loadDoor();
-            else gfx_loadSkull();
+            // Nothing to load for 0: the old placeholder boss is gone (Thomas saw it flash where the
+            // skull was, entering the boss room).
+            if (want == 1) gfx_loadDoor();
+            else if (want == 2) gfx_loadSkull();
         }
         if (want == 1 && inBossRoom)
         {

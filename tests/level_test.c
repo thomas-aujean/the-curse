@@ -246,6 +246,34 @@ int main(void)
 
     // Keys: two lie on the ground of plain rooms; the locked chest only opens with one; the upgrade
     // room's door is a wall with a padlock until the player walks into it with a key.
+    // The stone heart (Thomas, 2026-11-18: "the grey hearts do not work"): one more heart, kept on
+    // the next floors, whether taken on its altar or bought.
+    int stones = 0;
+    for (unsigned seed = 1; seed < 3000 && stones < 5; seed += 7)
+    {
+        level_start(&lv, &p, (u16) seed, 1);
+        player_init(&p, 0, 0);
+        for (u8 y = 0; y < FLOOR_H; y++)
+            for (u8 x = 0; x < FLOOR_W; x++)
+            {
+                if (lv.floor.type[y][x] == ROOM_NONE || lv.floor.type[y][x] == ROOM_BOSS) continue;
+                level_enter(&lv, &p, x, y);
+                enemies_clear(&lv.enemies);
+                if (lv.itemId != ITEM_STONE_HEART) continue;
+                int before = p.maxHp;
+                player_place(&p, lv.itemX, lv.itemY);
+                level_update(&lv, &p);
+                CHECK(p.maxHp == before + 2, "seed %u: stone heart: max %d -> %d", seed, before, p.maxHp);
+                level_start(&lv, &p, (u16) (seed + 1), 2);
+                level_enter(&lv, &p, lv.floor.startX, lv.floor.startY);
+                CHECK(p.maxHp == before + 2, "seed %u: stone heart lost on the next floor (%d)", seed, p.maxHp);
+                stones++;
+                x = FLOOR_W; y = FLOOR_H;
+                break;
+            }
+    }
+    CHECK(stones >= 5, "only %d stone hearts found", stones);
+
     // Big chests (Thomas, 2026-11-18): none in the ordinary rooms, one in the upgrade room and in the
     // secret rooms, on the ground.
     int chestRooms = 0;
