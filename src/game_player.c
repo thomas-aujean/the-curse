@@ -417,9 +417,17 @@ void player_attackBox(const Player *p, s16 *x0, s16 *y0, s16 *x1, s16 *y1)
         *x1 = p->facingLeft ? px + 3 : px + reach - 1;
     }
 }
-void player_boostUp(Player *p)
+void player_boostUp(Player *p, u8 height)
 {
-    p->vy = -t.jumpVel;
+    // v^2 = 2 g h (1/256 px units: v^2 = 2 * gravity * h * 256), integer square root.
+    u32 v2 = (u32) 512 * t.gravity * height, lo = 0, hi = 4095;
+    while (lo < hi)
+    {
+        u32 mid = (lo + hi + 1) / 2;
+        if (mid * mid <= v2) lo = mid;
+        else hi = mid - 1;
+    }
+    p->vy = lo < (u32) t.jumpVel ? -(s16) lo : -t.jumpVel;
     p->jumpHeld = 0;
     p->onGround = 0;
 }

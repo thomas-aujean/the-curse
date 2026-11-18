@@ -401,9 +401,11 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             setPos(p, (x0 + x1 + 1) * 8, 16 + PLAYER_H + 1);
             break;
         case DOOR_DOWN:    // coming up from below: a boost lands the player on the platform over the hole
+            // Just enough to rise a little over the floor (Thomas, 2026-11-18: a full jump threw him
+            // far too high, into the enemies).
             findDoor(t, 'D', &x0, &y0, &x1, &y1);
             setPos(p, (x0 + x1 + 1) * 8, h);
-            player_boostUp(p);
+            player_boostUp(p, h - y0 * 16 + 24);
             break;
         default:           // start of the floor: keeps health and upgrades
             player_place(p, w / 2 - 32, h - 32);
