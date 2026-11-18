@@ -1,4 +1,5 @@
 #include "game_level.h"
+#include "game_codex.h"
 
 void level_buildRoom(Room *r, const RoomTemplate *t, u8 doors)
 {
@@ -316,11 +317,13 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
                 if (k < 16 && (lv->killed[y][x] & (1 << k))) continue;
                 Enemy *e = enemies_add(&lv->enemies, type, bx * 16 + 8, type == ENEMY_FLYER || type == ENEMY_BAT ? by * 16 + 14 : (by + 1) * 16, 0);
                 if (e) lv->spawnOf[e - lv->enemies.e] = k;
+                codex_seeEnemy(type);   // met: in the bestiary
             }
     }
 
     // Item on its altar, in the middle of the small room, until taken.
     lv->itemId = lv->taken[y][x] ? ITEM_NONE : itemFor(lv, x, y);
+    codex_seeItem(lv->itemId);
     lv->itemX = t->wBlocks * 8;
     lv->itemY = (t->hBlocks - 2) * 16;
 
@@ -370,6 +373,7 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             pk->type = PICKUP_ITEM;
             pk->itemId = slot == 0 ? ITEM_HEART : lv->shopWares[slot - 1];
             pk->price = slot == 0 ? SHOP_HEART_PRICE : SHOP_ITEM_PRICE;
+            codex_seeItem(pk->itemId);
             static const s8 SLOT_X[3] = { -48, -12, 24 };   // together on the open floor, left of the door
             pk->x = (s32) (t->wBlocks * 8 + SLOT_X[slot]) << 8;
             pk->y = (s32) ((t->hBlocks - 1) * 16) << 8;   // on the shop's floor (its last row)
@@ -674,6 +678,7 @@ static u8 breakProps(Level *lv, Player *p)
                 if (pk->type != PICKUP_NONE) continue;
                 pk->type = PICKUP_ITEM;
                 pk->itemId = dealItem(lv, lootRandom(lv));
+                codex_seeItem(pk->itemId);
                 pk->price = 0;
                 pk->x = (s32) pr->x << 8;
                 pk->y = (s32) (pr->y - 16) << 8;

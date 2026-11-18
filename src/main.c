@@ -25,11 +25,15 @@ static Player player;
 static u8 mode = MODE_ROOM;
 static u8 depth = 1;
 static bool showSecrets = FALSE;
-static u16 deathFrames;      // > 0 while the death message is shown
+static u16 dying;            // frames since the hero died (0: alive), updateDeath
+static u8 backToTitle;       // the run is over: runGame returns to the title
 // Frames the display stays off after a room change (Thomas, 2026-11-18: a jumble of sprites before
 // the new room showed). The new room's tiles are loaded while the old sprites were still on screen:
 // the display goes off for the change and comes back once the new sprites have reached video memory.
 static u8 screenOff;
+
+// What the shared stretches of video memory hold (drawSprites); gfx_load leaves 0 everywhere.
+static u8 bossArt, captainArt, shopArt;
 
 // ---------------------------------------------------------------- floor map
 
@@ -396,6 +400,7 @@ static u8 ninjaFrame(void)
     if (player.onGround && !wasOnGround) landTimer = 5;
     wasOnGround = player.onGround;
     if (landTimer) landTimer--;
+    if (player.hp <= 0) return player.onGround ? NINJA_LAND : NINJA_HURT;   // dead: down on his knees
     if (player.hurtTimer) return NINJA_HURT;
     // The slash shows only its wind-up and its crescent: no end pose, the recovery (no new slash yet)
     // keeps the normal animation (Thomas, 2026-11-17).
@@ -672,12 +677,11 @@ static void drawSprites(void)
     // GFX_TILE_BOSS_*: the exit door in the boss room once the boss is gone, the skull
     // over the way to the boss elsewhere. Loaded again only when what they must show changes.
     {
-        static u8 bossArt;   // 0 nothing, 1 exit door, 2 skull
+        // bossArt: 0 nothing, 1 exit door, 2 skull
         u8 bossThere = 0;
         for (u8 i = 0; i < MAX_ENEMIES; i++) bossThere |= lv.enemies.e[i].type == ENEMY_BOSS;
         u8 inBossRoom = lv.cellX == lv.floor.voidX && lv.cellY == lv.floor.voidY;
         // The boss's poses replace the enemies' tiles while it is in the room (no other enemy there).
-        static u8 captainArt;
         if (bossThere != captainArt)
         {
             captainArt = bossThere;
@@ -721,7 +725,6 @@ static void drawSprites(void)
     }
     // The merchant's caravan in its room (on the chests' tiles); the merchant is in the shop's picture.
     {
-        static u8 shopArt;
         u8 inCar = lv.cellX == lv.carX && lv.cellY == lv.carY, inShop = lv.cellX == lv.shopX && lv.cellY == lv.shopY;
         if ((inCar || inShop) != shopArt)
         {
@@ -1143,6 +1146,38 @@ static void updateFloorWon(void)
     drawSprites();
 }
 
+// Death (Thomas, 2026-11-18): the hero falls to the ground, the Void closes on him, everything
+// fades to black, back to the title. The world stands still meanwhile (no level_update).
+static void updateDeath(void)
+{
+    u16 fall = IS_PAL_SYSTEM ? 34 : 40, close = IS_PAL_SYSTEM ? 75 : 90, rest = IS_PAL_SYSTEM ? 25 : 30;
+    dying++;
+    player_update(&player, &lv.room, 0);   // down to the ground
+    if (dying == fall)
+    {
+        // The Void's circle, centred on him, from wider than the screen down to nothing.
+        lv.voidCX = lv.cellX * CELL_W_PX + (player.x >> 8);
+        lv.voidCY = lv.cellY * CELL_H_PX + (player.y >> 8) - PLAYER_H / 2;
+        lv.voidRadiusFx = (u32) 360 << 8;
+        lv.voidRunning = 0;
+    }
+    else if (dying > fall && lv.voidRadiusFx)
+    {
+        u32 step = ((u32) 360 << 8) / close;
+        lv.voidRadiusFx = lv.voidRadiusFx > step ? lv.voidRadiusFx - step : 0;
+    }
+    refreshVoid();
+    updateCamera();
+    scrollCamera();
+    drawSprites();
+    drawHud();
+    if (dying >= fall + close + rest)
+    {
+        PAL_fadeOut(0, 63, IS_PAL_SYSTEM ? 25 : 30, FALSE);
+        backToTitle = 1;
+    }
+}
+
 static void updateRoom(u16 pad, u16 pressed)
 {
     if (screenOff && !--screenOff) VDP_setEnable(TRUE);
@@ -1150,16 +1185,9 @@ static void updateRoom(u16 pad, u16 pressed)
     {
         updateFloorWon();
         return;
-    }    if (deathFrames)
+    }    if (dying)
     {
-        // Dead: the message stays two seconds, then a new floor starts.
-        if (--deathFrames == 0)
-        {
-            player_init(&player, 0, 0);   // new run: full health, no upgrades
-            depth = 1;
-            newFloor(random() ^ vtimer);
-            enterRoom();
-        }
+        updateDeath();
         return;
     }
     if (pressed & BUTTON_START)
@@ -1212,13 +1240,7 @@ static void updateRoom(u16 pad, u16 pressed)
 #ifdef DEBUG_HUD
     drawDebug();
 #endif
-    if (player.hp <= 0)
-    {
-        deathFrames = IS_PAL_SYSTEM ? 100 : 120;
-        fullWindow();
-        VDP_setTextPalette(PAL1);
-        VDP_drawText("LE NEANT T'A EU...", 11, 13);
-    }
+    if (player.hp <= 0) dying = 1;
 }
 
 // Title screen (Thomas, 2026-11-17): the hero on his cliff over the castle (res/title.png, plane B),
@@ -1305,23 +1327,18 @@ static u16 titleScreen(void)
     return frames;
 }
 
-int main(bool hardReset)
+// One run, from the first floor to the hero's death (then back to the title).
+static void runGame(u16 seed)
 {
-    (void) hardReset;
-    VDP_setPlaneSize(64, 32, TRUE);
-    VDP_setTextPriority(1);
-#ifdef DEBUG_SCRIPT
-    u16 seed = 0x1234;   // replays: the same floor every time, no title to wait for
-#else
-    u16 seed = logoScreen();
-    seed = 0x1234 ^ ((seed + titleScreen()) * 0x9E37);
-#endif
     gfx_load();
     VDP_resetSprites();
-    player_setRegion(IS_PAL_SYSTEM);
-    enemies_setRegion(IS_PAL_SYSTEM);
-    level_setRegion(IS_PAL_SYSTEM);
-
+    bossArt = captainArt = shopArt = shopShown = 0;
+    decorCell = 0xFF;
+    screenOff = 0;
+    dying = backToTitle = 0;
+    wonFrames = 0;
+    gems = bossesInTime = 0;
+    depth = 1;
     player_init(&player, 0, 0);
 #ifdef DEBUG_DEPTH
     depth = DEBUG_DEPTH;   // diagnostic build: start on a deeper floor (-DDEBUG_DEPTH=5)
@@ -1392,7 +1409,7 @@ int main(bool hardReset)
 #else
     u16 prevPad = JOY_readJoypad(JOY_1);   // START still held from the title is not a new press
 #endif
-    while (TRUE)
+    while (!backToTitle)
     {
         u16 pad = readPad();
         u16 pressed = pad & ~prevPad;
@@ -1407,5 +1424,41 @@ int main(bool hardReset)
         }
         SYS_doVBlankProcess();
     }
+    // Back to a plain display for the title.
+    VDP_setEnable(TRUE);
+    VDP_setHilightShadow(FALSE);
+    VDP_setWindowVPos(FALSE, 0);
+    VDP_setScrollingMode(HSCROLL_PLANE, VSCROLL_PLANE);
+    VDP_setHorizontalScroll(BG_A, 0);
+    VDP_setVerticalScroll(BG_A, 0);
+    VDP_setHorizontalScroll(BG_B, 0);
+    VDP_setVerticalScroll(BG_B, 0);
+    VDP_setTextPlane(BG_A);
+    VDP_clearPlane(BG_A, TRUE);
+    VDP_clearPlane(BG_B, TRUE);
+    VDP_clearPlane(WINDOW, TRUE);
+    VDP_resetSprites();
+    VDP_updateSprites(1, DMA_QUEUE);
+    SYS_doVBlankProcess();
+}
+
+int main(bool hardReset)
+{
+    (void) hardReset;
+    VDP_setPlaneSize(64, 32, TRUE);
+    VDP_setTextPriority(1);
+    player_setRegion(IS_PAL_SYSTEM);
+    enemies_setRegion(IS_PAL_SYSTEM);
+    level_setRegion(IS_PAL_SYSTEM);
+#ifdef DEBUG_SCRIPT
+    while (TRUE) runGame(0x1234);   // replays: the same floor every time, no title to wait for
+#else
+    u16 seed = logoScreen();
+    while (TRUE)
+    {
+        seed = 0x1234 ^ ((seed + titleScreen()) * 0x9E37);
+        runGame(seed);
+    }
+#endif
     return 0;
 }

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "game_level.h"
+#include "game_codex.h"
 
 static int failures = 0;
 #define CHECK(cond, ...) do { if (!(cond)) { failures++; printf("FAIL: " __VA_ARGS__); printf("\n"); } } while (0)
@@ -606,6 +607,33 @@ int main(void)
             }
     }
     CHECK(killsTested > 30, "only %d kills tested", killsTested);
+
+    // Bestiary (Thomas, 2026-11-18): what was met is marked, saved and read back; a blank or damaged
+    // save gives an empty bestiary.
+    {
+        codex_clear();
+        level_start(&lv, &p, 77, 3);
+        for (u8 y = 0; y < FLOOR_H; y++)
+            for (u8 x = 0; x < FLOOR_W; x++)
+                if (lv.floor.type[y][x] != ROOM_NONE) level_enter(&lv, &p, x, y);
+        CHECK(codex_enemySeen(ENEMY_BOSS) && codex.enemies != (1 << ENEMY_BOSS), "bestiary: enemies %04X", codex.enemies);
+        CHECK(codex.items != 0, "bestiary: no item seen");
+        codex.padMode = PAD_MODE_6;
+        u8 bytes[CODEX_BYTES];
+        codex_pack(bytes);
+        u16 e = codex.enemies, it = codex.items;
+        codex_clear();
+        CHECK(codex_unpack(bytes) && codex.enemies == e && codex.items == it && codex.padMode == PAD_MODE_6,
+              "bestiary: save not read back");
+        bytes[3] ^= 1;
+        CHECK(!codex_unpack(bytes) && !codex.enemies && !codex.items, "bestiary: damaged save accepted");
+        u8 blank[CODEX_BYTES] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+        CHECK(!codex_unpack(blank), "bestiary: blank save accepted");
+        for (u8 i = 0; i < CODEX_ENEMIES; i++)
+            CHECK(codex_enemyName(CODEX_ENEMY[i])[0] && strlen(codex_enemyLine(CODEX_ENEMY[i])) <= 36, "bestiary: enemy %d", i);
+        for (u8 i = ITEM_HEART; i < ITEM_COUNT; i++)
+            CHECK(codex_itemLine(i)[0] && strlen(codex_itemLine(i)) <= 36, "bestiary: item %d", i);
+    }
 
     printf("%d door crossings, %d secret passages, %d jars, %d shops, %d kills, %d failures\n", moves, secretsOpened, jarsTested, shopsTested, killsTested, failures);
     return failures != 0;
