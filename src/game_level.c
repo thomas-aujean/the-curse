@@ -875,9 +875,11 @@ u8 level_update(Level *lv, Player *p)
     s16 w = lv->room.w * ROOM_TILE, h = lv->room.h * ROOM_TILE;
     u8 x = lv->cellX, y = lv->cellY, doors = level_doors(lv, x, y);
 
-    // The upgrade room's padlocked door: walking into it with a key opens it (the key is spent).
+    // The upgrade room's padlocked door: walking into it with a key opens it (the key is spent). The
+    // body (feet ppy, PLAYER_H tall) touching the padlock: standing on it in a floor opening, jumping
+    // into it in a ceiling one.
     if (x == lv->lockX && y == lv->lockY && !lv->lockOpen && ppx > lv->padlockX - 28 && ppx < lv->padlockX + 28
-        && ppy > lv->padlockY - 16 && ppy < lv->padlockY + 48)
+        && ppy + 12 > lv->padlockY - 12 && ppy - PLAYER_H - 12 < lv->padlockY + 12)
     {
         if (p->keys)
         {

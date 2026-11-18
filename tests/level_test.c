@@ -317,12 +317,16 @@ int main(void)
         level_enter(&lv, &p, lv.lockX, lv.lockY);
         enemies_clear(&lv.enemies);
         CHECK(!(level_doors(&lv, lv.lockX, lv.lockY) & lv.lockDir), "seed %u: the upgrade room is not locked", seed);
+        // Where the player can be: standing on a padlock in the floor, jumping into one in the
+        // ceiling, on the ground in front of one in a wall.
+        s16 feet = lv.lockDir == DOOR_DOWN ? lv.padlockY - 16 : lv.lockDir == DOOR_UP ? lv.padlockY + PLAYER_H + 8
+                 : lv.padlockY + 24;
         p.keys = 0;
-        player_place(&p, lv.padlockX, lv.padlockY + 16);
+        player_place(&p, lv.padlockX, feet);
         level_update(&lv, &p);
         CHECK(!lv.lockOpen, "seed %u: opened without a key", seed);
         p.keys = 1;
-        player_place(&p, lv.padlockX, lv.padlockY + 16);
+        player_place(&p, lv.padlockX, feet);
         CHECK((level_update(&lv, &p) & LEVEL_REDRAW) && lv.lockOpen && p.keys == 0
               && (level_doors(&lv, lv.lockX, lv.lockY) & lv.lockDir), "seed %u: the key does not open the door", seed);
         keyFloors++;

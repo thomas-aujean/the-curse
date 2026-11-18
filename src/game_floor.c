@@ -166,14 +166,15 @@ static u8 placeSpecialRooms(Floor *f, u8 needShop)
     pickCell(score, best, &x, &y);
     f->type[y][x] = ROOM_BOSS;
 
-    // Upgrade, shop: random among the remaining dead ends.
+    // Upgrade, shop: random among the remaining dead ends, never next to the start room (Thomas,
+    // 2026-11-18: the start stays neutral, no caravan nor padlock in it).
     static const u8 OTHERS[2] = { ROOM_UPGRADE, ROOM_SHOP };
     for (u8 i = 0; i < 2; i++)
     {
         for (y = 0; y < FLOOR_H; y++)
             for (x = 0; x < FLOOR_W; x++)
-                score[y][x] = f->type[y][x] == ROOM_NORMAL && neighbours(f, x, y) == 1;
-        if (!pickCell(score, 1, &x, &y)) break;   // only the shop can be missing (needShop == 0)
+                score[y][x] = f->type[y][x] == ROOM_NORMAL && neighbours(f, x, y) == 1 && !touches(f, x, y, ROOM_START);
+        if (!pickCell(score, 1, &x, &y)) return i == 1 && !needShop;   // only the shop can be missing
         f->type[y][x] = OTHERS[i];
     }
     return 1;
@@ -188,7 +189,7 @@ static void placeSecrets(Floor *f)
         for (x = 0; x < FLOOR_W; x++)
         {
             score[y][x] = 0;
-            if (f->type[y][x] != ROOM_NONE || touches(f, x, y, ROOM_BOSS)) continue;
+            if (f->type[y][x] != ROOM_NONE || touches(f, x, y, ROOM_BOSS) || touches(f, x, y, ROOM_START)) continue;
             score[y][x] = neighbours(f, x, y);
             if (score[y][x] > best) best = score[y][x];
         }
@@ -198,7 +199,7 @@ static void placeSecrets(Floor *f)
     for (y = 0; y < FLOOR_H; y++)
         for (x = 0; x < FLOOR_W; x++)
             score[y][x] = f->type[y][x] == ROOM_NONE && neighbours(f, x, y) == 1
-                && !touches(f, x, y, ROOM_BOSS) && !touches(f, x, y, ROOM_SECRET);
+                && !touches(f, x, y, ROOM_BOSS) && !touches(f, x, y, ROOM_SECRET) && !touches(f, x, y, ROOM_START);
     if (pickCell(score, 1, &x, &y)) f->type[y][x] = ROOM_SUPER_SECRET;
 }
 

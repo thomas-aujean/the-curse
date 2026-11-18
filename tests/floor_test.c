@@ -71,6 +71,10 @@ int main(void)
                         if (touchesType(&f, x, y, ROOM_BOSS, &n)) fail(seed, depth, "super touches boss");
                         if (n != 1) fail(seed, depth, "super has several neighbours");
                     }
+                    // The start room stays neutral (Thomas, 2026-11-18): no shop, upgrade or secret next to it.
+                    if ((t == ROOM_UPGRADE || t == ROOM_SHOP || t == ROOM_SECRET || t == ROOM_SUPER_SECRET)
+                        && touchesType(&f, x, y, ROOM_START, &n))
+                        fail(seed, depth, "special room next to the start");
                     if (t == ROOM_BOSS || t == ROOM_UPGRADE || t == ROOM_SHOP)
                     {
                         u8 d = f.doors[y][x];
