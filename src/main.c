@@ -1323,7 +1323,8 @@ static u16 titleScreen(u8 *choice)
     memcpy(pal, img_title.palette->data, 16 * 2);
     memset(&pal[16], 0, 16 * 2);
     pal[16 + 15] = RGB24_TO_VDPCOLOR(0xF8E0B0);
-    PAL_setColors(0, palette_black, 32, CPU);
+    PAL_setColors(0, palette_black, 64, CPU);
+    VDP_clearPlane(BG_A, TRUE);   // a screen left from the menu (options, bestiary) goes
     VDP_drawImageEx(BG_B, &img_title, TILE_ATTR_FULL(PAL0, FALSE, FALSE, FALSE, TILE_USER_INDEX), 0, 0, FALSE, TRUE);
     // The knight's corner (tiles 0..11 x 7..18) shows the cape's frames, streamed in turn into one
     // place of video memory after the picture (tools/art/title.py).
@@ -1429,6 +1430,8 @@ static void optionsScreen(void)
         }
     }
     saveCodex();
+    plainScreen();
+    SYS_doVBlankProcess();
 }
 
 // A box of text characters (w x h tiles), in PAL1 when selected.
@@ -1516,8 +1519,7 @@ static void codexScreen(void)
         if (pressed & BUTTON_LEFT) { sel = (sel + count - 1) % count; redraw = 1; }
         if (page == 0 && (pressed & (BUTTON_UP | BUTTON_DOWN))) { sel = sel < 5 ? (sel + 5 < count ? sel + 5 : count - 1) : sel - 5; redraw = 1; }
     }
-    VDP_resetSprites();
-    VDP_updateSprites(1, DMA_QUEUE);
+    plainScreen();   // nothing of the bestiary left over the title
     SYS_doVBlankProcess();
 }
 
