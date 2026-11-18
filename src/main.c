@@ -26,6 +26,10 @@ static u8 mode = MODE_ROOM;
 static u8 depth = 1;
 static bool showSecrets = FALSE;
 static u16 deathFrames;      // > 0 while the death message is shown
+// Frames the display stays off after a room change (Thomas, 2026-11-18: a jumble of sprites before
+// the new room showed). The new room's tiles are loaded while the old sprites were still on screen:
+// the display goes off for the change and comes back once the new sprites have reached video memory.
+static u8 screenOff;
 
 // ---------------------------------------------------------------- floor map
 
@@ -1034,6 +1038,8 @@ static void enterRoom(void)
 static void enterMap(void)
 {
     mode = MODE_MAP;
+    screenOff = 0;   // the pause screen right after a room change: the display back on
+    VDP_setEnable(TRUE);
     VDP_setWindowVPos(FALSE, 0);
     VDP_setHilightShadow(FALSE);
     VDP_setTextPlane(BG_A);
@@ -1139,6 +1145,7 @@ static void updateFloorWon(void)
 
 static void updateRoom(u16 pad, u16 pressed)
 {
+    if (screenOff && !--screenOff) VDP_setEnable(TRUE);
     if (wonFrames)
     {
         updateFloorWon();
@@ -1172,7 +1179,12 @@ static void updateRoom(u16 pad, u16 pressed)
     u8 events = level_update(&lv, &player);
     hitStop = lv.enemies.hitStop;
     lv.enemies.hitStop = 0;
-    if (events & LEVEL_REDRAW) drawRoom();
+    if (events & LEVEL_REDRAW)
+    {
+        VDP_setEnable(FALSE);
+        screenOff = 2;   // back on once this frame's sprites went out at the next vertical blank
+        drawRoom();
+    }
     if (events & LEVEL_ITEM) showText2(player_itemName(lv.lastItem), player_itemPhrase(lv.lastItem));
     if (events & LEVEL_MESSAGE)
         // No name on a ware (Isaac-style: the items are known by their look).
