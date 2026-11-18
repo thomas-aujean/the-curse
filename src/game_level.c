@@ -368,7 +368,7 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
     {
         lv->voidRunning = 0;                   // the fight stops the Void
         lv->bossStrong = lv->voidRadiusFx == 0;
-        lv->lockTimer = fps;
+        lv->lockTimer = 1;   // the doors slam as soon as the player is through (level_update)
     }
 
     u8 x0, y0, x1, y1;
@@ -433,6 +433,7 @@ static u16 isqrt(u32 v)
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth)
 {
+    enemies_setTier((depth - 1) / 2);   // floors 1-2, 3-4, 5 and beyond
     floor_generate(&lv->floor, seed, depth);
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++)
@@ -797,9 +798,12 @@ u8 level_update(Level *lv, Player *p)
 
     if (lv->bossFight)
     {
-        if (lv->lockTimer && --lv->lockTimer == 0)
+        // Thomas (2026-11-18): the door slams shut behind the player at once, then the boss comes. It
+        // waits until the player is clear of every doorway (a jump up through the floor takes a moment).
+        if (lv->lockTimer && ppx >= 24 && ppx <= lv->room.w * ROOM_TILE - 24 && ppy <= lv->room.h * ROOM_TILE - 32)
         {
-            // Lock the doors once the player is well inside (never closes on the player).
+            lv->lockTimer = 0;
+            lv->enemies.shake = 8;   // the door slams
             level_buildRoom(&lv->room, level_templateFor(lv, lv->cellX, lv->cellY), 0);
             result |= LEVEL_REDRAW;
         }

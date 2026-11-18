@@ -189,7 +189,10 @@ int main(void)
                     for (int f = 0; f < 120 && !settled; f++)
                     {
                         player_update(&p, &lv.room, 0);
-                        CHECK(!(level_update(&lv, &p) & LEVEL_REDRAW), "seed %u (%d,%d) dir %d: bounced back", seed, x, y, d);
+                        // A redraw in the same room is the boss room's doors slamming shut.
+                        u8 res = level_update(&lv, &p);
+                        CHECK(!(res & LEVEL_REDRAW) || (lv.cellX == x + DX[d] && lv.cellY == y + DY[d]),
+                              "seed %u (%d,%d) dir %d: bounced back", seed, x, y, d);
                         settled = p.onGround;
                     }
                     CHECK(settled, "seed %u (%d,%d) dir %d: never landed", seed, x, y, d);

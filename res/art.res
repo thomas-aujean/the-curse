@@ -22,3 +22,4 @@ IMAGE img_title "title.png" BEST ALL
 TILESET ts_title_cape "title_cape.png" NONE NONE ROW
 PALETTE pal_void "void.png"
 TILESET ts_enemies "enemies.png" NONE NONE ROW
+TILESET ts_boss "boss.png" NONE NONE ROW

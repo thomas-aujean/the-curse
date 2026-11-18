@@ -14,7 +14,7 @@ static const EnemyStats STATS[ENEMY_TYPES][2] =
     { { 0 }, { 0 } },
     { { 154, 0, 0, 2, 1 }, { 256, 640, 128, 4, 2 } },        // walker: patrols; Void form charges
     { { 240, 0, 112, 1, 1 }, { 448, 0, 160, 2, 2 } },        // flyer: homes in on the player (a bit faster, 17/11)
-    { { 192, 1024, 0, 16, 2 }, { 256, 1280, 0, 24, 3 } },    // boss: dash, leap, fan of shots
+    { { 192, 1024, 0, 20, 2 }, { 256, 1280, 0, 28, 3 } },    // boss: dash, leap, fan of shots
     { { 0, 1024, 200, 2, 1 }, { 0, 384, 240, 3, 2 } },       // archer: chase = arrow / spore speed
     { { 384, 640, 160, 2, 1 }, { 512, 1024, 200, 3, 2 } },   // ninja: chase = shuriken / lunge speed
     { { 128, 0, 160, 3, 1 }, { 256, 0, 200, 6, 2 } },        // guard
@@ -24,7 +24,7 @@ static const EnemyStats STATS[ENEMY_TYPES][2] =
 };
 
 static s16 speedScale6, gravity, maxFall, knockback, leapVel, shotSpeed, shotSpread;
-static u8 hurtFrames, deathFrames, bossIdle, bossWarn;
+static u8 hurtFrames, deathFrames, bossIdle, bossWarn, bossEntrance, bossRoar, shakeFrames;
 static u8 archerDelay, archerVoidDelay, ninjaDelay, ninjaVoidDelay, jellyDelay;
 static s16 ninjaJump, jellyJump, homingAccel;
 static u8 guardTurn;
@@ -35,6 +35,28 @@ static s16 guardLunge;
 static u16 sporeLife;
 static s16 arrowGravity;
 static u8 arrowMinFrames, arrowMaxFrames;
+static u8 guardRechain, fireDelay, fireWindup;
+static s16 fireSpeed;
+// Floors further down (Thomas, 2026-11-18): 0 for floors 1-2, 1 for 3-4, 2 beyond. Enemies get more
+// life and more blows: the archer looses a volley, the guard chains two lunges, the spectre casts
+// fireballs (one, then a fan of three, then five all around it).
+static u8 tier;
+
+void enemies_setTier(u8 t)
+{
+    tier = t > 2 ? 2 : t;
+}
+
+u8 enemies_tier(void)
+{
+    return tier;
+}
+
+// Full life: x1, x1.5, x2 with the tier.
+static s8 maxHp(u8 type, u8 voidForm)
+{
+    return STATS[type][voidForm].hp * (2 + tier) / 2;
+}
 
 void enemies_setRegion(u8 isPal)
 {
@@ -49,6 +71,9 @@ void enemies_setRegion(u8 isPal)
     deathFrames = isPal ? 16 * 5 / 6 : 16;
     bossIdle = isPal ? 50 * 5 / 6 : 50;
     bossWarn = isPal ? 36 * 5 / 6 : 36;
+    bossEntrance = isPal ? 50 * 5 / 6 : 50;   // the door has slammed, silence, then it drops in
+    bossRoar = isPal ? 70 * 5 / 6 : 70;
+    shakeFrames = isPal ? 20 * 5 / 6 : 20;
     speedScale6 = isPal ? 7 : 6;   // enemies x1.2 (2026-11-17: the game a little faster)
     archerDelay = isPal ? 60 * 5 / 6 : 60;   // one arrow a second
     archerVoidDelay = isPal ? 120 * 5 / 6 : 120;
@@ -78,6 +103,10 @@ void enemies_setRegion(u8 isPal)
     aimFrames = isPal ? 30 * 5 / 6 : 30;
     releaseFrames = isPal ? 12 * 5 / 6 : 12;
     ninjaWarn = isPal ? 12 * 5 / 6 : 12;
+    guardRechain = isPal ? 12 * 5 / 6 : 12;   // the second lunge comes quicker than the first
+    fireDelay = isPal ? 110 * 5 / 6 : 110;
+    fireWindup = isPal ? 28 * 5 / 6 : 28;     // the spectre shivers before it casts
+    fireSpeed = isPal ? 330 * 6 / 5 : 330;    // slow: the player can dodge or cut them
 }
 
 static s16 speedOf(s16 v)
@@ -90,7 +119,7 @@ void enemy_size(u8 type, s16 *w, s16 *h)
     static const u8 SIZE[ENEMY_TYPES][2] =
     {
         // Boxes a little slimmer than the drawings (humans 32 x 48, spectre and jelly 32 x 32).
-        { 0, 0 }, { 16, 40 }, { 14, 26 }, { 28, 44 }, { 16, 40 }, { 16, 42 }, { 18, 40 }, { 18, 24 }, { 8, 7 }, { 16, 12 },
+        { 0, 0 }, { 16, 40 }, { 14, 26 }, { 40, 80 }, { 16, 40 }, { 16, 42 }, { 18, 40 }, { 18, 24 }, { 8, 7 }, { 16, 12 },
     };
     *w = SIZE[type][0];
     *h = SIZE[type][1];
@@ -102,6 +131,7 @@ void enemies_clear(EnemySet *s)
     for (u8 i = 0; i < MAX_SHOTS; i++) s->shots[i].active = 0;
     s->hitTimer = s->hitStop = s->hitBlocked = 0;
     s->barTimer = 0;
+    s->shake = 0;
 }
 
 Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
@@ -121,13 +151,14 @@ Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm)
         e->timer = i * 37;   // desynchronise the bobbing
         e->state = BOSS_IDLE;
         e->step = 0;
-        e->stateTimer = type == ENEMY_BOSS ? bossIdle : 30 + i * 11;   // staggered first actions
+        e->stateTimer = type == ENEMY_BOSS ? bossEntrance : 30 + i * 11;   // staggered first actions
+        if (type == ENEMY_BOSS) e->state = BOSS_INTRO;
         e->voidForm = 0;
         e->pose = ENEMY_POSE_A;
         e->attackTimer = 0;
         e->flashTimer = 0;
         e->slash = GUARD_SLASH_NONE;
-        e->hp = STATS[type][0].hp;
+        e->hp = maxHp(type, 0);
         if (voidForm) enemy_setVoidForm(e, 1);
         return e;
     }
@@ -143,9 +174,9 @@ void enemy_setVoidForm(Enemy *e, u8 voidForm)
 {
     if (e->type == ENEMY_NONE || e->deathTimer || e->voidForm == voidForm) return;
     // Keep the damage already taken.
-    s8 lost = STATS[e->type][e->voidForm].hp - e->hp;
+    s8 lost = maxHp(e->type, e->voidForm) - e->hp;
     e->voidForm = voidForm;
-    e->hp = STATS[e->type][voidForm].hp - lost;
+    e->hp = maxHp(e->type, voidForm) - lost;
     if (e->hp < 1) e->hp = 1;
 }
 
@@ -235,6 +266,13 @@ static u8 guardAttack(Enemy *e, const Player *p)
     {
         e->attackTimer--;
         u8 up = e->state;
+        // Deeper floors: the lunge just ended, a second one follows, turned to the player again.
+        if (e->attackTimer == guardRest && !up && e->step < (tier ? 1 : 0))
+        {
+            e->step++;
+            e->facingLeft = p->x < e->x;
+            e->attackTimer = guardRechain + guardStrike + guardRest;
+        }
         if (e->attackTimer >= guardRest + guardStrike)
         {
             e->pose = ENEMY_POSE_WINDUP;
@@ -260,6 +298,7 @@ static u8 guardAttack(Enemy *e, const Player *p)
     if (above || (dx > 0 && dx < 56 && absS32(dy) < 24))
     {
         e->state = above;
+        e->step = 0;
         e->attackTimer = guardWindup + guardStrike + guardRest;
         e->pose = ENEMY_POSE_WINDUP;
         e->vx = 0;
@@ -330,12 +369,77 @@ static void updateWalker(Enemy *e, const EnemyStats *st, const Room *r, const Pl
     moveBody(e, r, w, h);
 }
 
-static void updateFlyer(Enemy *e, const EnemyStats *st, const Player *p)
+static Shot *newShot(EnemySet *s);
+
+static void launchFire(Shot *sh, const Enemy *e, s16 vx, s16 vy, u8 damage)
+{
+    sh->active = 1;
+    sh->x = e->x;
+    sh->y = e->y - (16 << 8);   // from the middle of the spectre
+    sh->vx = vx;
+    sh->vy = vy;
+    sh->damage = damage;
+    sh->kind = SHOT_FIRE;
+    sh->life = 0xFFFF;
+}
+
+// The spectre's fireballs: one at the player, a fan of three on floors 3-4, five all around it deeper.
+static void castFire(EnemySet *s, const Enemy *e, const Player *p, u8 damage)
+{
+    s16 v = speedOf(fireSpeed);
+    if (tier >= 2)
+    {
+        // A star of five (cos and sin of -90, -18, 54, 126, 198 degrees, x 256): no aiming needed.
+        static const s16 DIR[5][2] = { { 0, -256 }, { 243, -79 }, { 150, 207 }, { -150, 207 }, { -243, -79 } };
+        for (u8 k = 0; k < 5; k++)
+        {
+            Shot *sh = newShot(s);
+            if (!sh) return;
+            launchFire(sh, e, DIR[k][0] * v / 256, DIR[k][1] * v / 256, damage);
+        }
+        return;
+    }
+    s32 dx = (p->x - e->x) >> 8, dy = ((p->y - (20 << 8)) - e->y + (16 << 8)) >> 8;
+    s32 d = absS32(dx) + absS32(dy) + 1;   // |dx| + |dy|: a little slower on diagonals, fine
+    s16 vx = (s16) (dx * v / d), vy = (s16) (dy * v / d);
+    for (u8 k = 0; k < (tier ? 3 : 1); k++)
+    {
+        Shot *sh = newShot(s);
+        if (!sh) return;
+        // The two others turned about 25 degrees either way (x - y / 2, y + x / 2, scaled back by 7/8).
+        s16 fx = vx, fy = vy;
+        if (k == 1) { fx = (vx - vy / 2) * 7 / 8; fy = (vy + vx / 2) * 7 / 8; }
+        if (k == 2) { fx = (vx + vy / 2) * 7 / 8; fy = (vy - vx / 2) * 7 / 8; }
+        launchFire(sh, e, fx, fy, damage);
+    }
+}
+
+static void updateFlyer(EnemySet *s, Enemy *e, const EnemyStats *st, const Player *p)
 {
     s16 speed = speedOf(st->speed);
     s16 accel = speed / 8 + 1;
     s32 tx, ty;
     s32 dx = (p->x - e->x) >> 8, dy = ((p->y - (16 << 8)) - e->y) >> 8;   // aim at the chest
+
+    // Casting (Thomas, 2026-11-18): it stops and shivers, then the fireballs leave.
+    if (e->attackTimer)
+    {
+        e->attackTimer--;
+        e->pose = ENEMY_POSE_WINDUP;
+        e->vx = approach(e->vx, 0, 48);
+        e->vy = approach(e->vy, 0, 48);
+        e->x += e->vx + ((e->timer & 2) ? 256 : -256);
+        e->y += e->vy;
+        if (e->hurtTimer) e->attackTimer = 0;   // a blow breaks the spell
+        else if (!e->attackTimer) castFire(s, e, p, st->damage);
+        return;
+    }
+    if (e->stateTimer) e->stateTimer--;
+    else if (!e->hurtTimer && absS32(dx) < st->range + 48 && absS32(dy) < st->range + 32)
+    {
+        e->attackTimer = fireWindup;
+        e->stateTimer = fireDelay;
+    }
 
     if (absS32(dx) < st->range && absS32(dy) < st->range)
     {
@@ -462,6 +566,40 @@ static void updateBoss(EnemySet *s, Enemy *e, const EnemyStats *st, const Room *
 
     switch (e->state)
     {
+        case BOSS_INTRO:
+            if (e->step == 0)
+            {
+                if (--e->stateTimer) break;
+                // Drops from the top of the room, in front of the player (on the roomier side), in sight.
+                s16 rw = r->w * ROOM_TILE, ppx = p->x >> 8;
+                e->step = 1;
+                e->x = (s32) (ppx < rw / 2 ? ppx + 150 : ppx - 150) << 8;
+                e->y = (s32) (24 + h) << 8;
+                e->vx = e->vy = 0;
+            }
+            else if (e->step == 1)
+            {
+                // Straight through the platforms down to its own floor (the arena's floor is flat).
+                e->vy += gravity;
+                e->y += e->vy;
+                if (e->y >= e->homeY)
+                {
+                    e->y = e->homeY;
+                    e->vy = 0;
+                    e->step = 2;
+                    e->stateTimer = bossRoar;
+                    s->shake = shakeFrames;
+                    e->facingLeft = dx < 0;
+                }
+            }
+            else if (--e->stateTimer == 0)
+            {
+                e->state = BOSS_IDLE;
+                e->step = 2;   // the dash comes first
+                e->stateTimer = bossIdle / 2;
+            }
+            break;
+
         case BOSS_IDLE:
             e->facingLeft = dx < 0;
             e->vx = approach(e->vx, (dx < 0 ? -1 : 1) * speedOf(st->speed), 16);
@@ -515,8 +653,25 @@ static void updateBoss(EnemySet *s, Enemy *e, const EnemyStats *st, const Room *
                 e->vx = 0;
                 e->state = BOSS_IDLE;
                 e->stateTimer = bossIdle;
+                s->shake = shakeFrames / 2;   // it weighs a ton
             }
             break;
+    }
+    // Poses: big strides, the greatsword raised to announce the dash (and on the way up of a leap),
+    // swept low during the dash and the fall.
+    e->pose = e->state == BOSS_DASH_WARN ? ENEMY_POSE_WINDUP
+            : e->state == BOSS_DASH ? ENEMY_POSE_STRIKE
+            : e->state == BOSS_LEAP ? (e->vy < 0 ? ENEMY_POSE_WINDUP : ENEMY_POSE_STRIKE)
+            : e->state == BOSS_INTRO ? (e->step == 2 ? ENEMY_POSE_WINDUP : ENEMY_POSE_A)
+            : ((e->x >> 12) & 1) ? ENEMY_POSE_B : ENEMY_POSE_A;
+    // Its life stays on screen for the whole fight, as in Streets of Rage, from the roar on.
+    if (e->state != BOSS_INTRO || e->step == 2)
+    {
+        s->barType = ENEMY_BOSS;
+        s->barVoid = e->voidForm;
+        s->barMax = maxHp(ENEMY_BOSS, e->voidForm);
+        s->barHp = e->hp < 0 ? 0 : e->hp;
+        if (s->barTimer < 2) s->barTimer = 2;
     }
 }
 
@@ -575,12 +730,21 @@ static void updateArcher(EnemySet *s, Enemy *e, const EnemyStats *st, const Room
     // Lob: flight time from the distance at the arrow's speed, then the launch that lands on the
     // player's chest in that time. Each frame vy += g, then y += vy: after T frames the arrow has
     // risen vy0 * T + g * T * (T + 1) / 2. Two divisions per shot, not per frame.
-    s32 tx = (p->x - sh->x) >> 8, ty = ((p->y - sh->y) >> 8) - 20;
-    s32 t = absS32(tx) * 256 / speedOf(st->chase);
-    if (t < arrowMinFrames) t = arrowMinFrames;
-    if (t > arrowMaxFrames) t = arrowMaxFrames;
-    sh->vx = tx * 256 / t;
-    sh->vy = ty * 256 / t - arrowGravity * (t + 1) / 2;
+    // Deeper floors: a volley, the other arrows landing a little short and a little long.
+    static const s8 SPREAD[3][3] = { { 0 }, { 0, 32 }, { 0, -32, 32 } };
+    s32 ty = ((p->y - sh->y) >> 8) - 20;
+    for (u8 k = 0; k <= tier; k++)
+    {
+        Shot *a = k ? newShot(s) : sh;
+        if (!a) return;
+        *a = *sh;
+        s32 tx = ((p->x - sh->x) >> 8) + dir * SPREAD[tier][k];
+        s32 t = absS32(tx) * 256 / speedOf(st->chase);
+        if (t < arrowMinFrames) t = arrowMinFrames;
+        if (t > arrowMaxFrames) t = arrowMaxFrames;
+        a->vx = tx * 256 / t;
+        a->vy = ty * 256 / t - arrowGravity * (t + 1) / 2;
+    }
 }
 
 // Ninja: closes in, then every so often leaps at the player; the normal one throws a shuriken
@@ -738,6 +902,7 @@ static void updateShots(EnemySet *s, const Room *r, Player *p, s16 px0, s16 py0,
 void enemies_update(EnemySet *s, const Room *r, Player *p)
 {
     s->blocked = 0;
+    if (s->shake) s->shake--;
     if (s->hitTimer) s->hitTimer--;
     if (s->barTimer) s->barTimer--;
     s16 ax0 = 0, ay0 = 0, ax1 = 0, ay1 = 0;
@@ -758,12 +923,14 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             if (--e->deathTimer == 0) e->type = ENEMY_NONE;
             continue;
         }
-        const EnemyStats *st = &STATS[e->type][e->voidForm];
+        EnemyStats boosted = STATS[e->type][e->voidForm];
+        if (tier >= 2) boosted.damage++;
+        const EnemyStats *st = &boosted;
         e->timer++;
         if (e->hurtTimer) e->hurtTimer--;
         if (e->flashTimer) e->flashTimer--;
         if (e->type == ENEMY_WALKER) updateWalker(e, st, r, p);
-        else if (e->type == ENEMY_FLYER) updateFlyer(e, st, p);
+        else if (e->type == ENEMY_FLYER) updateFlyer(s, e, st, p);
         else if (e->type == ENEMY_BAT) updateBat(e, st, r, p);
         else if (e->type == ENEMY_BOSS) updateBoss(s, e, st, r, p);
         else if (e->type == ENEMY_ARCHER) updateArcher(s, e, st, r, p);
@@ -782,6 +949,13 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
         if (e->y > maxY) { e->y = maxY; e->vy = 0; }
         s16 ex = e->x >> 8, ey = e->y >> 8;
         s16 x0 = ex - w / 2, x1 = ex + w / 2 - 1, y0 = ey - h, y1 = ey - 1;
+        if (e->type == ENEMY_BOSS && e->state == BOSS_INTRO) continue;   // its entrance: untouchable
+        // The boss's greatsword, swept low in front during the dash and the fall of a leap.
+        if (e->type == ENEMY_BOSS && e->pose == ENEMY_POSE_STRIKE && !e->hurtTimer)
+        {
+            s16 bx0 = e->facingLeft ? ex - 60 : ex + 8, bx1 = e->facingLeft ? ex - 8 : ex + 60;
+            if (overlap(px0, py0, px1, py1, bx0, ey - 34, bx1, ey - 4)) player_hurt(p, st->damage, e->facingLeft);
+        }
 
         // Clash (Thomas, 2026-11-17): the guard's upward crescent meets the player's downward slash: the
         // weapons ring, nobody is hurt, the player bounces off and the guard's blow is spent.
@@ -843,7 +1017,7 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             e->hp -= player_slashDamage(p);
             s->barType = e->type;
             s->barVoid = e->voidForm;
-            s->barMax = STATS[e->type][e->voidForm].hp;
+            s->barMax = maxHp(e->type, e->voidForm);
             s->barHp = e->hp < 0 ? 0 : e->hp;
             s->barTimer = 120;
             if (e->hp <= 0)

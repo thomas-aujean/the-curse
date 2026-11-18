@@ -31,6 +31,7 @@ import outdoor  # noqa: E402
 import far  # noqa: E402
 import castle  # noqa: E402
 import enemies  # noqa: E402
+import boss  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 RES = os.path.join(ROOT, "res")
@@ -270,6 +271,12 @@ def main():
     write_indexed(os.path.join(RES, "enemies.png"), sheet, pal2)
     with open(os.path.join(ROOT, "inc", "enemy_frames.h"), "w", newline=chr(10)) as f:
         f.write(frames_h)
+    with open(os.path.join(ROOT, "inc", "enemy_tiers.h"), "w", newline=chr(10)) as f:
+        f.write(enemies.tier_header(pal2))
+    boss_sheet, boss_h = boss.build(pal2)
+    write_indexed(os.path.join(RES, "boss.png"), boss_sheet, pal2)
+    with open(os.path.join(ROOT, "inc", "boss_frames.h"), "w", newline=chr(10)) as f:
+        f.write(boss_h)
     write_indexed(os.path.join(RES, "void.png"), [[0] * 8 for _ in range(8)], pal3)
     to_shared = enemies.remap_props(props.PAL2, pal2)
     write_indexed(os.path.join(RES, "props.png"), [[to_shared[c] for c in row] for row in props.sheet()], pal2)

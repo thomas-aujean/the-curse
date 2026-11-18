@@ -107,11 +107,32 @@ int main(void)
     enemies_setVoid(&set, 1);
     CHECK(set.e[0].voidForm && set.e[0].hp == 3, "Void form hp %d", set.e[0].hp);
 
-    // Boss: goes through dash, leap and shots, stays inside the room, dies after 16 hits.
+    // Boss entrance: out of sight and untouchable, then it drops in, the screen shakes, it roars with
+    // its life bar up, then fights.
+    {
+        enemies_clear(&set);
+        Enemy *b = enemies_add(&set, ENEMY_BOSS, 160, 200, 0);
+        player_init(&p, 170, 200);   // right where it will land
+        step(&p, 0, 10);
+        CHECK(b->state == BOSS_INTRO && b->step == 0 && p.hp == p.maxHp, "boss waits out of sight (hp %d)", p.hp);
+        int shook = 0, fell = 0, bar = 0;
+        for (int f = 0; f < 200 && b->state == BOSS_INTRO; f++)
+        {
+            p.x = 60 << 8;
+            step(&p, 0, 1);
+            fell |= b->step == 1 && (b->y >> 8) < 150;
+            shook |= set.shake > 0;
+            bar |= set.barTimer && set.barType == ENEMY_BOSS;
+        }
+        CHECK(fell && shook && bar && b->state == BOSS_IDLE && (b->y >> 8) == 200,
+              "boss drops in (fell %d shook %d bar %d state %d y %d)", fell, shook, bar, b->state, (int) (b->y >> 8));
+    }
+
+    // Boss: goes through dash, leap and shots, stays inside the room, dies after 20 hits.
     enemies_clear(&set);
     enemies_add(&set, ENEMY_BOSS, 160, 200, 0);
     player_init(&p, 60, 200);
-    int seen[5] = { 0 }, shots = 0, outside = 0;
+    int seen[6] = { 0 }, shots = 0, outside = 0;
     for (int f = 0; f < 900; f++)
     {
         p.invulnerable = 255;
@@ -124,7 +145,7 @@ int main(void)
     }
     CHECK(seen[BOSS_DASH] && seen[BOSS_LEAP] && shots && !outside,
           "boss cycle: dash %d leap %d shots %d outside %d", seen[BOSS_DASH], seen[BOSS_LEAP], shots, outside);
-    CHECK(set.e[0].hp == 16, "boss starts with 16 hp (%d)", set.e[0].hp);
+    CHECK(set.e[0].hp == 20, "boss starts with 20 hp (%d)", set.e[0].hp);
     int hits = 0;
     while (set.e[0].type == ENEMY_BOSS && !set.e[0].deathTimer && hits < 40)
     {
@@ -137,7 +158,7 @@ int main(void)
         step(&p, PAD_ATTACK, 4);
         hits++;
     }
-    CHECK(hits >= 16 && hits < 40, "boss dies after %d slashes (some miss while it leaps)", hits);
+    CHECK(hits >= 20 && hits < 40, "boss dies after %d slashes (some miss while it leaps)", hits);
 
     // Archer: lobs an arrow that rises, then comes down on the player (level, above or below it);
     // the Void bulb's spore homes in.
@@ -452,6 +473,63 @@ int main(void)
         if (set.e[1].pose == ENEMY_POSE_STRIKE) lunge++;
     }
     CHECK(flat && tall && lunge, "jelly flat %d stretched %d, spectre lunging %d", flat, tall, lunge);
+
+    // Deeper floors (Thomas, 2026-11-18): more life, and more blows.
+    for (int t = 0; t < 3; t++)
+    {
+        enemies_setTier(t);
+        enemies_clear(&set);
+        Enemy *w = enemies_add(&set, ENEMY_WALKER, 150, 200, 0);
+        CHECK(w->hp == 2 * (2 + t) / 2, "tier %d: soldier hp %d", t, w->hp);
+
+        // The archer's volley: 1, 2, 3 arrows.
+        enemies_clear(&set);
+        enemies_add(&set, ENEMY_ARCHER, 100, 200, 0);
+        player_init(&p, 220, 200);
+        int most = 0;
+        for (int f = 0; f < 120; f++)
+        {
+            p.invulnerable = 255;
+            enemies_update(&set, &room, &p);
+            int n = 0;
+            for (int i = 0; i < MAX_SHOTS; i++) n += set.shots[i].active && set.shots[i].kind == SHOT_ARROW;
+            if (n > most) most = n;
+        }
+        CHECK(most == t + 1, "tier %d: volley of %d arrows", t, most);
+
+        // The spectre's fireballs: 1, 3, then 5 all around it.
+        enemies_clear(&set);
+        Enemy *sp = enemies_add(&set, ENEMY_FLYER, 200, 120, 0);
+        sp->stateTimer = 1;
+        player_init(&p, 140, 200);
+        int fire = 0, up = 0;
+        for (int f = 0; f < 60 && !fire; f++)
+        {
+            p.invulnerable = 255;
+            enemies_update(&set, &room, &p);
+            for (int i = 0; i < MAX_SHOTS; i++)
+                if (set.shots[i].active && set.shots[i].kind == SHOT_FIRE) { fire++; up |= set.shots[i].vy < 0; }
+        }
+        CHECK(fire == (t == 0 ? 1 : t == 1 ? 3 : 5) && (t < 2 || up), "tier %d: %d fireballs (one up %d)", t, fire, up);
+
+        // The guard: one lunge, then two in a row.
+        enemies_clear(&set);
+        Enemy *g = enemies_add(&set, ENEMY_GUARD, 120, 200, 0);
+        g->facingLeft = 0;
+        player_init(&p, 170, 200);
+        int lunges = 0, was = 0;
+        for (int f = 0; f < 90; f++)
+        {
+            p.invulnerable = 255;
+            p.x = 170 << 8;
+            enemies_update(&set, &room, &p);
+            int now = g->slash == GUARD_SLASH_SIDE;
+            if (now && !was) lunges++;
+            was = now;
+        }
+        CHECK(lunges == (t ? 2 : 1), "tier %d: guard lunges %d", t, lunges);
+    }
+    enemies_setTier(0);
 
     printf("%d failures\n", failures);
     return failures != 0;

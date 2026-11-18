@@ -97,6 +97,7 @@ static void drawMap(void)
 static void newFloor(u16 seed)
 {
     level_start(&lv, &player, seed, depth);
+    gfx_setEnemyTier(enemies_tier());
 }
 
 static void updateMap(u16 pressed)
@@ -252,7 +253,9 @@ static void scrollCamera(void)
     while (drawnTX > tx) { drawnTX--; drawColumn(drawnTX); }
     while (drawnTY < ty) { drawnTY++; drawRow(drawnTY + SCREEN_H_TILES); }
     while (drawnTY > ty) { drawnTY--; drawRow(drawnTY); }
-    VDP_setVerticalScroll(ROOM_PLANE, camY);
+    // The boss lands: the room shakes under the sprites for a moment.
+    s16 shake = lv.enemies.shake ? ((lv.enemies.shake & 2) ? 2 : -2) : 0;
+    VDP_setVerticalScroll(ROOM_PLANE, camY + shake);
     scrollFar();
 }
 
@@ -328,7 +331,7 @@ static void drawRoom(void)
 // An enemy pose is 1 to 4 sprites. The console shows 80 sprites in all: the enemies share a pool
 // instead of owning 4 each (12 enemies never show their widest pose on one screen together).
 #define SPRITE_ENEMIES 2
-#define ENEMY_SPRITES 32
+#define ENEMY_SPRITES 30
 #define SPRITE_BAR (SPRITE_ENEMIES + ENEMY_SPRITES)   // 3 sprites: name of the enemy last hit, its life
 #define SPRITE_SHOTS (SPRITE_BAR + 3)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
@@ -411,6 +414,11 @@ typedef struct
 
 static const EnemyFrame ENEMY_FRAME[EF_COUNT] = ENEMY_FRAME_TABLE;
 
+typedef struct { u8 first, count; } BossFrame;
+typedef struct { s8 dx, dy; u8 w, h; u16 tile; } BossSprite;   // see boss_frames.h
+static const BossFrame BOSS_FRAME[BF_COUNT] = BOSS_FRAME_TABLE;
+static const BossSprite BOSS_SPRITE[BOSS_SPRITE_COUNT] = BOSS_SPRITE_TABLE;
+
 // Drawing of each pose (ENEMY_POSE_*) of each enemy; the boss and the small jelly are drawn apart.
 static const u8 POSE_FRAME[ENEMY_TYPES][ENEMY_POSES] =
 {
@@ -461,7 +469,7 @@ static void recolourTile(u32 *dst, const u32 *src, u8 c);
 static void drawEnemyBar(void)
 {
     static const char *const NAME[ENEMY_TYPES] =
-        { "", "SOLDAT", "SPECTRE", "GARDIEN", "ARCHER", "NINJA", "GARDE", "GELEE", "GELEE", "VAMPIRE" };
+        { "", "SOLDAT", "SPECTRE", "BOURREAU", "ARCHER", "NINJA", "GARDE", "GELEE", "GELEE", "VAMPIRE" };
     static u32 tiles[12 * 8];
     static u8 shownType = 0xFF, shownHp = 0xFF, shownMax;
     const EnemySet *s = &lv.enemies;
@@ -569,7 +577,7 @@ static void drawSprites(void)
         s16 ex = (e->x >> 8) - camX, ey = (e->y >> 8) - camY;
         // The widest pose reaches 48 px from the centre, on either side once mirrored.
         if (e->type == ENEMY_NONE || (e->deathTimer && (e->deathTimer & 2)) || (!e->flashTimer && (e->hurtTimer & 2))
-            || (e->type == ENEMY_BOSS && e->state == BOSS_DASH_WARN && (e->stateTimer & 4))
+            || (e->type == ENEMY_BOSS && e->state == BOSS_INTRO && e->step == 0)   // not there yet
             || ex < -48 || ex > 368 || ey < 0 || ey > 272)
             continue;
         // Void form: the same tiles with PAL3 (the enemies' colours swallowed by the Void).
@@ -585,12 +593,15 @@ static void drawSprites(void)
         }
         else if (e->type == ENEMY_BOSS)
         {
-            // 32 x 48 in two sprites: feet on pixel row 45 of the doubled walker art.
-            if (n + 1 < SPRITE_ENEMIES + ENEMY_SPRITES)
+            // The executioner (tools/art/boss.py): up to 9 sprites per pose, mirrored around its centre.
+            static const u8 BOSS_POSE[ENEMY_POSES] = { BF_WALK_A, BF_WALK_B, BF_WINDUP, BF_STRIKE, BF_WINDUP };
+            const BossFrame *bf = &BOSS_FRAME[BOSS_POSE[e->pose]];
+            for (u8 k = 0; k < bf->count && n < SPRITE_ENEMIES + ENEMY_SPRITES; k++)
             {
-                VDP_setSpriteFull(n, ex - 16, ey - 46, SPRITE_SIZE(4, 4), base + GFX_TILE_BOSS_TOP, n + 1);
-                VDP_setSpriteFull(n + 1, ex - 16, ey - 14, SPRITE_SIZE(4, 2), base + GFX_TILE_BOSS_BOTTOM, n + 2);
-                n += 2;
+                const BossSprite *bs = &BOSS_SPRITE[bf->first + k];
+                s16 sx = e->facingLeft ? ex - bs->dx - bs->w * 8 : ex + bs->dx;
+                VDP_setSpriteFull(n, sx, ey + bs->dy, SPRITE_SIZE(bs->w, bs->h), base + GFX_ENEMIES + bs->tile, n + 1);
+                n++;
             }
         }
         else
@@ -624,6 +635,13 @@ static void drawSprites(void)
         u8 bossThere = 0;
         for (u8 i = 0; i < MAX_ENEMIES; i++) bossThere |= lv.enemies.e[i].type == ENEMY_BOSS;
         u8 inBossRoom = lv.cellX == lv.floor.voidX && lv.cellY == lv.floor.voidY;
+        // The boss's poses replace the enemies' tiles while it is in the room (no other enemy there).
+        static u8 captainArt;
+        if (bossThere != captainArt)
+        {
+            captainArt = bossThere;
+            gfx_loadCaptain(captainArt);
+        }
         u8 want = inBossRoom ? (lv.exitOpen && !bossThere ? 1 : 0) : lv.bossSignX >= 0 ? 2 : bossArt;
         if (want != bossArt)
         {
@@ -701,6 +719,7 @@ static void drawSprites(void)
         u16 tile = sh->kind == SHOT_SHURIKEN ? GFX_TILE_SHURIKEN : GFX_TILE_SHOT;
         u16 spal = sh->kind == SHOT_SPORE ? PAL3 : PAL2;
         u16 hflip = sh->vx < 0, vflip = sh->kind == SHOT_SHURIKEN && (vtimer & 4);   // shurikens spin
+        if (sh->kind == SHOT_FIRE) { hflip = (vtimer >> 1) & 1; vflip = (vtimer >> 2) & 1; }   // flames flicker
         if (arrow)
         {
             // The drawing nearest its flight (0, 22.5, 45, 67.5, 90 degrees up), mirrored: tan 11.25,
@@ -1260,6 +1279,9 @@ int main(bool hardReset)
     level_setRegion(IS_PAL_SYSTEM);
 
     player_init(&player, 0, 0);
+#ifdef DEBUG_DEPTH
+    depth = DEBUG_DEPTH;   // diagnostic build: start on a deeper floor (-DDEBUG_DEPTH=5)
+#endif
     newFloor(seed);
 #ifdef DEBUG_ENEMIES
     // Diagnostic build (tools/replay.ps1 -Flags "-DDEBUG_ENEMIES"): one enemy of each kind around the
@@ -1304,6 +1326,11 @@ int main(bool hardReset)
         enemies_clear(&lv.enemies);
         if (lv.bossSignX >= 0) player_place(&player, lv.bossSignX < 160 ? 80 : lv.room.w * ROOM_TILE - 80, lv.room.h * ROOM_TILE - 2 * ROOM_TILE);
     }
+#endif
+#ifdef DEBUG_BOSS
+    // Diagnostic build: straight into the boss room, by its left wall: the doors slam, it drops in.
+    level_enter(&lv, &player, lv.floor.voidX, lv.floor.voidY);
+    player_place(&player, 40, lv.room.h * ROOM_TILE - 2 * ROOM_TILE);
 #endif
 #ifdef DEBUG_BOSS_DOWN
     // Diagnostic build: straight into the boss room, the boss just beaten (gem and exit door).

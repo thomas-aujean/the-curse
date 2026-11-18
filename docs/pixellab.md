@@ -166,3 +166,10 @@ Archer qui tire en cloche (17/11) : états `ede3e6ef-4d5c-47e8-9a24-8557be38727e
 | Clé, cadenas | objet `c7460c18` (candidats 0, 3) | `art_in/keys/` |
 | Écran titre | image `89aca91e` | `art_in/title/title_a.png` |
 | Coffres de trois quarts aimés par Thomas | revue `2ab67517` (48 px, trop larges pour un sprite 32) | — |
+
+## Boss : le Bourreau (`tools/art/boss.py`, 2026-11-18)
+Personnage v3 88 × 88 vue de côté `2ce2a203-1cc1-497e-b4b2-2400d6415eca` (capitaine maudit, armure noire,
+heaume cornu, grande épée), états : windup `9044b47e…` (épée levée derrière la tête, toile 112 × 112),
+strike `325e9a81…` (frappe basse en avant, 112 × 112), walk `5e1bedf2…`. Vues `east` dans
+`art_in/boss/captain/`. Environ 87 px de haut, découpé en 8-9 sprites par pose (377 tuiles), chargé à la
+place des ennemis dans la salle du boss.

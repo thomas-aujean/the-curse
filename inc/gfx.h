@@ -83,6 +83,11 @@
 // per pose (enemy_frames.h). The old place of the enemies (TILE_USER_INDEX + 480..607) holds the chests.
 #define GFX_ENEMIES        (TILE_USER_INDEX + 760)
 #include "enemy_frames.h"
+// The boss (res/boss.png, tools/art/boss.py): its poses take the enemies' place in its room.
+#include "boss_frames.h"
+#if BOSS_TILE_COUNT > ENEMY_TILE_COUNT
+#error "the boss needs more tiles than the enemies' place (inc/gfx.h)"
+#endif
 // The guard's crescents (res/slash.png, tools/art/slash.py, PAL2): side 4 x 4 + 4 x 2, then up
 // 4 x 4 + 2 x 4, 48 tiles after the enemies, up to the arrow.
 #define GFX_ENEMY_SLASH    (TILE_USER_INDEX + 1222)
@@ -116,7 +121,8 @@ void gfx_load(void);
 void gfx_loadBoss(void);   // the boss's tiles (again after the exit door took their place)
 void gfx_loadDoor(void);   // the exit door, on the boss's tiles (the boss is gone)
 void gfx_loadSkull(void);  // the skull over the way to the boss, on the boss's tiles (rooms next to it)
-void gfx_loadShop(u8 shop);   // 1: the caravan and the merchant on the chests' tiles, 0: the chests again
+void gfx_loadShop(u8 shop);
+void gfx_loadCaptain(u8 boss);   // 1: the boss's poses over the enemies' tiles, 0: the enemies again   // 1: the caravan and the merchant on the chests' tiles, 0: the chests again
 // HUD tile pictures (4-bit pixels, 8 rows): 0 heart, 1 half, 2 empty, 3 light, 4 light empty,
 // 5 map room here, 6 map room known (both in colour 15); the coin; the digits (colour 15).
 const u32 *gfx_hudPicture(u8 i);
@@ -128,6 +134,7 @@ u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
 void gfx_loadDecor(void);   // decor tiles into video memory (again after a full-screen message)
 void gfx_drawFar(void);   // the parallax sky on FAR_PLANE
 void gfx_setRoomPalette(u8 inVoid);
+void gfx_setEnemyTier(u8 tier);   // the enemies' colours of the floor's tier (0: their own)
 void gfx_setPlayerCorrupted(u8 corrupted);   // violet ninja while touched by the Void   // cold, dead colours once the Void has swallowed the room
 
 #endif

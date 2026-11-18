@@ -24,9 +24,9 @@ enum
     ENEMY_TYPES
 };
 
-enum { SHOT_ORB, SHOT_ARROW, SHOT_SHURIKEN, SHOT_SPORE };
+enum { SHOT_ORB, SHOT_ARROW, SHOT_SHURIKEN, SHOT_SPORE, SHOT_FIRE };
 
-#define MAX_SHOTS 8
+#define MAX_SHOTS 10   // a star of five fireballs and a volley of arrows at once
 
 typedef struct
 {
@@ -57,7 +57,8 @@ typedef struct
 enum { ENEMY_POSE_A, ENEMY_POSE_B, ENEMY_POSE_WINDUP, ENEMY_POSE_STRIKE, ENEMY_POSE_UP, ENEMY_POSES };
 enum { GUARD_SLASH_NONE, GUARD_SLASH_SIDE, GUARD_SLASH_UP };
 
-enum { BOSS_IDLE, BOSS_DASH_WARN, BOSS_DASH, BOSS_LEAP, BOSS_SHOOT };
+// BOSS_INTRO: step 0 out of sight while the doors slam, 1 falling into the room, 2 roaring.
+enum { BOSS_IDLE, BOSS_DASH_WARN, BOSS_DASH, BOSS_LEAP, BOSS_SHOOT, BOSS_INTRO };
 
 typedef struct
 {
@@ -86,9 +87,12 @@ typedef struct
     u8 barType, barVoid, barMax;
     s8 barHp;
     u8 barTimer;
+    u8 shake;            // frames the screen still shakes (the boss landing)
 } EnemySet;
 
 void enemies_setRegion(u8 pal);
+void enemies_setTier(u8 tier);   // 0 floors 1-2, 1 floors 3-4, 2 deeper: tougher enemies, more blows
+u8 enemies_tier(void);
 void enemies_clear(EnemySet *s);
 Enemy *enemies_add(EnemySet *s, u8 type, s16 px, s16 py, u8 voidForm);   // 0 when full
 void enemies_setVoid(EnemySet *s, u8 voidForm);   // everyone transforms
