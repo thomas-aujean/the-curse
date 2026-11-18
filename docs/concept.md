@@ -195,3 +195,12 @@ salle. `tests/level_test.c` vérifie que chaque gabarit est franchissable (toute
 ## À décider
 - Histoire, type de sauvegarde (SRAM à pile ou FRAM ; mots de passe exclus), périmètre v1 (classes, coop 2 ou 4), graphismes et musique.
 - Nombre d'étages, taille de la grille, ce qui ouvre un mur secret (arme normale, bombe, pouvoir).
+
+## Sortie Mega Drive et Steam (Thomas, 2026-11-18)
+- On polit d'abord la version Mega Drive, puis on fait une version Steam : un portage PC « amélioré »
+  (affichage refait, par exemple avec SDL ; plus de couleurs et de sprites, vraie musique, 16:9) sur la
+  même logique de jeu. Les deux sortent en même temps.
+- Règle de code : la logique (`game_*.c`) ne dépend pas du SGDK, elle compile déjà sur PC (les tests).
+  Seuls `main.c` et `gfx.c` (affichage, manette, son) sont propres à la Mega Drive.
+- Manette : 3 boutons de base, 6 boutons reconnue en option (détection + choix au menu). Coups spéciaux
+  à débloquer : A lance le coup choisi, HAUT + A change de coup ; en 6 boutons, X / Y / Z un coup chacun.
