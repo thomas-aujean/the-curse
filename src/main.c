@@ -196,8 +196,15 @@ static u16 castleTile(s16 tx, s16 ty)
 
 // Room tiles stay in front (high priority) unless the Void has swallowed them: the shadow mode then
 // darkens them. Empty tiles show the decor (trees, graves, fence), with the same priority.
+static u8 shopShown;   // the shop's picture is on the far plane (gfx_loadShopRoom)
+
 static void drawTileState(s16 tx, s16 ty, u8 inVoid)
 {
+    if (shopShown)   // the picture is the whole room
+    {
+        VDP_setTileMapXY(ROOM_PLANE, TILE_ATTR_FULL(PAL0, 1, 0, 0, 0), tx & 63, ty & 31);
+        return;
+    }
     u16 index = castleTile(tx, ty), tile = 0;
     if (index & DECOR_TILE) tile = gfx_decorTile(index & 0xFF);
     else if (index & ~CASTLE_FLIP) tile = GFX_CASTLE + (index & ~CASTLE_FLIP);
@@ -252,6 +259,11 @@ static void scrollFar(void)
     s16 band[FAR_BANDS];
     for (u8 b = 0; b < FAR_BANDS; b++)
         band[b] = -(s16) (((u32) worldX * FAR_BAND_SPEED[b]) >> 5) - FAR_BAND_DRIFT[b] * (s16) (vtimer >> 4);
+    if (shopShown)   // one still picture
+    {
+        vB = 0;
+        for (u8 i = 0; i < FAR_BANDS; i++) band[i] = 0;
+    }
     u8 b = 0;
     for (u16 line = 0; line < 224; line++)
     {
@@ -333,6 +345,12 @@ static u8 decorCell = 0xFF;
 static void drawRoom(void)
 {
     u8 cell = lv.cellY * FLOOR_W + lv.cellX;
+    u8 inShop = lv.cellX == lv.shopX && lv.cellY == lv.shopY;
+    if (inShop != shopShown)
+    {
+        shopShown = inShop;
+        gfx_loadShopRoom(inShop);
+    }
     if (cell != decorCell)
     {
         decorCell = cell;
@@ -1012,6 +1030,8 @@ static void enterRoom(void)
     VDP_clearTileMapRect(WINDOW, 0, 0, 64, 3);   // the rest of the window map holds decor tiles (gfx.h)
     gfx_loadDecor();
     gfx_drawFar();
+    if (shopShown) gfx_loadShopRoom(0);   // all the room's tiles back, drawRoom shows the shop again
+    shopShown = 0;
     decorCell = 0xFF;   // a new floor can start in the same cell
     drawRoom();
     forceHud();
@@ -1166,7 +1186,7 @@ static void updateRoom(u16 pad, u16 pressed)
         showText(lv.message == MSG_FULL_HEALTH ? "VIE PLEINE" : lv.message == MSG_BUY ? "HAUT : ACHETER"
                  : lv.message == MSG_TAKE ? "HAUT : PRENDRE" : lv.message == MSG_EXIT ? "HAUT : NIVEAU SUIVANT"
                  : lv.message == MSG_ENTER ? "HAUT : ENTRER"
-                 : lv.message == MSG_NEED_KEY ? "IL FAUT UNE CLE" : lv.message == MSG_UNLOCKED ? "LA PORTE S'OUVRE" : lv.message == MSG_UNLOCK ? "HAUT : OUVRIR (1 CLE)"
+                 : lv.message == MSG_NEED_KEY ? "IL FAUT UNE CLE" : lv.message == MSG_UNLOCKED ? "LA PORTE S'OUVRE" : lv.message == MSG_UNLOCK ? "HAUT : OUVRIR (1 CLE)" : lv.message == MSG_LEAVE ? "HAUT : SORTIR"
                  : "PAS ASSEZ DE PIECES");
     if (events & LEVEL_GEM)
     {

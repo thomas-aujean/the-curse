@@ -2,6 +2,8 @@
 PALETTE pal_castle "castle.png"
 TILESET ts_castle "castle.png" NONE NONE ROW
 TILESET ts_far "far_tiles.png" NONE NONE ROW
+PALETTE pal_shop_room "shop_room.png"
+TILESET ts_shop_room "shop_room.png" NONE NONE ROW
 PALETTE pal_ninja "ninja.png"
 TILESET ts_ninja "ninja.png" NONE NONE COLUMN
 TILESET ts_ninja_fx "ninja_fx.png" NONE NONE COLUMN

@@ -132,7 +132,8 @@ const u32 *gfx_digitPicture(u8 d);
 const u32 *gfx_letterPicture(char c);   // A..Z (colour 15), 0 for anything else
 u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
 void gfx_loadDecor(void);   // decor tiles into video memory (again after a full-screen message)
-void gfx_drawFar(void);   // the parallax sky on FAR_PLANE
+void gfx_drawFar(void);
+void gfx_loadShopRoom(u8 shop);   // 1: the inside of the caravan on the far plane (its tiles over the room's), 0: the room's again   // the parallax sky on FAR_PLANE
 void gfx_setRoomPalette(u8 inVoid);
 void gfx_setEnemyTier(u8 tier);   // the enemies' colours of the floor's tier (0: their own)
 void gfx_setPlayerCorrupted(u8 corrupted);   // violet ninja while touched by the Void   // cold, dead colours once the Void has swallowed the room

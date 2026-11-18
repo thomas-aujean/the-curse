@@ -24,8 +24,8 @@ const RoomTemplate *level_templateFor(const Level *lv, u8 x, u8 y)
 {
     u8 type = lv->floor.type[y][x];
     // Rooms holding an item use the small room: the item always sits in its middle, on the floor.
-    if (type == ROOM_START || type == ROOM_UPGRADE || type == ROOM_SHOP || type == ROOM_SECRET
-        || type == ROOM_SUPER_SECRET)
+    if (type == ROOM_SHOP) return &ROOM_SHOP_TEMPLATE;
+    if (type == ROOM_START || type == ROOM_UPGRADE || type == ROOM_SECRET || type == ROOM_SUPER_SECRET)
         return &ROOM_TEMPLATES[0];
     if (type == ROOM_BOSS) return &ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT - 1];
     // Stable per seed and cell: coming back to a room gives the same layout.
@@ -50,10 +50,10 @@ const RoomTemplate *level_templateFor(const Level *lv, u8 x, u8 y)
 
 u8 level_doors(const Level *lv, u8 x, u8 y)
 {
-    // The shop only has its opening on the left (out to the caravan); the caravan's room loses its
-    // door to the shop.
+    // The shop is closed (its back door goes out to the caravan); the caravan's room loses its door
+    // to the shop.
+    if (x == lv->shopX && y == lv->shopY) return 0;
     u8 secret = lv->floor.hidden[y][x] & lv->opened[y][x];
-    if (x == lv->shopX && y == lv->shopY) return lv->shopExit | secret;
     u8 d = lv->floor.doors[y][x] | secret;
     if (x == lv->carX && y == lv->carY)
         d &= ~(lv->shopX < x ? DOOR_LEFT : lv->shopX > x ? DOOR_RIGHT : lv->shopY < y ? DOOR_UP : DOOR_DOWN);
@@ -370,7 +370,7 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             pk->type = PICKUP_ITEM;
             pk->itemId = slot == 0 ? ITEM_HEART : lv->shopWares[slot - 1];
             pk->price = slot == 0 ? SHOP_HEART_PRICE : SHOP_ITEM_PRICE;
-            static const s8 SLOT_X[3] = { -96, -48, 48 };   // the middle is the trapdoor and its arrow
+            static const s8 SLOT_X[3] = { -60, -24, 12 };   // on the floor, between the left counter and the door
             pk->x = (s32) (t->wBlocks * 8 + SLOT_X[slot]) << 8;
             pk->y = (s32) ((t->hBlocks - 2) * 16) << 8;
             pk->vx = pk->vy = 0;
@@ -901,16 +901,22 @@ u8 level_update(Level *lv, Player *p)
     {
         if (p->upPressed)
         {
-            enterRoom(lv, p, lv->shopX, lv->shopY, lv->shopExit);
+            enterRoom(lv, p, lv->shopX, lv->shopY, 0);
+            setPos(p, SHOP_DOOR_X, (lv->room.h - 4) * ROOM_TILE);   // in through the back door, on the floor
             return result | LEVEL_REDRAW;
         }
         result |= levelMessage(lv, MSG_ENTER);
     }
-    if (x == lv->shopX && y == lv->shopY && (lv->shopExit == DOOR_LEFT ? px < 0 : px >= w))
+    // The shop: UP at its back door goes out, in front of the caravan.
+    if (x == lv->shopX && y == lv->shopY && ppx > SHOP_DOOR_X - 14 && ppx < SHOP_DOOR_X + 14 && p->onGround)
     {
-        enterRoom(lv, p, lv->carX, lv->carY, 0);
-        setPos(p, lv->caravanX, lv->caravanY);
-        return result | LEVEL_REDRAW;
+        if (p->upPressed)
+        {
+            enterRoom(lv, p, lv->carX, lv->carY, 0);
+            setPos(p, lv->caravanX, lv->caravanY);
+            return result | LEVEL_REDRAW;
+        }
+        result |= levelMessage(lv, MSG_LEAVE);
     }
 
     if (px < 0 && (doors & DOOR_LEFT)) enterRoom(lv, p, x - 1, y, DOOR_RIGHT);

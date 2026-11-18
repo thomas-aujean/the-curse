@@ -276,6 +276,28 @@ static const char *const ROOM_SMALL_PILLARS[] =   // 1 x 1 screen: two pillars
     "#########DD#########",
 };
 
+// The shop, inside the caravan (Thomas, 2026-11-18: always the same): a flat floor between the
+// caravan's curved walls, no opening (UP at the back door goes out). Drawn by one picture
+// (tools/art/shop_room.py), not by room tiles.
+static const char *const ROOM_SHOP_ROWS[] =
+{
+    "####################",
+    "####################",
+    "####............####",
+    "####............####",
+    "####............####",
+    "####............####",
+    "####............####",
+    "####............####",
+    "####............####",
+    "####............####",
+    "####............####",
+    "####............####",
+    "####################",
+    "####################",
+};
+const RoomTemplate ROOM_SHOP_TEMPLATE = { 20, 14, ROOM_SHOP_ROWS };
+
 static const char *const ROOM_SMALL_TREASURE[] =   // 1 x 1 screen, rare: a little treasure room
 {
     "#########UU#########",

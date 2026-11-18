@@ -189,7 +189,8 @@ static void placeSecrets(Floor *f)
         for (x = 0; x < FLOOR_W; x++)
         {
             score[y][x] = 0;
-            if (f->type[y][x] != ROOM_NONE || touches(f, x, y, ROOM_BOSS) || touches(f, x, y, ROOM_START)) continue;
+            if (f->type[y][x] != ROOM_NONE || touches(f, x, y, ROOM_BOSS) || touches(f, x, y, ROOM_START)
+                || touches(f, x, y, ROOM_SHOP)) continue;   // the shop is a closed caravan
             score[y][x] = neighbours(f, x, y);
             if (score[y][x] > best) best = score[y][x];
         }
@@ -199,7 +200,8 @@ static void placeSecrets(Floor *f)
     for (y = 0; y < FLOOR_H; y++)
         for (x = 0; x < FLOOR_W; x++)
             score[y][x] = f->type[y][x] == ROOM_NONE && neighbours(f, x, y) == 1
-                && !touches(f, x, y, ROOM_BOSS) && !touches(f, x, y, ROOM_SECRET) && !touches(f, x, y, ROOM_START);
+                && !touches(f, x, y, ROOM_BOSS) && !touches(f, x, y, ROOM_SECRET) && !touches(f, x, y, ROOM_START)
+                && !touches(f, x, y, ROOM_SHOP);
     if (pickCell(score, 1, &x, &y)) f->type[y][x] = ROOM_SUPER_SECRET;
 }
 

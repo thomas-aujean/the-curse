@@ -229,10 +229,17 @@ int main(void)
         CHECK((level_update(&lv, &p) & LEVEL_REDRAW) && lv.cellX == lv.shopX && lv.cellY == lv.shopY,
               "seed %u: UP at the caravan does not enter the shop", seed);
         CHECK(bodyFree(&lv.room, &p), "seed %u: arrived in the shop inside a wall", seed);
+        // Out through the back door, with UP only (Thomas, 2026-11-18: the shop is the inside of the
+        // caravan, always the same).
+        CHECK(level_doors(&lv, lv.shopX, lv.shopY) == 0, "seed %u: the shop has openings", seed);
+        CHECK((p.x >> 8) == SHOP_DOOR_X, "seed %u: not in at the back door (%d)", seed, (int) (p.x >> 8));
+        p.onGround = 1;
         p.upPressed = 0;
-        p.x = lv.shopExit == DOOR_LEFT ? -256 : (s32) lv.room.w * 8 << 8;
+        level_update(&lv, &p);
+        CHECK(lv.cellX == lv.shopX && lv.cellY == lv.shopY, "seed %u: left the shop without UP", seed);
+        p.upPressed = 1;
         CHECK((level_update(&lv, &p) & LEVEL_REDRAW) && lv.cellX == lv.carX && lv.cellY == lv.carY
-              && (p.x >> 8) == lv.caravanX, "seed %u: the shop's opening does not lead to the caravan", seed);
+              && (p.x >> 8) == lv.caravanX, "seed %u: the shop's door does not lead to the caravan", seed);
         caravans++;
     }
     CHECK(caravans > 50, "only %d caravans", caravans);

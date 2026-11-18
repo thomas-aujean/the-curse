@@ -29,6 +29,7 @@ import logo  # noqa: E402
 import arrow  # noqa: E402
 import outdoor  # noqa: E402
 import far  # noqa: E402
+import shop_room  # noqa: E402
 import castle  # noqa: E402
 import enemies  # noqa: E402
 import boss  # noqa: E402
@@ -248,6 +249,11 @@ def main():
     with open(os.path.join(ROOT, "inc", "far_map.h"), "w", newline=chr(10)) as f:
         f.write(map_h)
     print("far_tiles.png: %d tiles" % far_count)
+    shop_sheet, shop_pal, shop_count, shop_h = shop_room.build(pal0)
+    write_indexed(os.path.join(RES, "shop_room.png"), shop_sheet, shop_pal)
+    with open(os.path.join(ROOT, "inc", "shop_room.h"), "w", newline=chr(10)) as f:
+        f.write(shop_h)
+    print("shop_room.png: %d tiles" % shop_count)
     # Flat ground top for even and odd columns: CASTLE_STONE + quarter * 16 + 9 (self and side solid).
     def sheet_tile(i):
         return [row[(i % 16) * 8:(i % 16) * 8 + 8] for row in tiles[(i // 16) * 8:(i // 16) * 8 + 8]]

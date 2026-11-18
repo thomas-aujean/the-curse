@@ -160,6 +160,7 @@ Archer qui tire en cloche (17/11) : états `ede3e6ef-4d5c-47e8-9a24-8557be38727e
 | Porte de sortie du boss | image `9ca208e1` | `art_in/door/door.png` |
 | Garde : élan lance dans le dos / coup vers le haut | states `1822e872` / `20f0ab0f` | `art_in/enemies/poses/guard/` |
 | Caravane du marchand | objet `7905517f` (candidat 1) | `art_in/shop/caravan.png` |
+| Intérieur de la boutique (roulotte, 320 x 224) | pixflux `9a55a9d9` (graine 11) | `art_in/shop/interior.png` |
 | Marchand | image `44f1530d` | `art_in/shop/merchant.png` |
 | Grosse caisse | objet `e3ab622b` (candidat 3) | `art_in/props/crate.png` |
 | Coffre à cadenas fermé / ouvert | objet `f6a75f95` / state `6c3183e8` | `art_in/props/gold*.png` |

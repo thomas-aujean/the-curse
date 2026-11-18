@@ -18,6 +18,7 @@ typedef struct
 #define ROOM_TEMPLATE_COUNT 16
 #define ROOM_TEMPLATE_RANDOM 8   // the first ones fill ordinary rooms; the last is the boss arena
 extern const RoomTemplate ROOM_TEMPLATES[ROOM_TEMPLATE_COUNT];
+extern const RoomTemplate ROOM_SHOP_TEMPLATE;   // inside the caravan
 
 #define MAX_PICKUPS 10
 #define SHOP_HEART_PRICE 3
@@ -124,8 +125,9 @@ typedef struct
 #define LEVEL_ITEM   4      // an item was picked up (lastItem): show its name
 #define LEVEL_MESSAGE 8     // show lv->message
 
-enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT, MSG_ENTER, MSG_NEED_KEY, MSG_UNLOCKED, MSG_UNLOCK };
-#define MERCHANT_X_FROM_RIGHT 40       // the merchant stands this far from the shop's right edge
+enum { MSG_NONE, MSG_FULL_HEALTH, MSG_NO_MONEY, MSG_BUY, MSG_TAKE, MSG_EXIT, MSG_ENTER, MSG_NEED_KEY, MSG_UNLOCKED, MSG_UNLOCK, MSG_LEAVE };
+#define MERCHANT_X_FROM_RIGHT 70       // the merchant stands this far from the shop's right edge (at the counter)
+#define SHOP_DOOR_X 217                // the caravan's back door in the shop picture: UP there goes out
 
 void level_start(Level *lv, Player *p, u16 seed, u8 depth);
 void level_enter(Level *lv, Player *p, u8 x, u8 y);   // jump straight into a room (tests, debug)
