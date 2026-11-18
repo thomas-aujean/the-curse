@@ -50,6 +50,8 @@ FRAMES = {
     "crouch_slash0": ("sheathed/crouch", 4, "air"),
     "crouch_slash1": ("poses/crouch_strike", 0, "legs low noblade"),
     "hurt": ("sheathed/hurt", 2),
+    # Dead (Thomas, 2026-11-18: "he must collapse, lying on the ground"): PixelLab state ecfbf68a.
+    "dead": ("poses/dead", 0, "air"),
 }
 FRAMES.update({"idle%d" % i: ("sheathed/idle", i) for i in range(4)})
 LOW_SCALE = 84           # percent: the low strike at the height of the crouch (38 px for 45)

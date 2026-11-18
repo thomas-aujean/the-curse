@@ -428,7 +428,7 @@ static u8 ninjaFrame(void)
     if (player.onGround && !wasOnGround) landTimer = 5;
     wasOnGround = player.onGround;
     if (landTimer) landTimer--;
-    if (player.hp <= 0) return player.onGround ? NINJA_LAND : NINJA_HURT;   // dead: down on his knees
+    if (player.hp <= 0) return player.onGround ? NINJA_DEAD : NINJA_HURT;   // dead: lying on the ground
     if (player.hurtTimer) return NINJA_HURT;
     // The slash shows only its wind-up and its crescent: no end pose, the recovery (no new slash yet)
     // keeps the normal animation (Thomas, 2026-11-17).
@@ -1174,35 +1174,22 @@ static void updateFloorWon(void)
     drawSprites();
 }
 
-// Death (Thomas, 2026-11-18): the hero falls to the ground, the Void closes on him, everything
-// fades to black, back to the title. The world stands still meanwhile (no level_update).
+// Death (Thomas, 2026-11-18): the hero collapses, lying on the ground, a moment of stillness, then
+// everything fades to black and the title comes back. The world stands still meanwhile (no
+// level_update). (A Void closing on him was tried: "kitsch", removed.)
 static void updateDeath(void)
 {
-    u16 fall = IS_PAL_SYSTEM ? 34 : 40, close = IS_PAL_SYSTEM ? 75 : 90, rest = IS_PAL_SYSTEM ? 25 : 30;
+    u16 still = IS_PAL_SYSTEM ? 75 : 90;
     dying++;
     player_update(&player, &lv.room, 0);   // down to the ground
-    if (dying == fall)
-    {
-        // The Void's circle, centred on him, from wider than the screen down to nothing.
-        lv.voidCX = lv.cellX * CELL_W_PX + (player.x >> 8);
-        lv.voidCY = lv.cellY * CELL_H_PX + (player.y >> 8) - PLAYER_H / 2;
-        lv.voidRadiusFx = (u32) 360 << 8;
-        lv.voidRunning = 0;
-    }
-    else if (dying > fall && lv.voidRadiusFx)
-    {
-        u32 step = ((u32) 360 << 8) / close;
-        lv.voidRadiusFx = lv.voidRadiusFx > step ? lv.voidRadiusFx - step : 0;
-    }
-    refreshVoid();
     updateCamera();
     scrollCamera();
     drawSprites();
     drawHud();
-    if (dying >= fall + close + rest)
+    if (dying >= still)
     {
         saveCodex();
-        PAL_fadeOut(0, 63, IS_PAL_SYSTEM ? 25 : 30, FALSE);
+        PAL_fadeOut(0, 63, IS_PAL_SYSTEM ? 40 : 48, FALSE);
         backToTitle = 1;
     }
 }

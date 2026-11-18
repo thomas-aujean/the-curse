@@ -545,6 +545,9 @@ pose("hurt", h=21, lean=-22, x=-1, near_leg=("fk", 42, 12, 25), far_leg=("fk", 1
      near_arm=("fk", 72, 44), far_arm=("fk", 96, 62), head=(0.2, -1.0), tails=(338, 16, 0), droop=1.0,
      sash=(350, 12, 0))
 
+# Dead (the PixelLab knight lies on the ground; this generated ninja only stands in for it).
+pose("dead", **POSES["hurt"])
+
 
 # ---------------------------------------------------------------- sheets
 

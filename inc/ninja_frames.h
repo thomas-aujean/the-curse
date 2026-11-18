@@ -42,6 +42,7 @@ enum
     NINJA_CROUCH_SLASH0,
     NINJA_CROUCH_SLASH1,
     NINJA_HURT,
+    NINJA_DEAD,
     NINJA_FRAME_COUNT
 };
 
@@ -87,6 +88,7 @@ enum
     { 1, 56, { -32, 0, 0 }, { 16, 0, 0 } }, /* crouch_slash0 */ \
     { 2, 57, { 16, 16, 0 }, { -8, 24, 0 } }, /* crouch_slash1 */ \
     { 1, 59, { -32, 0, 0 }, { -16, 0, 0 } }, /* hurt */ \
+    { 2, 60, { -32, 8, 0 }, { 8, 8, 0 } }, /* dead */ \
 }
 
 #endif
