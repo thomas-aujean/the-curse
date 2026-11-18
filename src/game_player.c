@@ -91,6 +91,7 @@ void player_init(Player *p, s16 px, s16 py)
     p->invulnerable = p->hurtTimer = 0;
     p->light = p->lightMax = t.lightMax;
     p->corrupted = 0;
+    p->owned = 0;
     p->runBonus = p->jumpBonus = 0;
     p->reachBonus = p->airJumps = p->airJumpsLeft = 0;
     p->lightDrain = 1;
@@ -151,6 +152,7 @@ void player_takeItem(Player *p, u8 item)
             p->lightDrain = 2;
             break;
     }
+    if (item >= ITEM_FIRST_UPGRADE && item < ITEM_COUNT) p->owned |= 1 << (item - ITEM_FIRST_UPGRADE);
     if (p->hp > p->maxHp) p->hp = p->maxHp;
 }
 

@@ -18,7 +18,7 @@
 enum { MODE_ROOM, MODE_MAP };
 
 #define MAP_X 2
-#define MAP_Y 4
+#define MAP_Y 3
 
 static Level lv;
 static Player player;
@@ -46,7 +46,7 @@ static void drawCell(u8 x, u8 y)
         || (y < FLOOR_H - 1 && lv.visited[y + 1][x] && (level_doors(&lv, x, y + 1) & DOOR_UP));
     if (!known && !guessed) return;
 
-    u16 px = MAP_X + x * 4, py = MAP_Y + y * 3;
+    u16 px = MAP_X + x * 4, py = MAP_Y + y * 2;
     u16 pal = PAL0;
     if (t == ROOM_BOSS) pal = PAL1;
     else if (t >= ROOM_UPGRADE) pal = PAL2;
@@ -72,25 +72,44 @@ static void drawCell(u8 x, u8 y)
     if (hidden & DOOR_DOWN) VDP_drawText(":", px + 1, py + 1);
 }
 
+// Test tools, at the bottom of the pause screen (A / B / C, updateMap).
 static void drawMapStatus(void)
 {
     char line[41];
-    VDP_setTextPalette(PAL0);
-    sprintf(line, "GRAINE %04X  ETAGE %u  SALLES %u   ", lv.floor.seed, depth, lv.floor.roomCount);
-    VDP_drawText(line, 2, 2);
-    sprintf(line, "NEANT R=%4u %s   ", (u16) (lv.voidRadiusFx >> 8), lv.voidRunning ? "AVANCE" : "ARRET ");
-    VDP_drawText(line, 2, 27);
+    VDP_setTextPalette(PAL2);
+    sprintf(line, "%04X R%-4u A NEANT %s B TOUT C ETAGE ", lv.floor.seed, (u16) (lv.voidRadiusFx >> 8),
+            lv.voidRunning ? "ON " : "OFF");
+    VDP_drawText(line, 1, 27);
 }
 
+// The pause screen (Thomas, 2026-11-18: START shows the map and a reminder of everything the hero
+// has; the special moves will be chosen here): the map, then life, coins, keys, special moves and
+// the upgrades taken.
 static void drawMap(void)
 {
+    char line[41];
     VDP_clearPlane(BG_A, TRUE);
     VDP_clearPlane(BG_B, TRUE);
     VDP_setTextPalette(PAL0);
-    VDP_drawText("CARTE  START retour", 2, 0);
-    VDP_drawText("A neant  B tout voir  C nouvel etage", 2, 1);
+    sprintf(line, "PAUSE                        ETAGE %u", depth);
+    VDP_drawText(line, 2, 1);
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++) drawCell(x, y);
+    VDP_setTextPalette(PAL0);
+    sprintf(line, "COEURS %d%s/%d  PIECES %u  CLES %u", player.hp / 2, player.hp & 1 ? ",5" : "",
+            player.maxHp / 2, player.coins, player.keys);
+    VDP_drawText(line, 2, 20);
+    VDP_drawText("COUPS SPECIAUX  AUCUN", 2, 21);
+    VDP_drawText("OBJETS", 2, 22);
+    u8 n = 0;
+    for (u8 i = 0; i < UPGRADE_COUNT; i++)
+        if (player.owned & (1 << i))
+        {
+            VDP_setTextPalette(i + ITEM_FIRST_UPGRADE >= ITEM_GLASS_HEART ? PAL1 : PAL0);   // the bad ones in red
+            VDP_drawText(player_itemName(i + ITEM_FIRST_UPGRADE), 4 + (n & 1) * 18, 23 + n / 2);
+            n++;
+        }
+    if (!n) VDP_drawText("AUCUN", 9, 22);
     drawMapStatus();
 }
 

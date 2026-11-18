@@ -203,4 +203,7 @@ salle. `tests/level_test.c` vérifie que chaque gabarit est franchissable (toute
 - Règle de code : la logique (`game_*.c`) ne dépend pas du SGDK, elle compile déjà sur PC (les tests).
   Seuls `main.c` et `gfx.c` (affichage, manette, son) sont propres à la Mega Drive.
 - Manette : 3 boutons de base, 6 boutons reconnue en option (détection + choix au menu). Coups spéciaux
-  à débloquer : A lance le coup choisi, HAUT + A change de coup ; en 6 boutons, X / Y / Z un coup chacun.
+  à débloquer : A lance le coup choisi, choisi dans le menu pause (START : carte, vie, pièces, clés,
+  coups, objets) ; BAS + A pose une bombe ; en 6 boutons, X / Y / Z un coup chacun.
+- Bombes (à faire) : elles ouvrent les murs secrets, invisibles (plus de fissure, l'épée ne les ouvre
+  plus). Clés (à faire) : plus par terre, dans les coffres et caisses (au moins une garantie par étage).
