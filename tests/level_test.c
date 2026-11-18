@@ -239,6 +239,34 @@ int main(void)
 
     // Keys: two lie on the ground of plain rooms; the locked chest only opens with one; the upgrade
     // room's door is a wall with a padlock until the player walks into it with a key.
+    // Big chests (Thomas, 2026-11-18): none in the ordinary rooms, one in the upgrade room and in the
+    // secret rooms, on the ground.
+    int chestRooms = 0;
+    for (unsigned seed = 1; seed < 400; seed += 7)
+    {
+        level_start(&lv, &p, (u16) seed, 3);
+        for (u8 y = 0; y < FLOOR_H; y++)
+            for (u8 x = 0; x < FLOOR_W; x++)
+            {
+                u8 type = lv.floor.type[y][x];
+                if (type == ROOM_NONE || type == ROOM_BOSS) continue;
+                level_enter(&lv, &p, x, y);
+                int chests = 0;
+                for (int i = 0; i < lv.propCount; i++)
+                    if (lv.props[i].type >= PROP_CHEST_BRONZE)
+                    {
+                        chests++;
+                        CHECK(room_tileAt(&lv.room, lv.props[i].x, lv.props[i].y) == TILE_SOLID
+                              && room_tileAt(&lv.room, lv.props[i].x, lv.props[i].y - 8) == TILE_EMPTY,
+                              "seed %u (%d,%d): chest not on the ground", seed, x, y);
+                    }
+                int want = type == ROOM_UPGRADE || type == ROOM_SECRET || type == ROOM_SUPER_SECRET;
+                CHECK(chests == want, "seed %u (%d,%d) type %d: %d chests", seed, x, y, type, chests);
+                chestRooms += want;
+            }
+    }
+    CHECK(chestRooms > 100, "only %d chest rooms", chestRooms);
+
     int keyFloors = 0;
     for (unsigned seed = 1; seed < 1200; seed += 13)
     {
@@ -260,7 +288,9 @@ int main(void)
         int again = 0;
         for (int i = 0; i < MAX_PICKUPS; i++) again |= lv.pickups[i].type == PICKUP_KEY && lv.pickups[i].itemId == 0;
         CHECK(!again, "seed %u: the key came back", seed);
-        // Locked chest: no key, it stays shut; with one, it opens and the key is spent.
+        // Locked chest (in the boss room, once the boss is down): no key, it stays shut; with one, it
+        // opens and the key is spent.
+        lv.cleared[lv.lockedChestY][lv.lockedChestX] = 1;
         level_enter(&lv, &p, lv.lockedChestX, lv.lockedChestY);
         enemies_clear(&lv.enemies);
         Prop *chest = 0;

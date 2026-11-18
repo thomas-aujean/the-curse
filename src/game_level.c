@@ -62,7 +62,7 @@ u8 level_doors(const Level *lv, u8 x, u8 y)
 }
 
 static u16 lootRandom(Level *lv);
-static u8 hasPropSpot(const Level *lv, u8 x, u8 y);
+static void placeChest(Level *lv, u8 x, u8 y);
 static u8 levelMessage(Level *lv, u8 message);
 
 // Plain rooms (not the start, the shop's caravan room, nor the room before the upgrade room).
@@ -71,17 +71,18 @@ static u8 plainRoom(const Level *lv, u8 x, u8 y)
     return lv->floor.type[y][x] == ROOM_NORMAL && !(x == lv->carX && y == lv->carY) && !(x == lv->lockX && y == lv->lockY);
 }
 
-// This floor's two key rooms and its locked chest (a room whose layout has a chest spot), at random;
+// This floor's two key rooms, at random, and its locked chest, in the boss room once the boss is down;
 // the upgrade room's door gets its padlock.
 static void pickKeyRooms(Level *lv)
 {
-    lv->upX = lv->upY = lv->lockX = lv->lockY = 0xFF;
+    lv->upX = lv->upY = lv->lockX = lv->lockY = lv->lockedChestX = lv->lockedChestY = 0xFF;
     lv->lockOpen = 0;
     lv->keysTaken = 0;
     lv->lockHitId = 0xFF;
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++)
-            if (lv->floor.type[y][x] == ROOM_UPGRADE)
+            if (lv->floor.type[y][x] == ROOM_BOSS) { lv->lockedChestX = x; lv->lockedChestY = y; }
+            else if (lv->floor.type[y][x] == ROOM_UPGRADE)
             {
                 u8 d = lv->floor.doors[y][x];
                 lv->upX = x;
@@ -94,10 +95,10 @@ static void pickKeyRooms(Level *lv)
     for (u8 y = 0; y < FLOOR_H; y++)
         for (u8 x = 0; x < FLOOR_W; x++)
             if (plainRoom(lv, x, y)) count++;
-    lv->keyX[0] = lv->keyX[1] = lv->lockedChestX = 0xFF;
-    lv->keyY[0] = lv->keyY[1] = lv->lockedChestY = 0xFF;
+    lv->keyX[0] = lv->keyX[1] = 0xFF;
+    lv->keyY[0] = lv->keyY[1] = 0xFF;
     if (!count) return;
-    for (u8 k = 0, tries = 0; k < 3 && tries < 40; k++, tries++)   // a few retries, never forever
+    for (u8 k = 0, tries = 0; k < 2 && tries < 40; k++, tries++)   // a few retries, never forever
     {
         u8 pick = lootRandom(lv) % count, n = 0;
         for (u8 y = 0; y < FLOOR_H; y++)
@@ -105,9 +106,8 @@ static void pickKeyRooms(Level *lv)
                 if (plainRoom(lv, x, y) && n++ == pick)
                 {
                     if (k == 1 && x == lv->keyX[0] && y == lv->keyY[0] && count > 1) { k--; continue; }   // two rooms
-                    if (k < 2) { lv->keyX[k] = x; lv->keyY[k] = y; }
-                    else if (hasPropSpot(lv, x, y)) { lv->lockedChestX = x; lv->lockedChestY = y; }
-                    else k--;   // another room for the chest (most layouts have a spot)
+                    lv->keyX[k] = x;
+                    lv->keyY[k] = y;
                 }
     }
 }
@@ -146,14 +146,36 @@ static void placeCaravan(Level *lv)
     findGround(lv, 28, 56, 0, &lv->caravanX, &lv->caravanY);
 }
 
-// Does the layout of this room have a spot for a jar or a chest?
-static u8 hasPropSpot(const Level *lv, u8 x, u8 y)
+// The big chests (Thomas, 2026-11-18: not at random in the rooms): one in the upgrade room, beside
+// the altar, a silver one in the secret rooms, and the floor's locked gold chest in the boss room once
+// the boss is down (the last of the props, so its broken bit stays the same). None in the shop: the
+// caravan and the merchant take the chests' tiles there.
+static void placeChest(Level *lv, u8 x, u8 y)
 {
-    const RoomTemplate *t = level_templateFor(lv, x, y);
-    for (u8 by = 0; by < t->hBlocks; by++)
-        for (u8 bx = 0; bx < t->wBlocks; bx++)
-            if (t->rows[by][bx] == 'o' || t->rows[by][bx] == 'c') return 1;
-    return 0;
+    u8 type = lv->floor.type[y][x], kind;
+    s16 cx, cy;
+    if (type == ROOM_BOSS)
+    {
+        if (!lv->cleared[y][x]) return;
+        kind = PROP_CHEST_GOLD;
+        cx = lv->room.w * ROOM_TILE / 4;
+        cy = 3 * ROOM_TILE;
+        while (cy < lv->room.h * ROOM_TILE && room_tileAt(&lv->room, cx, cy) != TILE_SOLID) cy += ROOM_TILE;
+    }
+    else if (type == ROOM_UPGRADE || type == ROOM_SECRET || type == ROOM_SUPER_SECRET)
+    {
+        kind = type == ROOM_UPGRADE ? PROP_CHEST_BRONZE : PROP_CHEST_SILVER;
+        cx = lv->itemX + 56;   // the small room: the altar in the middle, the chest on its right
+        cy = lv->itemY;
+    }
+    else return;
+    if (lv->propCount >= MAX_PROPS) return;
+    Prop *pr = &lv->props[lv->propCount];
+    pr->type = kind;
+    pr->alive = !(lv->propsBroken[y][x] & (1 << lv->propCount));
+    pr->x = cx;
+    pr->y = cy;
+    lv->propCount++;
 }
 
 // Bounding box of a door marker, in blocks.
@@ -250,7 +272,6 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
         }
     }
     u8 noChest = (x == lv->carX && y == lv->carY) || (x == lv->shopX && y == lv->shopY);   // their tiles hold the caravan
-    u8 lockedHere = x == lv->lockedChestX && y == lv->lockedChestY, lockedPlaced = 0;
     if (x == lv->lockX && y == lv->lockY)
     {
         u8 x0, y0, x1, y1;
@@ -311,25 +332,17 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
             if ((t->rows[by][bx] == 'o' || t->rows[by][bx] == 'c') && lv->propCount < MAX_PROPS)
             {
                 Prop *pr = &lv->props[lv->propCount];
-                // Varied props, fixed per seed and room; chests: bronze 70 %, silver 25 %, gold 5 %.
+                // Varied props, fixed per seed and room. Chest spots of ordinary rooms hold a crate: the big
+                // chests are kept for the rooms worth finding (Thomas, 2026-11-18; placeChest).
                 u16 roll = (lv->floor.seed + x * 37 + y * 101 + lv->propCount * 13) * 0x9E37;
                 roll ^= roll >> 8;
-                // Chest spots: the floor's locked chest in its room, otherwise a chest one time in two
-                // (bronze 70 %, silver 30 %), else a crate (Thomas: not a chest in every room).
-                if (t->rows[by][bx] == 'o' || noChest) pr->type = PROP_JAR + (roll & 3);
-                else if (lockedHere && !lockedPlaced) { pr->type = PROP_CHEST_GOLD; lockedPlaced = 1; }
-                else
-                {
-                    u8 r100 = roll % 100;
-                    pr->type = r100 < 50 ? PROP_CRATE : r100 < 85 ? PROP_CHEST_BRONZE : PROP_CHEST_SILVER;
-                }
+                pr->type = t->rows[by][bx] == 'o' || noChest ? PROP_JAR + (roll & 3) : PROP_CRATE;
                 pr->alive = !(lv->propsBroken[y][x] & (1 << lv->propCount));
                 pr->x = bx * 16 + 8;
                 pr->y = (by + 1) * 16;
                 lv->propCount++;
             }
-    // No chest spot left for the locked chest: it takes a jar's place.
-    if (lockedHere && !lockedPlaced && lv->propCount) lv->props[0].type = PROP_CHEST_GOLD;
+    placeChest(lv, x, y);
     // This floor's keys lie on the ground of their rooms until picked up.
     for (u8 k = 0; k < 2; k++)
         if (x == lv->keyX[k] && y == lv->keyY[k] && !(lv->keysTaken & (1 << k)))
@@ -823,6 +836,8 @@ u8 level_update(Level *lv, Player *p)
             lv->exitY = 3 * ROOM_TILE;
             while (lv->exitY < lv->room.h * ROOM_TILE && room_tileAt(&lv->room, lv->exitX, lv->exitY) != TILE_SOLID)
                 lv->exitY += ROOM_TILE;
+            lv->cleared[lv->cellY][lv->cellX] = 1;
+            placeChest(lv, lv->cellX, lv->cellY);   // the locked chest, a quarter of the room from the left
         }
     }
     if (lv->gemActive)
