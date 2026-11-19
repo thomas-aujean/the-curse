@@ -207,3 +207,13 @@ salle. `tests/level_test.c` vérifie que chaque gabarit est franchissable (toute
   coups, objets) ; BAS + A pose une bombe ; en 6 boutons, X / Y / Z un coup chacun.
 - Bombes (à faire) : elles ouvrent les murs secrets, invisibles (plus de fissure, l'épée ne les ouvre
   plus). Clés (à faire) : plus par terre, dans les coffres et caisses (au moins une garantie par étage).
+
+## Mondes et fin du jeu (Thomas, 2026-11-19)
+- Maquettes d'écran (PixelLab) dans `art_in/mockups/` : A forêt au couchant, B cimetière au soleil rouge,
+  C forêt hantée en nuit bleue. Chaque monde : une palette de 14 couleurs tirée de sa maquette, partagée
+  par le fond, le sol, les plateformes et les décors ; un plan intermédiaire chargé derrière le terrain.
+- Ordre : étages 1-2 **A (forêt)**, 3-4 **C (nuit bleue)**, 5-6 **B (cimetière)**, puis **le château**,
+  traversé **de bas en haut** jusqu'au boss final.
+- **Les caves** se débloquent après avoir battu le boss final : on y découvre un nouveau boss,
+  **l'origine du Néant**.
+- **Dialogues avec les boss**, différents selon qu'on les affronte en forme normale ou en forme Néant.
