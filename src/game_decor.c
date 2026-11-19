@@ -100,6 +100,67 @@ static void placeCastle(const Room *r, u16 rnd)
         }
 }
 
+#define GRAVE_KINDS (DECOR_GRAVE_SKULL + 1 - DECOR_GRAVE_ROUND)
+
+static void addDecor(u8 kind, u8 x, u8 y)
+{
+    if (count >= MAX_DECOR) return;
+    decor[count].kind = kind;
+    decor[count].x = x;
+    decor[count].y = y;
+    count++;
+}
+
+// World 1 (Thomas, 2026-11-19: the branches float in the air): a dead tree's trunk under the middle
+// of each long branch, from just under it down to the ground, when nothing is in the way. Pieces 4
+// tiles wide, the trunk in their two middle columns: the fork under the branch, straight pieces, the
+// roots on the ground (their last row is the ground itself, like the other pictures).
+static void placeTrunks(const Room *r)
+{
+    u8 top = DECOR_H[DECOR_TRUNK_TOP], mid = DECOR_H[DECOR_TRUNK_MID], root = DECOR_H[DECOR_TRUNK_ROOT];
+    for (u8 ty = 1; ty + 2 < r->h; ty++)
+        for (u8 tx = 0; tx < r->w;)
+        {
+            if (r->tiles[ty][tx] != TILE_PLATFORM)
+            {
+                tx++;
+                continue;
+            }
+            u8 end = tx;
+            while (end < r->w && r->tiles[ty][end] == TILE_PLATFORM) end++;
+            u8 run = end - tx, from = tx;
+            tx = end;
+            if (run < 6) continue;
+            // Under the middle of the branch, else under a quarter of it (another branch may be in
+            // the way); the piece's left column, the trunk in its two middle columns.
+            const u8 at[3] = { from + run / 2 - 2, from + run / 4 - 1, from + run * 3 / 4 - 3 };
+            for (u8 c = 0; c < 3; c++)
+            {
+                u8 x = at[c];
+                if (x < 1 || x + 5 > r->w) continue;
+                // Down from under the branch: the trunk's columns empty, then ground under the roots.
+                u8 y = ty + 1;
+                while (y < r->h && r->tiles[y][x + 1] == TILE_EMPTY && r->tiles[y][x + 2] == TILE_EMPTY) y++;
+                if (y >= r->h || y - (ty + 1) < top + root - 1) continue;   // no ground, or too short
+                u8 ok = 1;
+                for (u8 k = 0; k < 4 && ok; k++)   // the roots: flat ground, thick enough, air above
+                {
+                    if (r->tiles[y - 1][x + k] != TILE_EMPTY) ok = 0;
+                    for (u8 d = 0; d < GROUND_DEPTH && y + d < r->h; d++)
+                        if (r->tiles[y + d][x + k] != TILE_SOLID) ok = 0;
+                }
+                if (!ok) continue;
+                // The roots' last row is the ground row y; the fork right under the branch; straight
+                // pieces between (the last one may hide under the fork).
+                u8 rootY = y + 1 - root;
+                addDecor(DECOR_TRUNK_TOP, x, ty + 1);
+                for (s16 my = rootY - mid; my > ty + 1; my -= mid) addDecor(DECOR_TRUNK_MID, x, my);
+                addDecor(DECOR_TRUNK_ROOT, x, rootY);
+                break;
+            }
+        }
+}
+
 void decor_place(const Room *r, u16 seed)
 {
     u16 rnd = seed | 1;
@@ -110,6 +171,7 @@ void decor_place(const Room *r, u16 seed)
         placeCastle(r, rnd);
         return;
     }
+    placeTrunks(r);
     for (u8 ty = 1; ty + 1 < r->h; ty++)
         for (u8 tx = 0; tx < r->w && count < MAX_DECOR;)
         {
@@ -123,9 +185,9 @@ void decor_place(const Room *r, u16 seed)
             // A few trees and fences, graves in between (they come in small groups: a graveyard).
             u8 kind = roll < 20 ? (roll & 1 ? DECOR_TREE_A : DECOR_TREE_B)
                     : roll < 35 ? DECOR_FENCE
-                    : DECOR_GRAVE_ROUND + roll % (DECOR_KINDS - DECOR_GRAVE_ROUND);
+                    : DECOR_GRAVE_ROUND + roll % GRAVE_KINDS;
             if ((kind <= DECOR_TREE_B && trees >= 2) || (kind == DECOR_FENCE && fences >= 2))
-                kind = DECOR_GRAVE_ROUND + roll % (DECOR_KINDS - DECOR_GRAVE_ROUND);
+                kind = DECOR_GRAVE_ROUND + roll % GRAVE_KINDS;
             if (tx < 4 || !fits(r, kind, tx, ty))   // not against the left wall
             {
                 tx++;

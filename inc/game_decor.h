@@ -6,7 +6,7 @@
 // Zone-1 decor (dead trees, graves, iron fence): whole pictures drawn on empty tiles of the room plane,
 // standing on the ground, never on a platform. No collision. Placed once per room from a seed, so a
 // room looks the same every time it is entered.
-#define MAX_DECOR 16
+#define MAX_DECOR 40   // trunks take several pieces each
 
 #define DECOR_WORLDS 2
 void decor_setWorld(u8 world);   // 0 outside (trees, graves), 1 inside the castle (banners, armour)
