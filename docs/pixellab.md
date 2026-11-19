@@ -192,3 +192,4 @@ place des ennemis dans la salle du boss.
 | Grand arbre tordu | pixflux `5e2888a2` (graine 12) | `art_in/forest/big_tree.png` |
 | Cristaux | pixflux `d33b37a2` (graine 4) | `art_in/forest/crystals.png` |
 | Fond (essai trop criard, en miroir on voit la symétrie) | pixflux `9229a74b` | `art_in/forest/far_raw.png` |
+| Fond tiré de la maquette (sans château ni chevalier) | pixflux `4e520d8a` (graine 31, init maquette, force 220) | `art_in/forest/far.png` (951 tuiles : trop pour la mémoire vidéo) |
