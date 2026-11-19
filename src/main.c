@@ -151,7 +151,8 @@ static void applyPadMode(void)
 static void newFloor(u16 seed)
 {
     saveCodex();   // what was met so far is kept, whatever happens next
-    u8 world = depth >= 3;   // floors 1-2 outside, then inside the castle (Thomas, 2026-11-19)
+    // Floors 1-2 the forest, then outside by the graveyard, then the castle (Thomas, 2026-11-19).
+    u8 world = depth <= 2 ? WORLD_FOREST : depth <= 6 ? WORLD_GRAVEYARD : WORLD_CASTLE;
     decor_setWorld(world);
     gfx_setWorld(world);
     level_start(&lv, &player, seed, depth);

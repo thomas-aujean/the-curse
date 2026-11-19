@@ -10,6 +10,10 @@ TILESET ts_ninja_fx "ninja_fx.png" NONE NONE COLUMN
 PALETTE pal_props "props.png"
 TILESET ts_props "props.png" NONE NONE COLUMN
 TILESET ts_decor "decor.png" NONE NONE ROW
+PALETTE pal_forest "forest.png"
+TILESET ts_forest "forest.png" NONE NONE ROW
+TILESET ts_forest_far "forest_far_tiles.png" NONE NONE ROW
+TILESET ts_forest_decor "forest_decor.png" NONE NONE ROW
 PALETTE pal_castle2 "castle2.png"
 TILESET ts_castle2 "castle2.png" NONE NONE ROW
 TILESET ts_far2 "far2_tiles.png" NONE NONE ROW

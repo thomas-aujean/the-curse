@@ -28,9 +28,10 @@ def main(src, out, world="1"):
     lines = open(src).read().split("\n")
     w, h = map(int, lines[0].split())
     cells = [[tuple(map(int, c.split(":"))) for c in line.split()] for line in lines[1:1 + h]]
-    k = "2" if world == "2" else ""
-    castle, decor = tiles(os.path.join(RES, "castle%s.png" % k)), tiles(os.path.join(RES, "decor%s.png" % k))
-    far, (fw, fh) = read_png(os.path.join(RES, "far%s.png" % k))
+    names = {"2": ("castle2", "decor2", "far2"), "A": ("forest", "forest_decor", "forest_far")}
+    room_png, decor_png, far_png = names.get(world, ("castle", "decor", "far"))
+    castle, decor = tiles(os.path.join(RES, room_png + ".png")), tiles(os.path.join(RES, decor_png + ".png"))
+    far, (fw, fh) = read_png(os.path.join(RES, far_png + ".png"))
     W, H = w * 8, h * 8
     img = [[far[max(0, y - max(0, H - fh))][x % fw][:3] for x in range(W)] for y in range(H)]   # horizon at the bottom
     for ty in range(h):

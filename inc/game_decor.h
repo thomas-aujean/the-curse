@@ -8,8 +8,9 @@
 // room looks the same every time it is entered.
 #define MAX_DECOR 16
 
-#define DECOR_WORLDS 2
-void decor_setWorld(u8 world);   // 0 outside (trees, graves), 1 inside the castle (banners, armour)
+// The worlds' decor, in the order of WORLD_* (gfx.h).
+enum { DECOR_FOREST, DECOR_GRAVEYARD, DECOR_CASTLE, DECOR_WORLDS };
+void decor_setWorld(u8 world);   // DECOR_*
 void decor_place(const Room *r, u16 seed);
 u8 decor_tileAt(s16 tx, s16 ty);   // decor tile (1..DECOR_TILE_COUNT - 1), 0 = none
 u8 decor_count(void);

@@ -29,6 +29,7 @@ import logo  # noqa: E402
 import arrow  # noqa: E402
 import outdoor  # noqa: E402
 import interior  # noqa: E402
+import forest  # noqa: E402
 import far  # noqa: E402
 import shop_room  # noqa: E402
 import castle  # noqa: E402
@@ -263,6 +264,25 @@ def main():
     with open(os.path.join(ROOT, "inc", "decor_tiles.h"), "w", newline=chr(10)) as f:
         f.write(decor_h)
     print("decor.png: %d tiles" % decor_count)
+    # World A, the forest at dusk (tools/art/forest.py): one palette of 14 colours for everything.
+    pal14 = forest.palette()
+    tilesF, countF, _ = castle.tileset(PAL0, forest.TILESET, pal14, forest.branch_tiles(pal14))
+    palF = PAL0[:1] + pal14 + PAL0[15:]
+    write_indexed(os.path.join(RES, "forest.png"), tilesF, palF)
+    farF_sheet, farF_count, farF_h, farF_img = forest.far(palF)
+    write_indexed(os.path.join(RES, "forest_far_tiles.png"), farF_sheet, palF)
+    write_indexed(os.path.join(RES, "forest_far.png"), farF_img, palF)   # preview (render_room.py)
+    with open(os.path.join(ROOT, "inc", "forest_far_map.h"), "w", newline=chr(10)) as f:
+        f.write(farF_h)
+
+    def sheet_tileF(i):
+        return [row[(i % 16) * 8:(i % 16) * 8 + 8] for row in tilesF[(i // 16) * 8:(i // 16) * 8 + 8]]
+    decorF, decorF_count, decorF_h = forest.decor(pal14, [sheet_tileF(1 + 9), sheet_tileF(1 + 16 + 9)])
+    write_indexed(os.path.join(RES, "forest_decor.png"), decorF, palF)
+    with open(os.path.join(ROOT, "inc", "forest_decor_tiles.h"), "w", newline=chr(10)) as f:
+        f.write(decorF_h)
+    print("world A: forest.png %d tiles, forest_far_tiles.png %d tiles, forest_decor.png %d tiles"
+          % (countF, farF_count, decorF_count))
     # World 2, inside the castle (tools/art/interior.py): same contracts, its own pictures and PAL0.
     pal9b = interior.palette()
     tiles2, count2, stone2 = castle.tileset(PAL0, interior.TILESET, pal9b, interior.beam_tiles(pal9b))
