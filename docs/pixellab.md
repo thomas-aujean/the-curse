@@ -182,3 +182,13 @@ place des ennemis dans la salle du boss.
 | Poutre (plateformes) | pixflux `feacd76f` (graine 3) | `art_in/castle/beam.png` |
 | Mur du fond, fenêtres gothiques au couchant | pixflux `d15b8f62` (graine 5) | `art_in/castle/back_wall.png` (une travée de 128 px répétée) |
 | Bannière, candélabre, armure, torche | pixflux `273be09f`, `fc4eef64`, `6de35372`, `0455dbcf` | `art_in/castle/*.png` |
+
+## Monde A, forêt au couchant (2026-11-19, en cours, pas encore branché)
+| Quoi | Id | Fichier |
+|---|---|---|
+| Maquette d'écran | pixflux `5cc46e6f` (graine 101) | `art_in/mockups/monde1_A_foret.png` (B : `0c6fbd59`, C : `d0fdae7a`) |
+| Sol rochers et racines (sidescroller pro) | `1a00c92e` (base `02cb3ecf`) | `art_in/tiles/forest_tileset.png` |
+| Branche (plateformes) | pixflux `3a835b5e` (graine 7) | `art_in/forest/branch.png` |
+| Grand arbre tordu | pixflux `5e2888a2` (graine 12) | `art_in/forest/big_tree.png` |
+| Cristaux | pixflux `d33b37a2` (graine 4) | `art_in/forest/crystals.png` |
+| Fond (essai trop criard, en miroir on voit la symétrie) | pixflux `9229a74b` | `art_in/forest/far_raw.png` |
