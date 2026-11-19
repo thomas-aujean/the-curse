@@ -1463,6 +1463,7 @@ static void drawBox(u8 x, u8 y, u8 w, u8 h, u8 selected)
 static void codexScreen(void)
 {
     plainScreen();
+    VDP_setEnable(FALSE);   // the tiles load over the title's: dark until the first page is drawn
     gfx_load();         // the enemies' and the items' tiles, the game's palettes
     gfx_loadSkull();    // the boss's box shows the skull over the way to it
     u8 page = 0, sel = 0, redraw = 1;
@@ -1510,6 +1511,7 @@ static void codexScreen(void)
             }
             VDP_setSpriteFull(n, 0, -64, SPRITE_SIZE(1, 1), 0, 0);   // end of the chain
             VDP_updateSprites(n + 1, DMA_QUEUE);
+            if (!VDP_getEnable()) { SYS_doVBlankProcess(); VDP_setEnable(TRUE); }   // first page ready
             // The one selected: its name and what it does, or nothing yet.
             u8 seen = page == 0 ? codex_enemySeen(CODEX_ENEMY[sel]) : codex_itemSeen(ITEM_HEART + sel);
             VDP_setTextPalette(PAL1);
@@ -1533,11 +1535,15 @@ static void codexScreen(void)
 // One run, from the first floor to the hero's death (then back to the title).
 static void runGame(u16 seed)
 {
-    gfx_load();
+    // All the game's tiles load over the title's while its sprites (the bats) are still in the
+    // table: the display stays off until the first room is drawn (updateRoom turns it back on).
+    VDP_setEnable(FALSE);
     VDP_resetSprites();
+    VDP_updateSprites(1, CPU);
+    gfx_load();
     bossArt = captainArt = shopArt = shopShown = 0;
     decorCell = 0xFF;
-    screenOff = 0;
+    screenOff = 2;
     dying = backToTitle = 0;
     wonFrames = 0;
     gems = bossesInTime = 0;
