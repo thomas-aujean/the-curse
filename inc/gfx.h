@@ -132,6 +132,8 @@ const u32 *gfx_letterPicture(char c);   // A..Z (colour 15), 0 for anything else
 u16 gfx_decorTile(u8 i);   // video memory index of decor tile i
 void gfx_loadDecor(void);   // decor tiles into video memory (again after a full-screen message)
 void gfx_drawFar(void);
+void gfx_setWorld(u8 world);   // 0 outside, 1 inside the castle: room tiles, far wall, decor, PAL0
+u8 gfx_farBands(const u16 **end, const u16 **speed, const s16 **drift);   // the far plane's bands
 void gfx_loadShopRoom(u8 shop);   // 1: the inside of the caravan on the far plane (its tiles over the room's), 0: the room's again   // the parallax sky on FAR_PLANE
 void gfx_setRoomPalette(u8 inVoid);
 void gfx_setEnemyTier(u8 tier);   // the enemies' colours of the floor's tier (0: their own)

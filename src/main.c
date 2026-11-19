@@ -151,6 +151,9 @@ static void applyPadMode(void)
 static void newFloor(u16 seed)
 {
     saveCodex();   // what was met so far is kept, whatever happens next
+    u8 world = depth >= 3;   // floors 1-2 outside, then inside the castle (Thomas, 2026-11-19)
+    decor_setWorld(world);
+    gfx_setWorld(world);
     level_start(&lv, &player, seed, depth);
     gfx_setEnemyTier(enemies_tier());
 }
@@ -292,19 +295,22 @@ static void scrollFar(void)
     s16 maxY = lv.room.h * ROOM_TILE - SCREEN_H_TILES * ROOM_TILE;
     s16 vB = maxY > 0 ? (s16) ((u32) camY * 32 / (u16) maxY) : 32;
     u16 worldX = lv.cellX * CELL_W_PX + camX;
-    s16 band[FAR_BANDS];
-    for (u8 b = 0; b < FAR_BANDS; b++)
-        band[b] = -(s16) (((u32) worldX * FAR_BAND_SPEED[b]) >> 5) - FAR_BAND_DRIFT[b] * (s16) (vtimer >> 4);
+    const u16 *bandEnd, *bandSpeed;
+    const s16 *bandDrift;
+    u8 bands = gfx_farBands(&bandEnd, &bandSpeed, &bandDrift);
+    s16 band[FAR_BANDS];   // world 1 has the most
+    for (u8 b = 0; b < bands; b++)
+        band[b] = -(s16) (((u32) worldX * bandSpeed[b]) >> 5) - bandDrift[b] * (s16) (vtimer >> 4);
     if (shopShown)   // one still picture
     {
         vB = 0;
-        for (u8 i = 0; i < FAR_BANDS; i++) band[i] = 0;
+        for (u8 i = 0; i < bands; i++) band[i] = 0;
     }
     u8 b = 0;
     for (u16 line = 0; line < 224; line++)
     {
         u16 row = line + vB;
-        while (b < FAR_BANDS - 1 && row >= FAR_BAND_END[b]) b++;
+        while (b < bands - 1 && row >= bandEnd[b]) b++;
         scrollRoom[line] = -camX;
         scrollBands[line] = band[b];
     }

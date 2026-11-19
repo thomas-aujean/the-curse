@@ -28,6 +28,7 @@ import skull  # noqa: E402
 import logo  # noqa: E402
 import arrow  # noqa: E402
 import outdoor  # noqa: E402
+import interior  # noqa: E402
 import far  # noqa: E402
 import shop_room  # noqa: E402
 import castle  # noqa: E402
@@ -262,6 +263,23 @@ def main():
     with open(os.path.join(ROOT, "inc", "decor_tiles.h"), "w", newline=chr(10)) as f:
         f.write(decor_h)
     print("decor.png: %d tiles" % decor_count)
+    # World 2, inside the castle (tools/art/interior.py): same contracts, its own pictures and PAL0.
+    pal9b = interior.palette()
+    tiles2, count2, stone2 = castle.tileset(PAL0, interior.TILESET, pal9b, interior.beam_tiles(pal9b))
+    pal2_0, far2_sheet, far2_count, far2_h, far2_img = interior.far(PAL0[:1] + stone2 + PAL0[10:])
+    write_indexed(os.path.join(RES, "far2.png"), far2_img, pal2_0)   # preview (tools/art/render_room.py)
+    write_indexed(os.path.join(RES, "castle2.png"), tiles2, pal2_0)
+    write_indexed(os.path.join(RES, "far2_tiles.png"), far2_sheet, pal2_0)
+    with open(os.path.join(ROOT, "inc", "far2_map.h"), "w", newline=chr(10)) as f:
+        f.write(far2_h)
+
+    def sheet_tile2(i):
+        return [row[(i % 16) * 8:(i % 16) * 8 + 8] for row in tiles2[(i // 16) * 8:(i // 16) * 8 + 8]]
+    decor2, decor2_count, decor2_h = interior.decor(pal9b, [sheet_tile2(1 + 9), sheet_tile2(1 + 16 + 9)])
+    write_indexed(os.path.join(RES, "decor2.png"), decor2, pal2_0)
+    with open(os.path.join(ROOT, "inc", "decor2_tiles.h"), "w", newline=chr(10)) as f:
+        f.write(decor2_h)
+    print("world 2: castle2.png %d tiles, far2_tiles.png %d tiles, decor2.png %d tiles" % (count2, far2_count, decor2_count))
     if knight.available():   # the PixelLab knight replaces the generated ninja (tools/art/knight.py)
         hero, hero_fx, hero_pal, offsets, lost = knight.apply(ninja)
     else:

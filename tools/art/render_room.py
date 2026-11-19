@@ -1,6 +1,7 @@
 """Renders a room dumped by tests/decor_test.c as the engine would draw it (without sprites).
 
     wsl python3 tools/art/render_room.py out/room_3.txt out/room_3.png
+    wsl python3 tools/art/render_room.py out/room2_3.txt out/room2_3.png 2     (world 2, the castle)
 
 Far background (res/far.png) behind, at the camera's top-left, then the room plane: res/castle.png
 tiles (CASTLE_FLIP mirrors them) or res/decor.png tiles on empty cells.
@@ -23,12 +24,13 @@ def tiles(path):
             for i in range((w // 8) * (h // 8))]
 
 
-def main(src, out):
+def main(src, out, world="1"):
     lines = open(src).read().split("\n")
     w, h = map(int, lines[0].split())
     cells = [[tuple(map(int, c.split(":"))) for c in line.split()] for line in lines[1:1 + h]]
-    castle, decor = tiles(os.path.join(RES, "castle.png")), tiles(os.path.join(RES, "decor.png"))
-    far, (fw, fh) = read_png(os.path.join(RES, "far.png"))
+    k = "2" if world == "2" else ""
+    castle, decor = tiles(os.path.join(RES, "castle%s.png" % k)), tiles(os.path.join(RES, "decor%s.png" % k))
+    far, (fw, fh) = read_png(os.path.join(RES, "far%s.png" % k))
     W, H = w * 8, h * 8
     img = [[far[max(0, y - max(0, H - fh))][x % fw][:3] for x in range(W)] for y in range(H)]   # horizon at the bottom
     for ty in range(h):
@@ -54,4 +56,4 @@ def main(src, out):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    main(*sys.argv[1:4])

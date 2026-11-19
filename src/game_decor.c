@@ -1,5 +1,25 @@
 #include "game_decor.h"
-#include "decor_tiles.h"
+#include "decor_tiles.h"    // world 1, outside (tools/art/outdoor.py)
+#include "decor2_tiles.h"   // world 2, inside the castle (tools/art/interior.py)
+
+// Each world's pictures (generated headers).
+typedef struct
+{
+    const u8 *w, *h;
+    const u16 *start;
+    const u8 *cells;
+} DecorSet;
+static const DecorSet SETS[DECOR_WORLDS] =
+{
+    { DECOR_W, DECOR_H, DECOR_START, DECOR_CELLS },
+    { DECOR2_W, DECOR2_H, DECOR2_START, DECOR2_CELLS },
+};
+static u8 world;
+
+void decor_setWorld(u8 w)
+{
+    world = w < DECOR_WORLDS ? w : DECOR_WORLDS - 1;
+}
 
 typedef struct
 {
@@ -18,7 +38,7 @@ static u8 count;
 #define GROUND_DEPTH 3
 static u8 fits(const Room *r, u8 kind, u8 tx, u8 ty)
 {
-    u8 w = DECOR_W[kind], h = DECOR_H[kind];
+    u8 w = SETS[world].w[kind], h = SETS[world].h[kind];
     if ((tx & 1) || tx == 0 || tx + w + 1 > r->w || ty + 1 >= r->h || ty + 1 < h) return 0;
     for (u8 x = tx - 1; x <= tx + w; x++)
     {
@@ -32,11 +52,64 @@ static u8 fits(const Room *r, u8 kind, u8 tx, u8 ty)
     return 1;
 }
 
+// World 2: banners and torches hang on the castle's back wall, `lift` tiles over the floor: a
+// rectangle of empty tiles there, over a floor at least as wide.
+static u8 fitsWall(const Room *r, u8 kind, u8 tx, u8 ty, u8 lift)
+{
+    u8 w = DECOR2_W[kind], h = DECOR2_H[kind];
+    if (tx + w > r->w || ty < lift + h) return 0;
+    for (u8 x = tx; x < tx + w; x++)
+    {
+        if (r->tiles[ty + 1][x] != TILE_SOLID) return 0;
+        for (u8 y = ty + 1 - lift - h; y <= ty; y++)
+            if (r->tiles[y][x] != TILE_EMPTY) return 0;
+    }
+    return 1;
+}
+
+// World 2 (Thomas, 2026-11-19): candelabras and suits of armour on the floor, banners and torches on
+// the wall above it.
+static void placeCastle(const Room *r, u16 rnd)
+{
+    u8 armours = 0;
+    for (u8 ty = 1; ty + 1 < r->h; ty++)
+        for (u8 tx = 4; tx < r->w && count < MAX_DECOR;)
+        {
+            rnd = rnd * 25173 + 13849;
+            u8 roll = rnd >> 8;
+            if (roll >= 120 || r->tiles[ty][tx] != TILE_EMPTY || r->tiles[ty + 1][tx] != TILE_SOLID)
+            {
+                tx++;
+                continue;
+            }
+            u8 kind = roll < 30 ? DECOR2_CANDELABRA : roll < 50 ? DECOR2_ARMOR : roll < 85 ? DECOR2_BANNER : DECOR2_TORCH;
+            if (kind == DECOR2_ARMOR && armours >= 2) kind = DECOR2_CANDELABRA;
+            u8 lift = kind == DECOR2_BANNER ? 4 : 7;   // tiles between the floor and the picture's bottom
+            u8 wall = kind == DECOR2_BANNER || kind == DECOR2_TORCH;
+            if (wall ? !fitsWall(r, kind, tx, ty, lift) : !fits(r, kind, tx, ty))
+            {
+                tx++;
+                continue;
+            }
+            Decor *d = &decor[count++];
+            d->kind = kind;
+            d->x = tx;
+            d->y = wall ? ty + 1 - lift - DECOR2_H[kind] : ty + 2 - DECOR2_H[kind];
+            armours += kind == DECOR2_ARMOR;
+            tx += DECOR2_W[kind] + 3 + (rnd & 15);
+        }
+}
+
 void decor_place(const Room *r, u16 seed)
 {
     u16 rnd = seed | 1;
     u8 trees = 0, fences = 0;
     count = 0;
+    if (world == 1)
+    {
+        placeCastle(r, rnd);
+        return;
+    }
     for (u8 ty = 1; ty + 1 < r->h; ty++)
         for (u8 tx = 0; tx < r->w && count < MAX_DECOR;)
         {
@@ -74,9 +147,10 @@ u8 decor_tileAt(s16 tx, s16 ty)
     {
         const Decor *d = &decor[i];
         s16 dx = tx - d->x, dy = ty - d->y;
-        if (dx >= 0 && dy >= 0 && dx < DECOR_W[d->kind] && dy < DECOR_H[d->kind])
+        const DecorSet *set = &SETS[world];
+        if (dx >= 0 && dy >= 0 && dx < set->w[d->kind] && dy < set->h[d->kind])
         {
-            u8 c = DECOR_CELLS[DECOR_START[d->kind] + dy * DECOR_W[d->kind] + dx];
+            u8 c = set->cells[set->start[d->kind] + dy * set->w[d->kind] + dx];
             if (c) return c;   // an empty cell lets a picture behind show (overlaps are rare)
         }
     }

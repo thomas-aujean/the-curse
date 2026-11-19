@@ -174,3 +174,11 @@ heaume cornu, grande épée), états : windup `9044b47e…` (épée levée derri
 strike `325e9a81…` (frappe basse en avant, 112 × 112), walk `5e1bedf2…`. Vues `east` dans
 `art_in/boss/captain/`. Environ 87 px de haut, découpé en 8-9 sprites par pose (377 tuiles), chargé à la
 place des ennemis dans la salle du boss.
+
+## Monde 2, intérieur du château (2026-11-19, `tools/art/interior.py`)
+| Quoi | Id | Fichier |
+|---|---|---|
+| Tuiles de pierre (sidescroller pro) | `086aebc0` (base `bb242018`) | `art_in/tiles/castle_interior_tileset.png` |
+| Poutre (plateformes) | pixflux `feacd76f` (graine 3) | `art_in/castle/beam.png` |
+| Mur du fond, fenêtres gothiques au couchant | pixflux `d15b8f62` (graine 5) | `art_in/castle/back_wall.png` (une travée de 128 px répétée) |
+| Bannière, candélabre, armure, torche | pixflux `273be09f`, `fc4eef64`, `6de35372`, `0455dbcf` | `art_in/castle/*.png` |

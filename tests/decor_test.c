@@ -46,6 +46,37 @@ int main(void)
         }
         fclose(f);
     }
+    // World 2, inside the castle: candelabras and armour on the floor, banners and torches on the wall,
+    // always over empty tiles (never in a wall or on a platform).
+    decor_setWorld(1);
+    int castle = 0;
+    for (int n = 0; n < ROOM_TEMPLATE_COUNT; n++)
+    {
+        level_buildRoom(&room, &ROOM_TEMPLATES[n], 15);
+        decor_place(&room, 0x4321 + n * 31);
+        castle += decor_count();
+        char path2[32];
+        sprintf(path2, "out/room2_%d.txt", n);   // for tools/art/render_room.py (world 2)
+        FILE *f2 = fopen(path2, "w");
+        fprintf(f2, "%d %d\n", room.w, room.h);
+        for (int y = 0; y < room.h; y++)
+        {
+            for (int x = 0; x < room.w; x++)
+            {
+                unsigned t = decor_planeTile(&room, x, y);
+                fprintf(f2, "%u:%u ", t & DECOR_TILE ? 0 : t, t & DECOR_TILE ? t & 0xFF : 0);
+            }
+            fprintf(f2, "\n");
+        }
+        fclose(f2);
+        for (int y = 0; y < room.h; y++)
+            for (int x = 0; x < room.w; x++)
+                CHECK(!decor_tileAt(x, y) || room.tiles[y][x] == TILE_EMPTY
+                      || (room.tiles[y][x] == TILE_SOLID && room.tiles[y - 1][x] == TILE_EMPTY),
+                      "castle template %d: decor over a wall or platform at (%d, %d)", n, x, y);
+    }
+    CHECK(castle > 20, "only %d castle decor pictures", castle);
+    decor_setWorld(0);
     printf("%d decor pictures in %d templates, %d failures\n", placed, ROOM_TEMPLATE_COUNT, failures);
     return failures != 0;
 }
