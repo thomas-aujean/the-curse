@@ -28,23 +28,15 @@ DECOR = [
     ("FENCE", "decor/fence.png"),
     ("GRAVE_ROUND", "decor/grave_round.png"),
     ("GRAVE_CROSS", "decor/grave_cross.png"),
+    ("GRAVE_BROKEN", "decor/grave_broken.png"),
     ("GRAVE_COLUMN", "decor/grave_column.png"),
     ("GRAVE_SKULL", "decor/grave_skull.png"),
-    # A tree under a branch (Thomas, 2026-11-19: branches floating in the air): PixelLab pixflux
-    # 5ed19e06 (art_in/trees/trunk.png) cut in three bands, stacked by the engine (game_decor.c).
-    ("TRUNK_ROOT", ("trees/trunk.png", 104, 128)),
-    ("TRUNK_MID", ("trees/trunk.png", 56, 72)),
-    ("TRUNK_TOP", ("trees/trunk.png", 8, 32)),
 ]
-STACKED = ("TRUNK_MID", "TRUNK_TOP")   # no foot cell: each stands on the piece under it
 BRANCH = "trees/branch.png"
 BRANCH_COLUMNS = [16, 24, 40, 48, 56]   # x of middle A, middle B, end, tip 1, tip 2 in the picture
 
 
 def _load(rel):
-    """{(x, y): rgb}; rel: a picture, or (picture, first row, row after) for a band of it."""
-    if isinstance(rel, tuple):
-        return {(x, y - rel[1]): c for (x, y), c in _load(rel[0]).items() if rel[1] <= y < rel[2]}
     rows, (w, h) = read_png(os.path.join(ART, rel))
     return {(x, y): rows[y][x][:3] for y in range(h) for x in range(w) if rows[y][x][3] >= 128}
 
@@ -111,7 +103,7 @@ def branch_tiles(pal, path=BRANCH, columns=BRANCH_COLUMNS):
 SINK = 3   # px a picture goes down into the ground, behind the grass: it stands, it does not float
 
 
-def decor(pal, ground, kinds=None, prefix="DECOR", wall=STACKED):
+def decor(pal, ground, kinds=None, prefix="DECOR", wall=()):
     """Returns (sheet rows 128 px wide, tile count, C header).
     ground: the two tiles (palette indices) of a flat ground top, for even and odd columns. Every
     picture gets one more row of cells, on the ground: the ground tile with the foot of the picture
@@ -127,8 +119,6 @@ def decor(pal, ground, kinds=None, prefix="DECOR", wall=STACKED):
         px = _load(rel)
         x0, x1 = min(x for x, _ in px), max(x for x, _ in px)
         y0, y1 = min(y for _, y in px), max(y for _, y in px)
-        if isinstance(rel, tuple):   # a band: 32 px wide, its full height
-            x0, x1, y0, y1 = 0, 31, 0, rel[2] - rel[1] - 1
         w = (x1 - x0 + 8) // 8
         sink = 0 if name in wall else SINK
         above = (y1 - y0 + 1 - sink + 7) // 8      # rows of cells over the ground

@@ -142,7 +142,6 @@ Palette PAL0 1..9 commune : 5 couleurs pour le sol (verts de l'herbe gardés), 4
 - Sol : tileset sidescroller pro `c740d402-c827-4b5d-9aab-572b0faf4ab6` (terre sombre, herbe éclairée) → `art_in/tiles/ground_tileset.*`
 - Château lointain : image pro `3a1ace7d` n° 1 → `art_in/far/castle_1.png` (collé dans le fond, couleurs du ciel)
 - Branche (plateformes) : image pro `366289c0` n° 0 → `art_in/trees/branch.png` (milieu A/B, bout, 2 pointes ; miroir à gauche)
-- Tronc sous les branches : pixflux `5ed19e06` (graine 21) → `art_in/trees/trunk.png` (coupé en fourche, segment, racines)
 - Arbres morts : `tree_a.png` = pixflux `a302b778` (graine 7), `tree_b.png` = pixflux `86c09057` (graine 42), 64 x 96 (2026-11-18 : les anciens, image pro `b4763301`, tronc coupé / visage et racines en l'air, ne tenaient pas au sol)
 - Grille : image pro `4700acb6` n° 0 → `art_in/decor/fence.png`
 - Tombes (objet `1ab648de`, gardées : b54d1ef8, 34c07c62, e7fead90, d44c1164, 01f76217) → `art_in/decor/grave_*.png`

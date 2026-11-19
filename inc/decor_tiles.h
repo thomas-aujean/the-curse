@@ -3,14 +3,14 @@
 #ifndef DECOR_TILES_H
 #define DECOR_TILES_H
 
-#define DECOR_TILE_COUNT 224
+#define DECOR_TILE_COUNT 216
 
-enum { DECOR_TREE_A, DECOR_TREE_B, DECOR_FENCE, DECOR_GRAVE_ROUND, DECOR_GRAVE_CROSS, DECOR_GRAVE_COLUMN, DECOR_GRAVE_SKULL, DECOR_TRUNK_ROOT, DECOR_TRUNK_MID, DECOR_TRUNK_TOP, DECOR_KINDS };
+enum { DECOR_TREE_A, DECOR_TREE_B, DECOR_FENCE, DECOR_GRAVE_ROUND, DECOR_GRAVE_CROSS, DECOR_GRAVE_BROKEN, DECOR_GRAVE_COLUMN, DECOR_GRAVE_SKULL, DECOR_KINDS };
 
-static const u8 DECOR_W[DECOR_KINDS] = { 7, 7, 8, 4, 3, 4, 4, 4, 4, 4 };
-static const u8 DECOR_H[DECOR_KINDS] = { 12, 12, 5, 5, 5, 5, 5, 4, 2, 3 };
-static const u16 DECOR_START[DECOR_KINDS] = { 0, 84, 168, 208, 228, 243, 263, 283, 299, 307 };
-static const u8 DECOR_CELLS[319] =
+static const u8 DECOR_W[DECOR_KINDS] = { 7, 7, 8, 4, 3, 4, 4, 4 };
+static const u8 DECOR_H[DECOR_KINDS] = { 12, 12, 5, 5, 5, 4, 5, 5 };
+static const u16 DECOR_START[DECOR_KINDS] = { 0, 84, 168, 208, 228, 243, 259, 279 };
+static const u8 DECOR_CELLS[299] =
 {
     // TREE_A
       0,   1,   2,   0,   3,   4,   0,
@@ -56,30 +56,23 @@ static const u8 DECOR_CELLS[319] =
     164, 165, 166,
       0, 167, 168,
     169, 170, 171,
-    // GRAVE_COLUMN
-      0, 172,   0,   0,
-      0, 173, 174,   0,
-      0, 175, 176,   0,
+    // GRAVE_BROKEN
+    144, 172, 173,   0,
+    148, 174, 175, 176,
     177, 178, 179, 180,
     181, 182, 183, 184,
+    // GRAVE_COLUMN
+      0, 185,   0,   0,
+      0, 186, 187,   0,
+      0, 188, 189,   0,
+    190, 191, 192, 193,
+    194, 195, 196, 197,
     // GRAVE_SKULL
-      0, 185, 186,   0,
-    187, 188, 189, 190,
-    191, 192, 193, 194,
-    195, 196, 197, 198,
-    199, 200, 201, 202,
-    // TRUNK_ROOT
-      0, 203, 204,   0,
-      0, 205, 206,   0,
-    207, 208, 209, 210,
-    211, 212, 213, 214,
-    // TRUNK_MID
-      0, 215, 216,   0,
-      0, 217, 216,   0,
-    // TRUNK_TOP
-    218, 219, 216,   0,
-      0, 220, 221,   0,
-      0, 222, 223,   0,
+      0, 198, 199,   0,
+    200, 201, 202, 203,
+    204, 205, 206, 207,
+    208, 209, 210, 211,
+    212, 213, 214, 215,
 };
 
 #endif
