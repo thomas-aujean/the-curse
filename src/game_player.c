@@ -88,6 +88,7 @@ void player_init(Player *p, s16 px, s16 py)
     p->prevPad = 0;
     p->attackId = 0;
     p->maxHp = p->hp = 6;
+    p->grey = 0;
     p->invulnerable = p->hurtTimer = 0;
     p->light = p->lightMax = t.lightMax;
     p->corrupted = 0;
@@ -124,9 +125,9 @@ void player_takeItem(Player *p, u8 item)
         case ITEM_HEART:
             p->hp += 2;
             break;
-        case ITEM_STONE_HEART:
-            p->maxHp += 2;
-            p->hp += 2;
+        case ITEM_STONE_HEART:   // a grey heart, as Isaac's soul hearts (Thomas, 2026-11-19)
+            p->grey += 2;
+            if (p->maxHp + p->grey > MAX_HEARTS * 2) p->grey = MAX_HEARTS * 2 - p->maxHp;
             break;
         case ITEM_WIND_BOOTS:
             p->runBonus += scaleSpeed(112);
@@ -447,7 +448,10 @@ void player_bounce(Player *p)
 void player_hurt(Player *p, u8 damage, u8 fromRight)
 {
     if (p->invulnerable || p->hp <= 0) return;
-    p->hp -= damage + p->corrupted;   // the pact's price: one more half heart per hit
+    s8 d = damage + p->corrupted;   // the pact's price: one more half heart per hit
+    s8 g = d < p->grey ? d : p->grey;   // the grey hearts go first
+    p->grey -= g;
+    p->hp -= d - g;
     if (p->hp < 0) p->hp = 0;
     p->invulnerable = t.invulFrames;
     p->hurtTimer = t.hurtFrames;

@@ -81,9 +81,9 @@ int main(void)
     enemies_add(&set, ENEMY_WALKER, 150, 200, 1);
     player_init(&p, 150, 200);
     step(&p, 0, 1);
-    CHECK(p.hp == 4 && p.invulnerable, "Void walker contact: hp %d", p.hp);
+    CHECK(p.hp == 5 && p.invulnerable, "Void walker contact: hp %d", p.hp);   // as hard as normal (2026-11-19)
     step(&p, 0, 10);
-    CHECK(p.hp == 4, "invulnerable after a hit: hp %d", p.hp);
+    CHECK(p.hp == 5, "invulnerable after a hit: hp %d", p.hp);
 
     // Downward slash while falling onto a walker: the player bounces up. The blow must be started ahead
     // (3 frames of wind-up): too late, the walker is touched first.
@@ -100,12 +100,12 @@ int main(void)
     }
     CHECK(hit && bounced && p.hp == p.maxHp, "pogo: hit %d bounced %d hp %d", hit, bounced, p.hp);
 
-    // The Void transforms enemies and keeps the damage taken.
+    // The Void transforms enemies and keeps the damage taken (the guard: 3 hp, 4 in the Void, x1.2).
     enemies_clear(&set);
-    enemies_add(&set, ENEMY_WALKER, 150, 200, 0);
+    enemies_add(&set, ENEMY_GUARD, 150, 200, 0);
     set.e[0].hp = 1;
     enemies_setVoid(&set, 1);
-    CHECK(set.e[0].voidForm && set.e[0].hp == 3, "Void form hp %d", set.e[0].hp);
+    CHECK(set.e[0].voidForm && set.e[0].hp == 2, "Void form hp %d", set.e[0].hp);
 
     // Boss entrance: out of sight and untouchable, then it drops in, the screen shakes, it roars with
     // its life bar up, then fights.

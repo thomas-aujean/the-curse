@@ -415,7 +415,7 @@ static void drawRoom(void)
 // An enemy pose is 1 to 4 sprites. The console shows 80 sprites in all: the enemies share a pool
 // instead of owning 4 each (12 enemies never show their widest pose on one screen together).
 #define SPRITE_ENEMIES 2
-#define ENEMY_SPRITES 30
+#define ENEMY_SPRITES 27   // 27: the HUD takes 13 (two rows of hearts), 80 in all
 #define SPRITE_BAR (SPRITE_ENEMIES + ENEMY_SPRITES)   // 3 sprites: name of the enemy last hit, its life
 #define SPRITE_SHOTS (SPRITE_BAR + 3)
 #define SPRITE_GEM (SPRITE_SHOTS + MAX_SHOTS)
@@ -428,7 +428,8 @@ static void drawRoom(void)
 #define SPRITE_BODY_LOW (SPRITE_EXT3 + 1)   // hero below row 32 (hardware sprites are 4 x 4 tiles max)
 #define SPRITE_HIT (SPRITE_BODY_LOW + 1)    // spark of a blow; chained right after the hero, over the enemies
 #define SPRITE_HUD (SPRITE_HIT + 1)        // 10 sprites: hearts 3, light 3, coins, minimap 2, keys
-#define SPRITE_COUNT (SPRITE_HUD + 10)
+#define HUD_SPRITES 13
+#define SPRITE_COUNT (SPRITE_HUD + HUD_SPRITES)
 
 // Animation frame from the player's state. Running advances one frame every 7 px travelled,
 // so the legs match the ground speed (and the upgrades that change it).
@@ -591,9 +592,10 @@ static void drawEnemyBar(void)
     }
     u16 pal = s->barVoid ? PAL3 : PAL2;
     s16 y = shown ? 3 : -64;
-    VDP_setSpriteFull(SPRITE_BAR, 128, y, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_ENEMY_BAR), SPRITE_BAR + 1);
-    VDP_setSpriteFull(SPRITE_BAR + 1, 160, y, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_ENEMY_BAR + 4), SPRITE_BAR + 2);
-    VDP_setSpriteFull(SPRITE_BAR + 2, 144, shown ? 12 : -64, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(pal, 1, 0, 0, GFX_ENEMY_BAR + 8),
+    // Top right (Thomas, 2026-11-19), the bar under the end of the name.
+    VDP_setSpriteFull(SPRITE_BAR, 248, y, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_ENEMY_BAR), SPRITE_BAR + 1);
+    VDP_setSpriteFull(SPRITE_BAR + 1, 280, y, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(PAL2, 1, 0, 0, GFX_ENEMY_BAR + 4), SPRITE_BAR + 2);
+    VDP_setSpriteFull(SPRITE_BAR + 2, 280, shown ? 12 : -64, SPRITE_SIZE(4, 1), TILE_ATTR_FULL(pal, 1, 0, 0, GFX_ENEMY_BAR + 8),
                       SPRITE_SHOTS);
 }
 
@@ -860,20 +862,21 @@ static void drawSprites(void)
         else VDP_setSpriteFull(index, 0, -64, SPRITE_SIZE(1, 1), 0, link);
     }
     // HUD, last in the chain (behind the other sprites), over the room: the window's old rows.
-    static const u8 HUD[10][5] =   // x, y (tiles), width, height, first tile offset
+    // Hearts, two rows of 8 (Thomas, 2026-11-19), the light, coins and keys top left; the minimap
+    // down right (the enemy's bar takes the top right).
+    static const u16 HUD[HUD_SPRITES][5] =   // x, y (px), width, height (tiles), first tile
     {
-        { 1, 0, 4, 1, 0 }, { 5, 0, 4, 1, 4 }, { 9, 0, 4, 1, 8 },    // hearts
-        { 1, 1, 4, 1, 0 }, { 5, 1, 4, 1, 4 }, { 9, 1, 2, 1, 8 },    // light
-        { 1, 2, 4, 1, 0 },                                          // coins
-        { 34, 0, 4, 3, 0 }, { 38, 0, 1, 3, 12 },                    // minimap
-        { 6, 2, 2, 1, 0 },                                          // keys
+        { 8, 2, 4, 1, GFX_HUD_HEARTS }, { 40, 2, 4, 1, GFX_HUD_HEARTS + 4 }, { 72, 2, 1, 1, GFX_HUD_HEARTS + 8 },
+        { 8, 11, 4, 1, GFX_HUD_HEARTS + 9 }, { 40, 11, 4, 1, GFX_HUD_HEARTS + 13 }, { 72, 11, 1, 1, GFX_HUD_HEARTS + 17 },
+        { 8, 21, 4, 1, GFX_HUD_LIGHT }, { 40, 21, 4, 1, GFX_HUD_LIGHT_B }, { 72, 21, 2, 1, GFX_HUD_LIGHT + 4 },
+        { 8, 30, 4, 1, GFX_HUD_COINS }, { 48, 30, 2, 1, GFX_HUD_KEYS },
+        { 276, 192, 4, 3, GFX_HUD_MAP }, { 308, 192, 1, 3, GFX_HUD_MAP + 12 },
     };
-    for (u8 k = 0; k < 10; k++)
+    for (u8 k = 0; k < HUD_SPRITES; k++)
     {
-        u16 base = k < 3 ? GFX_HUD_HEARTS : k < 6 ? GFX_HUD_LIGHT : k == 6 ? GFX_HUD_COINS : k < 9 ? GFX_HUD_MAP : GFX_HUD_KEYS;
-        u16 pal = k < 3 ? PAL1 : (k < 6 && player.corrupted) ? PAL3 : PAL2;
-        VDP_setSpriteFull(SPRITE_HUD + k, HUD[k][0] * 8, HUD[k][1] * 8, SPRITE_SIZE(HUD[k][2], HUD[k][3]),
-                          TILE_ATTR_FULL(pal, 1, 0, 0, base + HUD[k][4]), k < 9 ? SPRITE_HUD + k + 1 : 0);
+        u16 pal = k < 6 ? PAL1 : (k < 9 && player.corrupted) ? PAL3 : PAL2;
+        VDP_setSpriteFull(SPRITE_HUD + k, HUD[k][0], HUD[k][1], SPRITE_SIZE(HUD[k][2], HUD[k][3]),
+                          TILE_ATTR_FULL(pal, 1, 0, 0, HUD[k][4]), k + 1 < HUD_SPRITES ? SPRITE_HUD + k + 1 : 0);
     }
     VDP_updateSprites(SPRITE_COUNT, DMA_QUEUE);
 }
@@ -886,6 +889,7 @@ static void hideSprites(void)
 
 // HUD (does not scroll): hearts and light bar top left, minimap of the rooms around
 // top right. Each part is redrawn only when what it shows has changed.
+static u8 hudGrey = 0xFF;
 static u8 hudHp = 0xFF, hudMaxHp = 0xFF, hudLight = 0xFF, hudCell = 0xFF, hudCorrupted = 0xFF, hudKeys = 0xFF;
 static u16 hudCoins = 0xFFFF;
 static u16 itemMessage;   // frames left showing a message (the item just taken, its line)
@@ -893,7 +897,7 @@ static u16 itemMessage;   // frames left showing a message (the item just taken,
 // The HUD is sprites, not the window plane: the window would hide plane A, the room, and its doors
 // in the top rows. Each part's tiles are composed in its own RAM buffer (the DMA queue reads them at
 // the next vertical blank) and sent only when what it shows changes.
-static u32 hudHearts[12 * 8], hudLightTiles[10 * 8], hudMap[15 * 8], hudCoinTiles[4 * 8], hudKeyTiles[2 * 8];
+static u32 hudHearts[18 * 8], hudLightTiles[10 * 8], hudMap[15 * 8], hudCoinTiles[4 * 8], hudKeyTiles[2 * 8];
 
 static void copyTile(u32 *dst, const u32 *src)
 {
@@ -941,21 +945,42 @@ static void drawMinimap(void)
 
 static void drawHud(void)
 {
-    if (player.hp != hudHp || player.maxHp != hudMaxHp)
+    if (player.hp != hudHp || player.maxHp != hudMaxHp || player.grey != hudGrey)
     {
         hudHp = player.hp;
         hudMaxHp = player.maxHp;
-        for (u8 i = 0; i < 12; i++)   // one heart = 2 hit points
-            copyTile(&hudHearts[i * 8], i * 2 >= player.maxHp ? NULL
-                     : gfx_hudPicture(player.hp >= i * 2 + 2 ? 0 : player.hp == i * 2 + 1 ? 1 : 2));
-        VDP_loadTileData(hudHearts, GFX_HUD_HEARTS, 12, DMA_QUEUE);
+        hudGrey = player.grey;
+        // Up to 16 hearts, 8 a row, 9 px apart (Thomas, 2026-11-19: "spread them a little"): the red
+        // ones, then the grey ones (the heart's red, colour 5, in light grey, colour 12).
+        memset(hudHearts, 0, sizeof(hudHearts));
+        u8 red = player.maxHp / 2, grey = (player.grey + 1) / 2;
+        for (u8 i = 0; i < red + grey && i < MAX_HEARTS; i++)
+        {
+            u8 pic, isGrey = i >= red;
+            if (!isGrey) pic = player.hp >= i * 2 + 2 ? 0 : player.hp == i * 2 + 1 ? 1 : 2;
+            else pic = player.grey >= (i - red) * 2 + 2 ? 0 : 1;
+            const u32 *src = gfx_hudPicture(pic);
+            u16 x0 = (i & 7) * 9, row = i >> 3;
+            for (u8 y = 0; y < 8; y++)
+                for (u8 x = 0; x < 8; x++)
+                {
+                    u8 c = (src[y] >> ((7 - x) * 4)) & 15;
+                    if (!c) continue;
+                    if (isGrey && c == 5) c = 12;
+                    u16 px = x0 + x;
+                    hudHearts[(row * 9 + (px >> 3)) * 8 + y] |= (u32) c << ((7 - (px & 7)) * 4);
+                }
+        }
+        VDP_loadTileData(hudHearts, GFX_HUD_HEARTS, 18, DMA_QUEUE);
     }
     u8 steps = (u32) player.light * 10 / player.lightMax;
     if (steps != hudLight)
     {
         hudLight = steps;
         for (u8 i = 0; i < 10; i++) copyTile(&hudLightTiles[i * 8], gfx_hudPicture(i < steps ? 3 : 4));
-        VDP_loadTileData(hudLightTiles, GFX_HUD_LIGHT, 10, DMA_QUEUE);
+        VDP_loadTileData(hudLightTiles, GFX_HUD_LIGHT, 4, DMA_QUEUE);
+        VDP_loadTileData(hudLightTiles + 4 * 8, GFX_HUD_LIGHT_B, 4, DMA_QUEUE);
+        VDP_loadTileData(hudLightTiles + 8 * 8, GFX_HUD_LIGHT + 4, 2, DMA_QUEUE);
     }
     if (player.corrupted != hudCorrupted)
     {
@@ -1040,7 +1065,7 @@ static void showText(const char *line)
 
 static void forceHud(void)
 {
-    hudHp = hudMaxHp = hudLight = hudCell = hudCorrupted = 0xFF;
+    hudHp = hudMaxHp = hudLight = hudCell = hudCorrupted = hudGrey = 0xFF;
     hudCoins = 0xFFFF;
     hudKeys = 0xFF;
     lv.shopChanged = 1;

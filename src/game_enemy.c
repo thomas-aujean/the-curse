@@ -55,7 +55,10 @@ u8 enemies_tier(void)
 // Full life: x1, x1.5, x2 with the tier.
 static s8 maxHp(u8 type, u8 voidForm)
 {
-    return STATS[type][voidForm].hp * (2 + tier) / 2;
+    // The Void form (Thomas, 2026-11-19: "too hot even on floor 1, x1.2 or so"): the normal form's life
+    // x1.2 to the nearest (1 and 2 stay, 3 gives 4), the boss aside (its Void form is its own).
+    s16 hp = type == ENEMY_BOSS ? STATS[type][voidForm].hp : voidForm ? (STATS[type][0].hp * 12 + 5) / 10 : STATS[type][0].hp;
+    return hp * (2 + tier) / 2;
 }
 
 void enemies_setRegion(u8 isPal)
@@ -924,6 +927,7 @@ void enemies_update(EnemySet *s, const Room *r, Player *p)
             continue;
         }
         EnemyStats boosted = STATS[e->type][e->voidForm];
+        if (e->voidForm && e->type != ENEMY_BOSS) boosted.damage = STATS[e->type][0].damage;   // as hard as normal
         if (tier >= 2) boosted.damage++;
         const EnemyStats *st = &boosted;
         e->timer++;

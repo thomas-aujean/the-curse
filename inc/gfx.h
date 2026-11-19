@@ -32,15 +32,15 @@
 #define GFX_TILE_ARROW         (TILE_USER_INDEX + 124)
 #define GFX_TILE_SHURIKEN      (TILE_USER_INDEX + 125)
 #define GFX_TILE_COIN          (TILE_USER_INDEX + 126)  // PAL2 gold
-#define GFX_TILE_JAR           (TILE_USER_INDEX + 127)  // 2 x 2 (PAL2), bottom on row 15
 #define GFX_TILE_HIT           (TILE_USER_INDEX + 135)  // 2 x 2 (PAL2), spark of a blow that lands
 #define GFX_TILE_TRAP_ARROW    (TILE_USER_INDEX + 131)  // 2 x 2 (PAL2), gold arrow shown over a trapdoor
 // HUD sprites (main.c, drawHud): their tiles are composed in RAM and sent when what they show changes.
 #define GFX_HUD_MAP            (TILE_USER_INDEX + 34)   // 15 tiles: 5 x 3 rooms, column by column
 #define GFX_HUD_COINS          (TILE_USER_INDEX + 53)   // 4 tiles: coin and 3 digits
 #define GFX_HUD_KEYS           (TILE_USER_INDEX + 57)   // 2 tiles: key and 1 digit
-#define GFX_HUD_HEARTS         (TILE_USER_INDEX + 99)   // 12 tiles
-#define GFX_HUD_LIGHT          (TILE_USER_INDEX + 111)  // 10 tiles, up to 121
+#define GFX_HUD_HEARTS         (TILE_USER_INDEX + 99)   // 18 tiles: two rows of 8 hearts, 9 px apart
+#define GFX_HUD_LIGHT          (TILE_USER_INDEX + 117)  // 6 tiles (the bar's first 4, its last 2 at + 4)
+#define GFX_HUD_LIGHT_B        (TILE_USER_INDEX + 127)  // 4 tiles: the bar's middle (the old jar's place)
 
 
 #define GFX_FEET_ROW 29   // last pixel row of the feet in the 32-row ninja art

@@ -36,7 +36,7 @@ enum
     ITEM_NONE,
     ITEM_HEART,
     ITEM_FIRST_UPGRADE,
-    ITEM_STONE_HEART = ITEM_FIRST_UPGRADE,   // +1 heart
+    ITEM_STONE_HEART = ITEM_FIRST_UPGRADE,   // +1 grey heart
     ITEM_WIND_BOOTS,                         // runs faster
     ITEM_RAVEN_WINGS,                        // double jump
     ITEM_LONG_BLADE,                         // longer side slash
@@ -49,6 +49,8 @@ enum
 #define UPGRADE_COUNT (ITEM_COUNT - ITEM_FIRST_UPGRADE)
 
 // The hero is drawn 32 x 48; his box is slimmer and lower than the drawing, as in most action games.
+#define MAX_HEARTS 16   // red and grey together, in half hearts: 32 (the HUD's two rows of 8)
+
 #define PLAYER_W 12
 #define PLAYER_H 40
 #define PLAYER_CROUCH_H 24
@@ -62,6 +64,7 @@ typedef struct
     u8 coyote, jumpBuffer, dropTimer, attackTimer, attackDir;   // attackDir: ATTACK_*
     u8 attackId;         // changes at every slash, so an enemy is hit once per slash
     s8 hp, maxHp;        // half hearts
+    s8 grey;             // grey hearts (half hearts), over the red ones: lost first, never refilled
     u8 invulnerable;     // frames of blinking after a hit
     u8 hurtTimer;        // frames of knockback without control
     u16 light;           // protection against the Void, in frames: drains inside it, refills outside

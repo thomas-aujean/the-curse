@@ -162,14 +162,17 @@ static void upgrades(void)
     run(&p, PAD_RIGHT, 30);
     CHECK(p.vx < 1000, "lead boots: vx %d", p.vx);
 
-    // Hearts: stone adds one, glass removes one but hits harder; health never exceeds the max.
+    // Hearts: stone adds a grey one (over the red ones, never refilled), glass removes a red one but
+    // hits harder; health never exceeds the max; red and grey together never pass 16 hearts.
     player_init(&p, 60, 200);
     player_takeItem(&p, ITEM_STONE_HEART);
-    CHECK(p.maxHp == 8 && p.hp == 8, "stone heart: %d/%d", p.hp, p.maxHp);
+    CHECK(p.maxHp == 6 && p.hp == 6 && p.grey == 2, "stone heart: %d/%d grey %d", p.hp, p.maxHp, p.grey);
     player_takeItem(&p, ITEM_GLASS_HEART);
-    CHECK(p.maxHp == 6 && p.hp == 6 && player_slashDamage(&p) == 2, "glass heart");
+    CHECK(p.maxHp == 4 && p.hp == 4 && p.grey == 2 && player_slashDamage(&p) == 2, "glass heart");
     player_takeItem(&p, ITEM_HEART);
-    CHECK(p.hp == 6, "heart capped at max");
+    CHECK(p.hp == 4 && p.grey == 2, "heart capped at max, the grey one kept");
+    for (int k = 0; k < 20; k++) player_takeItem(&p, ITEM_STONE_HEART);
+    CHECK(p.maxHp + p.grey == MAX_HEARTS * 2, "16 hearts at most (%d + %d)", p.maxHp, p.grey);
 
     // Lantern: 50 % more light; Void blood: drains twice as fast.
     player_init(&p, 60, 200);

@@ -150,26 +150,6 @@ static const char *const TRAP_ARROW[16] =
     "................",
 };
 
-static const char *const JAR[16] =
-{
-    "................",
-    "................",
-    "................",
-    ".....111111.....",
-    "......1331......",
-    ".....132231.....",
-    "....13222231....",
-    "...1322222231...",
-    "...1355555531...",
-    "...1322222231...",
-    "...1322222231...",
-    "...1355555531...",
-    "...1322222231...",
-    "....13333331....",
-    ".....111111.....",
-    "................",
-};
-
 // Empty space outside the circle: near-black violet with sparse specks (PAL3 colours 14, 6, 7).
 static const u32 VOID_TILE[8] =
 {
@@ -361,8 +341,6 @@ void gfx_load(void)
     VDP_loadTileData(buffer, GFX_TILE_RELIC, 4, CPU);
     VDP_loadTileData(SMALL_TILES[0], GFX_TILE_JELLY_SMALL, 3, CPU);
     VDP_loadTileData(COIN_TILE, GFX_TILE_COIN, 1, CPU);
-    artToTiles(JAR, plainPixel, 2, 2, buffer);
-    VDP_loadTileData(buffer, GFX_TILE_JAR, 4, CPU);
     artToTiles(HIT_SPARK, plainPixel, 2, 2, buffer);
     VDP_loadTileData(buffer, GFX_TILE_HIT, 4, CPU);
     artToTiles(TRAP_ARROW, plainPixel, 2, 2, buffer);

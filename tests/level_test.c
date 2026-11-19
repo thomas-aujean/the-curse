@@ -247,8 +247,8 @@ int main(void)
 
     // Keys: two lie on the ground of plain rooms; the locked chest only opens with one; the upgrade
     // room's door is a wall with a padlock until the player walks into it with a key.
-    // The stone heart (Thomas, 2026-11-18: "the grey hearts do not work"): one more heart, kept on
-    // the next floors, whether taken on its altar or bought.
+    // The stone heart (Thomas, 2026-11-19: "the grey hearts do not work"): a grey heart, over the red
+    // ones, kept on the next floors, lost first.
     int stones = 0;
     for (unsigned seed = 1; seed < 3000 && stones < 5; seed += 7)
     {
@@ -265,13 +265,21 @@ int main(void)
                 player_place(&p, lv.itemX, lv.itemY);
                 p.upPressed = 0;
                 level_update(&lv, &p);
-                CHECK(p.maxHp == before && lv.itemId == ITEM_STONE_HEART, "seed %u: taken without UP", seed);
+                CHECK(p.grey == 0 && lv.itemId == ITEM_STONE_HEART, "seed %u: taken without UP", seed);
                 p.upPressed = 1;
                 level_update(&lv, &p);
-                CHECK(p.maxHp == before + 2, "seed %u: stone heart: max %d -> %d", seed, before, p.maxHp);
+                CHECK(p.grey == 2 && p.maxHp == before, "seed %u: stone heart: grey %d max %d", seed, p.grey, p.maxHp);
                 level_start(&lv, &p, (u16) (seed + 1), 2);
                 level_enter(&lv, &p, lv.floor.startX, lv.floor.startY);
-                CHECK(p.maxHp == before + 2, "seed %u: stone heart lost on the next floor (%d)", seed, p.maxHp);
+                CHECK(p.grey == 2, "seed %u: grey heart lost on the next floor (%d)", seed, p.grey);
+                // A blow takes the grey heart first, then the red ones.
+                int hp = p.hp;
+                p.invulnerable = 0;
+                player_hurt(&p, 1, 0);
+                CHECK(p.grey == 1 && p.hp == hp, "seed %u: grey heart not first (grey %d hp %d)", seed, p.grey, p.hp);
+                p.invulnerable = 0;
+                player_hurt(&p, 2, 0);
+                CHECK(p.grey == 0 && p.hp == hp - 1, "seed %u: then the red (grey %d hp %d)", seed, p.grey, p.hp);
                 stones++;
                 x = FLOOR_W; y = FLOOR_H;
                 break;

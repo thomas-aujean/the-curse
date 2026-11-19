@@ -73,7 +73,7 @@ const char *codex_itemLine(u8 item)
     switch (item)
     {
         case ITEM_HEART: return "REND UN COEUR DE VIE";
-        case ITEM_STONE_HEART: return "+1 COEUR MAXIMUM, DEJA PLEIN";
+        case ITEM_STONE_HEART: return "UN COEUR GRIS, QUI PREND LES COUPS";
         case ITEM_WIND_BOOTS: return "COURSE NETTEMENT PLUS RAPIDE";
         case ITEM_RAVEN_WINGS: return "UN SECOND SAUT EN PLEIN AIR";
         case ITEM_LONG_BLADE: return "COUP D'EPEE PLUS LONG";
