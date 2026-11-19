@@ -166,7 +166,7 @@ static void placeChest(Level *lv, u8 x, u8 y)
     else if (type == ROOM_UPGRADE || type == ROOM_SECRET || type == ROOM_SUPER_SECRET)
     {
         kind = type == ROOM_UPGRADE ? PROP_CHEST_BRONZE : PROP_CHEST_SILVER;
-        cx = lv->itemX + 56;   // the small room: the altar in the middle, the chest on its right
+        cx = lv->room.w * ROOM_TILE / 2 + 56;   // the small room: right of the middle (the item, the way down)
         cy = lv->itemY;
     }
     else return;
@@ -326,6 +326,9 @@ static void enterRoom(Level *lv, Player *p, u8 x, u8 y, u8 enteredBy)
     codex_seeItem(lv->itemId);
     lv->itemX = t->wBlocks * 8;
     lv->itemY = (t->hBlocks - 2) * 16;
+    // Not over a way down (Thomas, 2026-11-19: an item on the trapdoor, or on the cracked floor of a
+    // secret room, and UP to take it opened the floor): left of the middle when there is one.
+    if ((level_doors(lv, x, y) | lv->floor.hidden[y][x]) & DOOR_DOWN) lv->itemX -= 56;
 
     // Breakable jars ('o'), unless already broken; coins left on the floor are lost.
     for (u8 i = 0; i < MAX_PICKUPS; i++) lv->pickups[i].type = PICKUP_NONE;
@@ -807,13 +810,18 @@ u8 level_update(Level *lv, Player *p)
     result |= breakProps(lv, p);
     result |= updatePickups(lv, p, ppx, ppy);
 
+    // The item on its altar: taken with UP, like everything else (Thomas: not just by walking over it).
     if (lv->itemId != ITEM_NONE && nearPlayer(lv->itemX, lv->itemY - 8, ppx, ppy))
     {
-        player_takeItem(p, lv->itemId);
-        lv->lastItem = lv->itemId;
-        lv->itemId = ITEM_NONE;
-        lv->taken[lv->cellY][lv->cellX] = 1;
-        result |= LEVEL_ITEM;
+        if (p->upPressed)
+        {
+            player_takeItem(p, lv->itemId);
+            lv->lastItem = lv->itemId;
+            lv->itemId = ITEM_NONE;
+            lv->taken[lv->cellY][lv->cellX] = 1;
+            result |= LEVEL_ITEM;
+        }
+        else result |= levelMessage(lv, MSG_TAKE);
     }
 
     if (lv->bossFight)

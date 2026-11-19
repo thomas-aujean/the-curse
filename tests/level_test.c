@@ -263,6 +263,10 @@ int main(void)
                 if (lv.itemId != ITEM_STONE_HEART) continue;
                 int before = p.maxHp;
                 player_place(&p, lv.itemX, lv.itemY);
+                p.upPressed = 0;
+                level_update(&lv, &p);
+                CHECK(p.maxHp == before && lv.itemId == ITEM_STONE_HEART, "seed %u: taken without UP", seed);
+                p.upPressed = 1;
                 level_update(&lv, &p);
                 CHECK(p.maxHp == before + 2, "seed %u: stone heart: max %d -> %d", seed, before, p.maxHp);
                 level_start(&lv, &p, (u16) (seed + 1), 2);
@@ -297,6 +301,10 @@ int main(void)
                               "seed %u (%d,%d): chest not on the ground", seed, x, y);
                     }
                 int want = type == ROOM_UPGRADE || type == ROOM_SECRET || type == ROOM_SUPER_SECRET;
+                // Nothing over a way down (the trapdoor, a cracked floor): the item, the chest.
+                if (lv.itemId != ITEM_NONE && ((level_doors(&lv, x, y) | lv.floor.hidden[y][x]) & DOOR_DOWN))
+                    CHECK(lv.itemX < lv.room.w * 4 - 24 || lv.itemX > lv.room.w * 4 + 24,
+                          "seed %u (%d,%d): item over the way down (x %d)", seed, x, y, lv.itemX);
                 CHECK(chests == want, "seed %u (%d,%d) type %d: %d chests", seed, x, y, type, chests);
                 chestRooms += want;
             }

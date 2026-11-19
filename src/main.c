@@ -153,6 +153,8 @@ static void newFloor(u16 seed)
     saveCodex();   // what was met so far is kept, whatever happens next
     // Floors 1-2 the forest, then outside by the graveyard, then the castle (Thomas, 2026-11-19).
     u8 world = depth <= 2 ? WORLD_FOREST : depth <= 6 ? WORLD_GRAVEYARD : WORLD_CASTLE;
+    VDP_setEnable(FALSE);   // its tiles load over the old ones: no jumble on screen (updateRoom turns it back on)
+    screenOff = 2;
     decor_setWorld(world);
     gfx_setWorld(world);
     level_start(&lv, &player, seed, depth);
@@ -163,8 +165,10 @@ static void updateMap(u16 pressed)
 {
     if (pressed & BUTTON_C)
     {
-        depth = depth % 6 + 1;
+        depth = depth % 7 + 1;   // every floor: 1-2 forest, 3-6 graveyard, 7 castle
         newFloor(random() ^ vtimer);
+        VDP_setEnable(TRUE);   // the pause screen stays on (newFloor turns the display off)
+        screenOff = 0;
         drawMap();
     }
     if (pressed & BUTTON_B)
@@ -1058,6 +1062,8 @@ static void drawDebug(void)
 static void enterRoom(void)
 {
     mode = MODE_ROOM;
+    VDP_setEnable(FALSE);   // the room's tiles reload: back on once its sprites are in (updateRoom)
+    screenOff = 2;
     VDP_setWindowVPos(FALSE, 0);
     VDP_setHilightShadow(TRUE);
     VDP_setScrollingMode(HSCROLL_LINE, VSCROLL_PLANE);
@@ -1227,13 +1233,20 @@ static void updateRoom(u16 pad, u16 pressed)
         return;
     }
     player_update(&player, &lv.room, pad);
+    u8 cellBefore = lv.cellY * FLOOR_W + lv.cellX;
     u8 events = level_update(&lv, &player);
     hitStop = lv.enemies.hitStop;
     lv.enemies.hitStop = 0;
     if (events & LEVEL_REDRAW)
     {
-        VDP_setEnable(FALSE);
-        screenOff = 2;   // back on once this frame's sprites went out at the next vertical blank
+        // Another room: the display off while its tiles load (back on once this frame's sprites went
+        // out). A door or a trapdoor opening in the same room just redraws it (Thomas: the black
+        // looked like a change of room).
+        if (lv.cellY * FLOOR_W + lv.cellX != cellBefore)
+        {
+            VDP_setEnable(FALSE);
+            screenOff = 2;
+        }
         drawRoom();
     }
     if (events & LEVEL_ITEM) showText2(player_itemName(lv.lastItem), player_itemPhrase(lv.lastItem));
